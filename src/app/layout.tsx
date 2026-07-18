@@ -19,7 +19,7 @@ export const viewport: Viewport = { themeColor: "#18584d", width: "device-width"
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ko">
-      <body>
+      <body suppressHydrationWarning>
         <a className="skip-link" href="#search">검색으로 바로가기</a>
         <PwaRegistration />
         {children}
