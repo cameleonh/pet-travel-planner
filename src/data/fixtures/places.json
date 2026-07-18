@@ -1,0 +1,15 @@
+{
+  "provider": "fixture",
+  "fetchedAt": "2026-07-15T00:00:00.000Z",
+  "places": [
+    { "id": "fixture-attraction-001", "name": "솔바람 산책정원", "category": "attraction", "address": "강원특별자치도 속초시 예시로 12", "coordinates": { "latitude": 38.201, "longitude": 128.591 }, "petPolicy": { "label": "반려동물 동반 안내", "sourceText": "소형견과 중형견 가능. 목줄 착용 시 야외 공간 동반 가능. 실내 전시관은 출입 제한.", "sourceUrl": "https://example.invalid/tourism/fixture-attraction-001", "observedAt": "2026-07-15T00:00:00.000Z" }, "amenities": ["outdoor", "parking"] },
+    { "id": "fixture-cafe-001", "name": "파도끝 테라스", "category": "cafe", "address": "강원특별자치도 속초시 예시해변길 8", "coordinates": { "latitude": 38.204, "longitude": 128.594 }, "petPolicy": { "label": "반려동물 동반 안내", "sourceText": "소형견 가능. 이동가방 사용 시 실내 가능, 테라스는 목줄 착용 후 이용 가능.", "sourceUrl": "https://example.invalid/tourism/fixture-cafe-001", "observedAt": "2026-07-15T00:00:00.000Z" }, "amenities": ["indoor", "outdoor", "carrier"] }
+  ],
+  "auxiliaryPlaces": [
+    { "id": "fixture-museum-001", "name": "바다생활박물관", "category": "museum", "address": "강원특별자치도 속초시 예시항로 20", "coordinates": { "latitude": 38.206, "longitude": 128.592 }, "petStatus": "unknown", "evidence": { "label": "공공 박물관 기본정보", "sourceText": "시설명, 주소, 위치 정보만 제공되며 반려동물 정책은 확인되지 않음.", "sourceUrl": "https://example.invalid/public/museum-001", "observedAt": "2026-07-15T00:00:00.000Z" } },
+    { "id": "fixture-vet-001", "name": "해오름 동물병원", "category": "veterinary", "address": "강원특별자치도 속초시 예시중앙로 3", "coordinates": { "latitude": 38.199, "longitude": 128.588 }, "petStatus": "confirmed", "evidence": { "label": "동물병원 기본정보", "sourceText": "동물진료기관으로 등록된 시설.", "sourceUrl": "https://example.invalid/public/vet-001", "observedAt": "2026-07-15T00:00:00.000Z" } },
+    { "id": "fixture-park-001", "name": "청초호 반려산책구간", "category": "park", "address": "강원특별자치도 속초시 예시호반길 5", "coordinates": { "latitude": 38.203, "longitude": 128.589 }, "petStatus": "confirmed", "evidence": { "label": "공원 이용안내", "sourceText": "목줄 착용 반려동물 산책 구간.", "sourceUrl": "https://example.invalid/public/park-001", "observedAt": "2026-07-15T00:00:00.000Z" } },
+    { "id": "fixture-parking-001", "name": "예시항 공영주차장", "category": "parking", "address": "강원특별자치도 속초시 예시항로 2", "coordinates": { "latitude": 38.205, "longitude": 128.593 }, "petStatus": "unknown", "evidence": { "label": "공영주차장 기본정보", "sourceText": "주차장 위치와 운영정보만 확인됨.", "sourceUrl": "https://example.invalid/public/parking-001", "observedAt": "2026-07-15T00:00:00.000Z" } },
+    { "id": "fixture-toilet-001", "name": "청초쉼터 공중화장실", "category": "toilet", "address": "강원특별자치도 속초시 예시쉼터길 1", "coordinates": { "latitude": 38.202, "longitude": 128.587 }, "petStatus": "unknown", "evidence": { "label": "공중화장실 기본정보", "sourceText": "시설 위치 정보만 확인됨.", "sourceUrl": "https://example.invalid/public/toilet-001", "observedAt": "2026-07-15T00:00:00.000Z" } }
+  ]
+}

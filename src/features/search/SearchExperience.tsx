@@ -1,0 +1,143 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
+import type { CatalogPage } from "@/data/catalog";
+import type { ConditionKey, SelectedConstraint } from "@/domain/types";
+import { ConditionPicker } from "@/features/search/ConditionPicker";
+import { PetProfilePanel } from "@/features/search/PetProfilePanel";
+import { DestinationPanel } from "@/features/search/DestinationPanel";
+import { ResultCard } from "@/features/results/ResultCard";
+import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
+import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
+import { CourseBuilder } from "@/features/course/CourseBuilder";
+
+const labels: Record<ConditionKey, string> = { outdoor: "야외 동반", indoor: "실내 동반", leash: "목줄 착용", carrier: "이동가방", smallDog: "소형견", mediumDog: "중형견", largeDog: "대형견" };
+
+function selected(key: ConditionKey, kind: SelectedConstraint["kind"]): SelectedConstraint {
+  return { key, label: labels[key], kind, protectedCategory: kind === "hard" ? "admission" : null };
+}
+
+type CatalogApiResponse = {
+  success: boolean;
+  data: { catalog: CatalogPage } | null;
+  error: { message: string } | null;
+};
+
+export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[] }) {
+  const [petSize, setPetSize] = useState<ConditionKey | null>(null);
+  const [petWeight, setPetWeight] = useState("");
+  const [dangerousDog, setDangerousDog] = useState(false);
+  const [region, setRegion] = useState("");
+  const [categories, setCategories] = useState<RawPlace["category"][]>([]);
+  const [hard, setHard] = useState<ConditionKey[]>([]);
+  const [preferences, setPreferences] = useState<ConditionKey[]>([]);
+  const [page, setPage] = useState(1);
+  const [catalog, setCatalog] = useState(initialCatalog);
+  const [catalogRequestKey, setCatalogRequestKey] = useState("||1||");
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const constraints = useMemo(() => [
+    ...(petSize ? [selected(petSize, "hard")] : []),
+    ...hard.map((key) => selected(key, "hard")),
+    ...preferences.map((key) => selected(key, "preference")),
+  ], [petSize, hard, preferences]);
+  const isBrowsing = constraints.length === 0;
+  const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
+  const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
+  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}`;
+  const catalogIsCurrent = catalogRequestKey === requestKey;
+  const exactPageResults = catalogIsCurrent ? catalog.results.filter((result) => result.exact) : [];
+  const referencePlace = exactPageResults[0]?.place ?? (catalogIsCurrent ? catalog.results[0]?.place : undefined);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const parameters = new URLSearchParams({ page: String(page) });
+    if (hardKeys.length > 0) parameters.set("hard", hardKeys.join(","));
+    if (preferenceKeys.length > 0) parameters.set("preferences", preferenceKeys.join(","));
+    if (region.trim()) parameters.set("region", region.trim());
+    if (categories.length > 0) parameters.set("categories", categories.join(","));
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      setLoading(true);
+      setErrorMessage(null);
+    });
+    fetch(`/api/places?${parameters}`, { signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json() as CatalogApiResponse;
+        if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "장소를 불러오지 못했어요.");
+        setCatalog(body.data.catalog);
+        setCatalogRequestKey(requestKey);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setErrorMessage("조건 결과를 새로 불러오지 못했어요. 잠시 후 조건을 다시 눌러주세요.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [hardKeys, preferenceKeys, page, region, categories, requestKey]);
+
+  const toggle = (items: ConditionKey[], key: ConditionKey, update: (next: ConditionKey[]) => void) => {
+    setPage(1);
+    update(items.includes(key) ? items.filter((item) => item !== key) : [...items, key]);
+  };
+  const selectSize = (key: ConditionKey | null) => {
+    setPage(1);
+    setPetSize(key);
+  };
+  const changeWeight = (value: string) => {
+    setPage(1);
+    setPetWeight(value);
+    const weight = Number(value);
+    if (!value || !Number.isFinite(weight) || weight <= 0) setPetSize(null);
+    else if (weight < 10) setPetSize("smallDog");
+    else if (weight < 25) setPetSize("mediumDog");
+    else setPetSize("largeDog");
+  };
+  const toggleCategory = (category: RawPlace["category"]) => {
+    setPage(1);
+    setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
+  };
+  const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
+
+  return (
+    <section className="search-workspace" id="search" aria-label="반려견 동반 장소 조건 검색">
+      <div className="control-panel">
+        <header className="control-heading">
+          <div><p className="section-kicker">장소 찾기</p><h2>어떤 곳을 찾고 있나요?</h2></div>
+          <p>크기와 조건을 고르면 전체 저장 데이터에서 바로 다시 찾아요.</p>
+        </header>
+        <aside className="filter-panel">
+          <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
+          <DestinationPanel region={region} selectedCategories={categories} onRegionChange={(value) => { setPage(1); setRegion(value); }} onToggleCategory={toggleCategory} />
+          <ConditionPicker hard={hard} preferences={preferences} onToggleHard={(key) => toggle(hard, key, setHard)} onTogglePreference={(key) => toggle(preferences, key, setPreferences)} />
+        </aside>
+      </div>
+      <div className="results-panel interactive-results" aria-busy={loading}>
+        <div className="result-heading">
+          <div><p className="section-kicker">{isBrowsing ? "전국 등록 장소" : "확인된 결과"}</p><h2>{!catalogIsCurrent ? "조건을 확인하고 있어요" : isBrowsing ? `${resultCount.toLocaleString("ko-KR")}곳을 둘러보세요` : resultCount > 0 ? `현재 ${resultCount.toLocaleString("ko-KR")}곳에서 가능을 확인했어요` : "아직 가능이 확인된 곳은 없어요"}</h2></div>
+          {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>곳</span></p> : null}
+        </div>
+        <p className="catalog-coverage">현재 필터에서 검색 가능한 {catalog.searchableCount.toLocaleString("ko-KR")}곳 · 전체 {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳 중 상세정보 수집 {catalog.detailCoverage.toLocaleString("ko-KR")}곳 · 수집 대기 {catalog.pendingDetailCount.toLocaleString("ko-KR")}곳</p>
+        {!isBrowsing && catalogIsCurrent ? <dl className="decision-summary" aria-label="조건 판정 현황">
+          <div><dt>가능 확인</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
+          <div><dt>불가 확인</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
+          <div><dt>정보 미확인</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
+        </dl> : null}
+        <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span>{region.trim()}</span> : null}{categories.map((category) => <span key={category}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 ? <span>전체 장소</span> : constraints.map((item) => <span key={`${item.key}-${item.kind}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}</div></div>
+        {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
+        {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
+        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
+        {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
+        <nav className="catalog-pagination" aria-label="장소 결과 페이지">
+          <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
+          <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
+          <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
+        </nav>
+      </div>
+      {referencePlace ? <div className="extensions">{auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}<CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace.coordinates} /></div> : null}
+    </section>
+  );
+}

@@ -1,0 +1,58 @@
+import { randomUUID } from "node:crypto";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { ProviderConfigurationError } from "@/data/providers/provider";
+import { loadPlaceSnapshot } from "@/data/providers";
+import { buildCatalogPage } from "@/data/catalog";
+import { rawPlaceSchema } from "@/data/contracts";
+import { conditionKeys, type ConditionKey, type SelectedConstraint } from "@/domain/types";
+
+const conditionSchema = z.enum(conditionKeys);
+const categorySchema = rawPlaceSchema.shape.category;
+const conditionListSchema = z.array(conditionSchema).max(conditionKeys.length).refine((keys) => new Set(keys).size === keys.length, "Duplicate conditions are not allowed.");
+const categoryListSchema = z.array(categorySchema).max(5).refine((keys) => new Set(keys).size === keys.length, "Duplicate categories are not allowed.");
+const conditionLabels: Record<ConditionKey, string> = {
+  outdoor: "야외 동반",
+  indoor: "실내 동반",
+  leash: "목줄 착용",
+  carrier: "이동가방",
+  smallDog: "소형견 가능",
+  mediumDog: "중형견 가능",
+  largeDog: "대형견 가능"
+};
+
+function parseConstraintList(raw: string | null, kind: SelectedConstraint["kind"]): SelectedConstraint[] {
+  if (!raw) return [];
+  return conditionListSchema.parse(raw.split(",").filter(Boolean)).map((key) => ({ key, label: conditionLabels[key], kind, protectedCategory: kind === "hard" ? "admission" : null }));
+}
+
+export async function GET(request: Request) {
+  const requestId = randomUUID();
+  try {
+    const { snapshot, dataSource, notice } = await loadPlaceSnapshot();
+    const url = new URL(request.url);
+    const legacyHard = url.searchParams.get("conditions");
+    const hard = parseConstraintList(url.searchParams.get("hard") ?? legacyHard, "hard");
+    const preferences = parseConstraintList(url.searchParams.get("preferences"), "preference");
+    const page = z.coerce.number().int().positive().max(10_000).default(1).parse(url.searchParams.get("page") ?? "1");
+    const region = z.string().trim().max(40).default("").parse(url.searchParams.get("region") ?? "");
+    const categoriesRaw = url.searchParams.get("categories");
+    const categories = categoriesRaw ? categoryListSchema.parse(categoriesRaw.split(",").filter(Boolean)) : [];
+    const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories });
+    return NextResponse.json({
+      success: true,
+      data: {
+        provider: snapshot.provider,
+        fetchedAt: snapshot.fetchedAt,
+        auxiliaryPlaces: snapshot.auxiliaryPlaces,
+        catalog,
+      },
+      error: null,
+      meta: { requestId, provider: snapshot.provider, dataSource, notice: notice ?? null },
+    }, { headers: { "Content-Language": "ko", "X-Request-Id": requestId } });
+  } catch (error) {
+    const configurationError = error instanceof ProviderConfigurationError;
+    const validationError = error instanceof z.ZodError;
+    return NextResponse.json({ success: false, data: null, error: { code: configurationError ? error.code : validationError ? "INVALID_QUERY" : "PROVIDER_UNAVAILABLE", message: configurationError ? "데이터 제공자 설정을 확인해 주세요." : validationError ? "지원하는 검색 조건을 확인해 주세요." : "장소 정보를 불러오지 못했습니다." }, meta: { requestId } }, { status: configurationError ? 503 : validationError ? 400 : 502, headers: { "Content-Language": "ko", "X-Request-Id": requestId } });
+  }
+}
