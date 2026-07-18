@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { loadPlaceSnapshot } from "@/data/providers";
 import { buildCatalogPage } from "@/data/catalog";
 import { SearchExperience } from "@/features/search/SearchExperience";
@@ -16,9 +17,41 @@ export default async function HomePage() {
       </header>
 
       <section className="intro" id="top">
-        <p className="eyebrow">반려견 동반 여행</p>
-        <h1>함께 갈 수 있는 곳만 골라볼게요</h1>
-        <p className="lede">반려견 크기와 필요한 조건을 고르면, 모두 맞는 장소만 추려요. 동반 규정도 원문으로 확인할 수 있어요.</p>
+        <div className="intro-copy">
+          <p className="eyebrow">반려견 동반 여행</p>
+          <h1>함께 갈 수 있는 곳만 골라볼게요</h1>
+          <p className="lede"><span className="keep-together">반려견 크기와 조건을 고르면,</span> <span className="keep-together">맞는 장소만 추려요.</span> <span className="keep-together">동반 규정은</span> 원문으로 확인할 수 있어요.</p>
+        </div>
+        <figure className="mascot-gallery" aria-label="같이갈개 마스코트의 여행 모습">
+          <span className="mascot-card">
+            <Image
+              src="/gachi-galgae-mascot.png"
+              alt="파란 모자를 쓰고 꽃과 함께 있는 같이갈개 마스코트"
+              width={1254}
+              height={1254}
+              sizes="(max-width: 767px) 30vw, 152px"
+              preload
+            />
+          </span>
+          <span className="mascot-card">
+            <Image
+              src="/gachi-galgae-mascot-ribbon.png"
+              alt="분홍 리본을 달고 있는 같이갈개 마스코트"
+              width={1254}
+              height={1254}
+              sizes="(max-width: 767px) 30vw, 152px"
+            />
+          </span>
+          <span className="mascot-card">
+            <Image
+              src="/gachi-galgae-mascot-walk.png"
+              alt="목줄을 하고 산책을 기다리는 같이갈개 마스코트"
+              width={1254}
+              height={1254}
+              sizes="(max-width: 767px) 30vw, 152px"
+            />
+          </span>
+        </figure>
       </section>
 
       {notice ? <p role="status" className="notice global-notice">{notice}</p> : null}

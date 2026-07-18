@@ -12,7 +12,7 @@ typography:
 ---
 
 **Status:** Task-first MVP visual system implemented and accessibility-checked; final competition artwork is deferred  
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-19
 
 ## 1. Design Read
 
@@ -49,6 +49,7 @@ References supply interaction principles, not a visual template. Runtime screens
 - **Structured softness:** rounded controls support touch, while cards remain mostly flat and bounded by spacing or subtle borders.
 - **Uncertainty is visible:** unknown and stale states use icon, label, and explanation.
 - **Photography earns space:** show place imagery where licensed; do not use decorative stock pets as a substitute for product information.
+- **Brand illustration stays subordinate:** the custom `같이갈개` mascot triptych may warm the compact introduction, but never displaces filters, exact counts, or evidence.
 
 ## 3. Token Architecture
 
@@ -158,7 +159,7 @@ Components use semantic tokens. Primitive scales exist only to define them.
 - Bundled Noto Sans KR is the Korean-first UI family, with Pretendard and system UI fallbacks.
 - Body: 16px/1.55; supporting text: 14px/1.5; labels: 12–14px/1.35.
 - Page title: 28–34px, weight 700; section title: 20–22px, weight 700; card title: 17–18px, weight 650.
-- Korean uses `word-break: keep-all` and safe overflow wrapping.
+- Korean uses `word-break: keep-all` and safe overflow wrapping; short semantic phrases may use `.keep-together` to preserve natural predicate and compound-noun units.
 - Headings and short descriptions use balanced wrapping; body paragraphs use readable measure up to 65ch.
 - Buttons, badges, chips, and navigation labels never wrap.
 
@@ -183,6 +184,7 @@ Components use semantic tokens. Primitive scales exist only to define them.
 ### Implemented product components
 
 - `PetProfilePanel`: three comparable radio choices with size ranges.
+- `BrandMascotGallery`: three responsive, non-animated square travel-moment illustrations in one prominent triptych; 480px maximum on tablet and desktop, full available content width on mobile up to the same cap, optimized through `next/image`.
 - `ConditionPicker`: hard-condition toggle group plus a separately labelled removable preference.
 - `MatchBar`: active hard conditions and preferences adjacent to the live exact count.
 - `ResultCard` and `MatchProof`: place identity, proof preview, evidence excerpt, and original-source handoff.

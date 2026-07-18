@@ -107,7 +107,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
       <div className="control-panel">
         <header className="control-heading">
           <div><p className="section-kicker">장소 찾기</p><h2>어떤 곳을 찾고 있나요?</h2></div>
-          <p>크기와 조건을 고르면 전체 저장 데이터에서 바로 다시 찾아요.</p>
+          <p>크기와 조건을 고르면 <span className="keep-together">전체 저장 데이터에서</span> <span className="keep-together">바로 다시 찾아요.</span></p>
         </header>
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
