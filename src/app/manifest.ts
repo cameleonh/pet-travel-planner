@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "함께갈지도",
-    short_name: "함께갈지도",
+    name: "같이갈개",
+    short_name: "같이갈개",
     description: "근거로 확인하는 반려동물 동반 여행",
     start_url: "/",
     display: "standalone",

@@ -2,7 +2,7 @@
 
 A verified Korean-first pet-travel PWA that returns only places satisfying every selected condition and shows the evidence for each match.
 
-The product name is `함께갈지도`; `pet-travel-planner` remains the repository name.
+The product name is `같이갈개`; `pet-travel-planner` remains the repository name.
 
 ## Core Promise
 

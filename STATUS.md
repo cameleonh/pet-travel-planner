@@ -118,7 +118,7 @@
 - Course generation consumes one exact-qualified result set and cannot requalify partial places.
 - Tourism data freshness is not real-time venue confirmation.
 - The implementation baseline is Next.js 16.2.10, React 19.2.7, TypeScript 6.0.3, Vitest 4.1.10, and ESLint 9.39.5.
-- The working product name is `함께갈지도`; final competition branding remains reversible.
+- The working product name is `같이갈개`; final competition branding remains reversible.
 - Routing provider and native-app scope remain reversible.
 
 ## Current Risks

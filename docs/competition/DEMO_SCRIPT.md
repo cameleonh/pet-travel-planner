@@ -1,4 +1,4 @@
-# Competition Demo Script — 함께갈지도
+# Competition Demo Script — 같이갈개
 
 **Duration:** 4–5 minutes  
 **Dataset:** deterministic sanitized fixture  

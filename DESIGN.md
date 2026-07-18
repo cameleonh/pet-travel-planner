@@ -245,7 +245,7 @@ Components use semantic tokens. Primitive scales exist only to define them.
 
 ## 12. Verified MVP Design Gate
 
-1. The product name is `함께갈지도`; the compact text mark remains replaceable submission artwork.
+1. The product name is `같이갈개`; the compact text mark remains replaceable submission artwork.
 2. Axe WCAG 2 A/AA reports no serious or critical violation in the primary flow.
 3. Keyboard state, skip navigation, 44px controls, visible focus, text-plus-color state, and reduced-motion behavior are implemented.
 4. Default screens were observed at 320, 390, 768, 1024, and 1440px; zero-result recovery was also observed at 390px.

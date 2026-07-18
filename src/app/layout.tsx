@@ -8,9 +8,9 @@ import "@fontsource/noto-sans-kr/800.css";
 import "@/app/globals.css";
 
 export const metadata: Metadata = {
-  title: "함께갈지도 — 반려견과 갈 수 있는 곳 찾기",
+  title: "같이갈개 — 반려견과 갈 수 있는 곳 찾기",
   description: "반려견 크기와 필요한 조건을 고르면 모두 맞는 장소와 확인 근거를 보여드려요.",
-  applicationName: "함께갈지도",
+  applicationName: "같이갈개",
   icons: { icon: "/icon.svg", apple: "/icon.svg" }
 };
 

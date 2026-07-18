@@ -1,7 +1,7 @@
 # Product Requirements Document — Pet Travel Planner
 
 **Working title:** Pet Travel Planner  
-**Product name:** 함께갈지도  
+**Product name:** 같이갈개<br>
 **Status:** Competition MVP implemented and verified; post-MVP requirements are explicitly separated  
 **Last updated:** 2026-07-16  
 **Primary audience:** Korean pet guardians planning local trips
@@ -230,7 +230,7 @@ The highest stable test seam is the normalized place record plus a query contrac
 - Keep deterministic normalization and matching separate from ambiguous text interpretation.
 - Store raw source payloads and interpretation evidence so parsing can be audited and re-run.
 - Treat course generation as a consumer of exact search, never an alternate qualification path.
-- Keep the product name `함께갈지도`; final iconography and submission artwork remain reversible.
+- Keep the product name `같이갈개`; final iconography and submission artwork remain reversible.
 
 ## 15. Primary References
 

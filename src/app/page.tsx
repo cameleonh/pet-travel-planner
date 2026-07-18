@@ -11,7 +11,7 @@ export default async function HomePage() {
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="함께갈지도 홈"><span aria-hidden="true">같이</span>함께갈지도</a>
+        <a className="brand" href="#top" aria-label="같이갈개 홈"><span aria-hidden="true">같이</span>갈개</a>
         <span className="data-badge">{dataLabel} · {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳</span>
       </header>
 
