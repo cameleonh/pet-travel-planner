@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "같이갈개",
     short_name: "같이갈개",
-    description: "근거로 확인하는 반려동물 동반 여행",
+    description: "같이갈개, 함께라서 더 가치 있는 여행",
     start_url: "/",
     display: "standalone",
     background_color: "#f6faf8",

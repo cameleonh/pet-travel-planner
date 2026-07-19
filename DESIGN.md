@@ -228,6 +228,8 @@ Components use semantic tokens. Primitive scales exist only to define them.
 
 ## 10. Content Style
 
+- Brand descriptor: `반려견과 함께 갈 수 있는 곳`
+- Brand slogan: `같이갈개, 함께라서 더 가치 있는 여행`
 - Use direct Korean UI copy, short verbs, and concrete condition names.
 - Say “확인되지 않았어요” rather than implying a policy.
 - Say “필수 조건은 그대로 유지돼요” in no-result recovery.
