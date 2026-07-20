@@ -67,6 +67,26 @@ main { min-height: 100dvh; }
 }
 .skip-link:focus { transform: translateY(0); }
 
+.owner-page { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: var(--canvas); }
+.owner-card { width: min(100%, 720px); padding: clamp(24px, 5vw, 48px); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.owner-card h1 { margin: 0 0 12px; font-size: clamp(24px, 5vw, 40px); line-height: 1.2; }
+.owner-card h2 { margin: 0; font-size: 18px; }
+.owner-card p { color: var(--muted); }
+.owner-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.owner-form { display: grid; gap: 12px; margin-top: 16px; }
+.owner-form label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.owner-form input, .owner-form select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
+.primary-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 10px 16px; border: 0; border-radius: var(--radius-md); background: var(--brand); color: white; font-weight: 800; text-decoration: none; cursor: pointer; }
+.text-link { display: inline-block; margin-top: 14px; color: var(--brand-strong); font-weight: 700; }
+.text-button { padding: 4px 0; border: 0; background: transparent; color: var(--brand-strong); font-size: 13px; font-weight: 700; cursor: pointer; }
+.owner-notice { padding: 12px; border-left: 3px solid var(--brand); background: var(--brand-soft); }
+.owner-list { display: grid; gap: 8px; padding: 0; margin: 16px 0 0; list-style: none; }
+.owner-list li { display: flex; min-height: 44px; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-subtle); }
+.owner-list small { color: var(--muted); }
+.owner-empty { margin-bottom: 0; font-size: 13px; }
+.closure-status { display: grid; gap: 2px; margin: 10px 0; padding: 9px 11px; border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--muted); font-size: 11px; }
+.closure-status strong { color: var(--ink); font-size: 12px; }
+
 .topbar {
   position: sticky;
   top: 0;

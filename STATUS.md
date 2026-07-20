@@ -136,6 +136,14 @@
 
 Increase confirmed pet-detail coverage through resumable scheduled enrichment and an approved production traffic quota, without allowing unknown records to pass exact conditions.
 
+## Latest Diagnostic Note (2026-07-21)
+
+- The current latest snapshot contains 9,764 source places, but only 3,281 have fetched pet-detail records; 6,064 remain not-fetched and 419 are failed.
+- The displayed dog-size counts are exact evidence-backed matches within those 3,281 fetched records, not a complete size classification: small dog 304, medium dog 283, large dog 278.
+- For the current normalized data, the size sets are nested: 278 places pass all three sizes, 5 pass small+medium but not large, and 21 pass small only.
+- The remaining records are intentionally `unknown` unless the source explicitly supports the selected size. Current unknown/false splits are small `2,977/0`, medium `2,991/7`, and large `2,975/28`.
+- Before competition submission, finish detail enrichment and consider relabeling the UI counts as “명시적으로 가능 확인” so they are not read as nationwide totals. Review additional Korean policy phrasing only after coverage is complete.
+
 ## Continuity Evidence
 
 - Completed documentation record: `devlog/_fin/260716_product_foundation/000_plan.md`

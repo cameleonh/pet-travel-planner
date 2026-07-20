@@ -7,7 +7,7 @@ import type { ConditionKey, SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
-import { ResultCard } from "@/features/results/ResultCard";
+import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultCard";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
@@ -24,6 +24,8 @@ type CatalogApiResponse = {
   error: { message: string } | null;
 };
 
+type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
+
 export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[] }) {
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
@@ -37,6 +39,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [catalogRequestKey, setCatalogRequestKey] = useState("||1||");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
   const constraints = useMemo(() => [
     ...(petSize ? [selected(petSize, "hard")] : []),
     ...hard.map((key) => selected(key, "hard")),
@@ -67,6 +70,10 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         const body = await response.json() as CatalogApiResponse;
         if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "장소를 불러오지 못했어요.");
         setCatalog(body.data.catalog);
+        const closureParameters = new URLSearchParams({ ids: body.data.catalog.results.map((result) => result.place.id).join(",") });
+        const closureResponse = await fetch(`/api/places/closures?${closureParameters}`, { signal: controller.signal });
+        const closureBody = await closureResponse.json() as ClosureApiResponse;
+        if (closureResponse.ok && closureBody.success) setClosureByPlaceId(Object.fromEntries(Object.entries(closureBody.closures).map(([placeId, closures]) => [placeId, { closures }])));
         setCatalogRequestKey(requestKey);
       })
       .catch((error: unknown) => {
@@ -120,16 +127,16 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           <div><p className="section-kicker">{isBrowsing ? "전국 등록 장소" : "확인된 결과"}</p><h2>{!catalogIsCurrent ? "조건을 확인하고 있어요" : isBrowsing ? `${resultCount.toLocaleString("ko-KR")}곳을 둘러보세요` : resultCount > 0 ? `현재 ${resultCount.toLocaleString("ko-KR")}곳에서 가능을 확인했어요` : "아직 가능이 확인된 곳은 없어요"}</h2></div>
           {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>곳</span></p> : null}
         </div>
-        <p className="catalog-coverage">현재 필터에서 검색 가능한 {catalog.searchableCount.toLocaleString("ko-KR")}곳 · 전체 {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳 중 상세정보 수집 {catalog.detailCoverage.toLocaleString("ko-KR")}곳 · 수집 대기 {catalog.pendingDetailCount.toLocaleString("ko-KR")}곳</p>
+        <p className="catalog-coverage">현재 상세정보 확인 가능 {catalog.searchableCount.toLocaleString("ko-KR")}곳 · 전국 원천 {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳 · 상세 수집률 {catalog.sourceTotalCount > 0 ? ((catalog.detailCoverage / catalog.sourceTotalCount) * 100).toFixed(1) : "0.0"}% · 미수집 {catalog.pendingDetailCount.toLocaleString("ko-KR")}곳 · 실패 {catalog.failedDetailCount.toLocaleString("ko-KR")}곳</p>
         {!isBrowsing && catalogIsCurrent ? <dl className="decision-summary" aria-label="조건 판정 현황">
-          <div><dt>가능 확인</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
+          <div><dt>가능 명시 확인</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
           <div><dt>불가 확인</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
           <div><dt>정보 미확인</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
         </dl> : null}
         <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span>{region.trim()}</span> : null}{categories.map((category) => <span key={category}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 ? <span>전체 장소</span> : constraints.map((item) => <span key={`${item.key}-${item.kind}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}</div></div>
         {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
-        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
+        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
         {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
         <nav className="catalog-pagination" aria-label="장소 결과 페이지">
           <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>

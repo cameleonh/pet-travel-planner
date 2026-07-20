@@ -6,7 +6,7 @@ test("official database snapshot supports mobile destination, profile, proof, an
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "1,000곳을 둘러보세요" })).toBeVisible();
-  await expect(page.getByText(/전체 9,764곳 중 상세정보 수집 1,000곳 · 수집 대기 8,764곳/)).toBeVisible();
+  await expect(page.getByText(/전국 원천 9,764곳 · 상세 수집률 10.2% · 미수집 8,764곳 · 실패 0곳/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "근처에 같이 들를 곳" })).toHaveCount(0);
 
   await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("서울");

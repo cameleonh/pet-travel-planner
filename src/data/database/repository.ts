@@ -5,6 +5,24 @@ import Database from "better-sqlite3";
 import { providerSnapshotSchema, type ProviderSnapshot } from "@/data/contracts";
 import { migrations } from "@/data/database/schema";
 
+export function applyMigrations(db: Database.Database): void {
+  db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT");
+  const applied = new Set(
+    db.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map((row) => (row as { version: number }).version),
+  );
+  for (const migration of migrations) {
+    if (applied.has(migration.version)) continue;
+    db.transaction(() => {
+      db.exec(migration.up);
+      db.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+        migration.version,
+        migration.name,
+        new Date().toISOString(),
+      );
+    })();
+  }
+}
+
 type PlaceRow = {
   place_id: string;
   name: string;
@@ -60,21 +78,7 @@ export class SqlitePlaceRepository {
   }
 
   private applyMigrations(): void {
-    this.db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT");
-    const applied = new Set(
-      this.db.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map((row) => (row as { version: number }).version),
-    );
-    for (const migration of migrations) {
-      if (applied.has(migration.version)) continue;
-      this.db.transaction(() => {
-        this.db.exec(migration.up);
-        this.db.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
-          migration.version,
-          migration.name,
-          new Date().toISOString(),
-        );
-      })();
-    }
+    applyMigrations(this.db);
   }
 
   startSync(provider: ProviderSnapshot["provider"]): number {

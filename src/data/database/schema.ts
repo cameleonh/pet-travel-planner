@@ -107,4 +107,71 @@ export const migrations: readonly Migration[] = [
       ALTER TABLE source_snapshots DROP COLUMN source_total_count;
     `,
   },
+  {
+    version: 3,
+    name: "owner_portal",
+    up: `
+      CREATE TABLE owner_users (
+        id TEXT PRIMARY KEY,
+        google_subject TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        avatar_url TEXT,
+        role TEXT NOT NULL CHECK (role IN ('traveler', 'pending_owner', 'owner', 'admin')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE owner_sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES owner_users(id) ON DELETE CASCADE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE place_claims (
+        id TEXT PRIMARY KEY,
+        place_id TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES owner_users(id) ON DELETE CASCADE,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+        business_phone TEXT,
+        note TEXT,
+        created_at TEXT NOT NULL,
+        reviewed_at TEXT,
+        UNIQUE (place_id, user_id)
+      ) STRICT;
+
+      CREATE TABLE place_closures (
+        id TEXT PRIMARY KEY,
+        place_id TEXT NOT NULL,
+        owner_user_id TEXT NOT NULL REFERENCES owner_users(id) ON DELETE CASCADE,
+        closure_kind TEXT NOT NULL CHECK (closure_kind IN ('weekly', 'date')),
+        weekday INTEGER CHECK (weekday IS NULL OR weekday BETWEEN 0 AND 6),
+        closure_date TEXT,
+        reason TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK (
+          (closure_kind = 'weekly' AND weekday IS NOT NULL AND closure_date IS NULL)
+          OR (closure_kind = 'date' AND weekday IS NULL AND closure_date IS NOT NULL)
+        )
+      ) STRICT;
+
+      CREATE INDEX idx_owner_sessions_expiry ON owner_sessions(expires_at);
+      CREATE INDEX idx_place_claims_user ON place_claims(user_id, status);
+      CREATE INDEX idx_place_claims_place ON place_claims(place_id, status);
+      CREATE INDEX idx_place_closures_place ON place_closures(place_id, active, closure_kind);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_place_closures_place;
+      DROP INDEX IF EXISTS idx_place_claims_place;
+      DROP INDEX IF EXISTS idx_place_claims_user;
+      DROP INDEX IF EXISTS idx_owner_sessions_expiry;
+      DROP TABLE IF EXISTS place_closures;
+      DROP TABLE IF EXISTS place_claims;
+      DROP TABLE IF EXISTS owner_sessions;
+      DROP TABLE IF EXISTS owner_users;
+    `,
+  },
 ];

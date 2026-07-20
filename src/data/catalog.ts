@@ -16,6 +16,7 @@ export type CatalogPage = {
   searchableCount: number;
   detailCoverage: number;
   pendingDetailCount: number;
+  failedDetailCount: number;
   filteredCount: number;
   confirmedMatchCount: number;
   confirmedNonMatchCount: number;
@@ -38,6 +39,8 @@ export type CatalogQuery = {
 
 export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery): CatalogPage {
   const detailPlaces = snapshot.places.filter((place) => (place.petDetailStatus ?? "fetched") === "fetched");
+  const pendingDetailCount = snapshot.places.filter((place) => place.petDetailStatus === "not-fetched").length;
+  const failedDetailCount = snapshot.places.filter((place) => place.petDetailStatus === "failed").length;
   const region = query.region?.trim().toLocaleLowerCase("ko-KR") ?? "";
   const categories = new Set(query.categories ?? []);
   const filteredPlaces = detailPlaces.filter((place) => {
@@ -65,7 +68,8 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
     sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
     searchableCount: places.length,
     detailCoverage: detailPlaces.length,
-    pendingDetailCount: snapshot.places.length - detailPlaces.length,
+    pendingDetailCount,
+    failedDetailCount,
     filteredCount: candidates.length,
     confirmedMatchCount,
     confirmedNonMatchCount,

@@ -237,3 +237,25 @@ The highest stable test seam is the normalized place record plus a query contrac
 - [Korea Tourism Organization Pet Travel Service](https://www.data.go.kr/data/15135102/openapi.do) — official API catalog; accessed 2026-07-16.
 - [Korea Tourism Organization Korean Tourism Information Service](https://www.data.go.kr/data/15101578/openapi.do) — official general tourism API catalog; accessed 2026-07-16.
 - [2026 Pet Travel API operation changes](https://www.data.go.kr/bbs/ntc/selectNotice.do?originId=NOTICE_0000000004471) — official endpoint-change notice; accessed 2026-07-16.
+- [2026 Pet Travel API operation changes](https://www.data.go.kr/bbs/ntc/selectNotice.do?originId=NOTICE_0000000004471) ??official endpoint-change notice; accessed 2026-07-16.
+
+## 16. Operator Portal and Closure Semantics (P1)
+
+The first operator workflow is intentionally small: an operator signs in with Google, claims a tourism place, and after approval records regular closed weekdays and temporary closure dates. Operators do not enter daily open status. A missing closure record is displayed as “no registered closure” and never as a guaranteed-open signal.
+
+Roles are `traveler`, `pending_owner`, `owner`, and `admin`. Google identity proves account ownership but does not grant control of a place by itself. A claim must be approved before closure data can be edited. Every closure record keeps the operator, timestamp, reason, and active/inactive history so the public result can show provenance and last update time.
+
+Required routes:
+
+- `/owner/login` — Google OAuth entry point
+- `/owner/places` — claim status and closure management
+- `/api/places/:placeId/closures` — public closure summary with an explicit “visit confirmation recommended” interpretation
+
+## 17. Separate Support-Facility Data (P1)
+
+Animal hospitals and pet-supply stores are auxiliary trip-support data, not tourism destinations and not pet-admission evidence. They must remain behind a separate user selector so they cannot be confused with exact tourism matches.
+
+- Animal hospitals: use the [Ministry of the Interior and Safety animal hospital lookup API](https://www.data.go.kr/data/15154952/openapi.do) as the nationwide source; retain hospital name, address, business status, license date, coordinates when available, source URL, and observation time.
+- Pet-supply stores: use a configured [Kakao Local API](https://developers.kakao.com/docs/ko/local/dev-guide) keyword search (`동물용품점`, `애견용품`, `펫샵`) or a documented local-government dataset; retain store name, address, phone, coordinates, map URL, provider, and observation time. Product price, inventory, and delivery are explicitly out of scope.
+
+Support-facility records are shown in separate “nearby hospital” and “nearby supplies” modes, each with its own freshness and source label. Until API credentials and an ingestion job are configured, the product must not imply nationwide coverage.
