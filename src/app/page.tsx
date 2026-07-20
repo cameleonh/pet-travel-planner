@@ -13,7 +13,7 @@ export default async function HomePage() {
     <main>
       <header className="topbar">
         <a className="brand" href="#top" aria-label="같이갈개 홈"><span aria-hidden="true">같이</span>갈개</a>
-        <span className="data-badge">{dataLabel} · {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳</span>
+        {dataSource !== "fixture" ? <span className="data-badge">{dataLabel} · {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳</span> : null}
       </header>
 
       <section className="intro" id="top">
