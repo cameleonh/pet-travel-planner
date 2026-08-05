@@ -174,4 +174,54 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS owner_users;
     `,
   },
+  {
+    version: 4,
+    name: "accessibility_enrichment",
+    up: `
+      CREATE TABLE place_accessibility (
+        place_id TEXT NOT NULL,
+        snapshot_id INTEGER NOT NULL REFERENCES source_snapshots(id) ON DELETE CASCADE,
+        fetched_at TEXT NOT NULL,
+        -- 지체장애
+        parking TEXT,
+        publictransport TEXT,
+        route TEXT,
+        ticketoffice TEXT,
+        promotion TEXT,
+        wheelchair TEXT,
+        exit TEXT,
+        elevator TEXT,
+        restroom TEXT,
+        auditorium TEXT,
+        room TEXT,
+        handicapetc TEXT,
+        -- 시각장애
+        braileblock TEXT,
+        helpdog TEXT,
+        guidehuman TEXT,
+        audioguide TEXT,
+        bigprint TEXT,
+        brailepromotion TEXT,
+        guidesystem TEXT,
+        blindhandicapetc TEXT,
+        -- 청각장애
+        signguide TEXT,
+        videoguide TEXT,
+        hearingroom TEXT,
+        hearinghandicapetc TEXT,
+        -- 영유아가족
+        stroller TEXT,
+        lactationroom TEXT,
+        babysparechair TEXT,
+        infantsfamilyetc TEXT,
+        PRIMARY KEY (place_id, snapshot_id)
+      ) STRICT;
+
+      CREATE INDEX idx_place_accessibility_place ON place_accessibility(place_id);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_place_accessibility_place;
+      DROP TABLE IF EXISTS place_accessibility;
+    `,
+  },
 ];

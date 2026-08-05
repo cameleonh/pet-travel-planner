@@ -246,4 +246,38 @@ export class SqlitePlaceRepository {
   close(): void {
     this.db.close();
   }
+
+  saveAccessibility(snapshotId: number, placeId: string, fetchedAt: string, detail: Record<string, string | undefined>): void {
+    const columns = ["place_id", "snapshot_id", "fetched_at", ...Object.keys(detail)];
+    const placeholders = columns.map(() => "?").join(", ");
+    const values = [placeId, snapshotId, fetchedAt, ...Object.values(detail)];
+    this.db.prepare(
+      `INSERT OR REPLACE INTO place_accessibility (${columns.join(", ")}) VALUES (${placeholders})`,
+    ).run(...values);
+  }
+
+  loadAccessibility(placeId: string): Record<string, string | undefined> | null {
+    const row = this.db.prepare(
+      `SELECT * FROM place_accessibility WHERE place_id = ? ORDER BY snapshot_id DESC LIMIT 1`,
+    ).get(placeId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    const { place_id, snapshot_id, fetched_at, ...fields } = row;
+    const result: Record<string, string | undefined> = {};
+    for (const [key, value] of Object.entries(fields)) {
+      result[key] = typeof value === "string" ? value : undefined;
+    }
+    return result;
+  }
+
+  getAccessibilityCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM place_accessibility").get() as { count: number };
+    return result.count;
+  }
+
+  getLatestSnapshotId(): number | null {
+    const row = this.db.prepare(
+      `SELECT s.id FROM sync_runs r JOIN source_snapshots s ON s.id = r.snapshot_id WHERE r.status = 'success' ORDER BY r.finished_at DESC, r.id DESC LIMIT 1`,
+    ).get() as { id: number } | undefined;
+    return row?.id ?? null;
+  }
 }
