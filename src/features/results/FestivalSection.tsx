@@ -1,0 +1,45 @@
+export type FestivalData = {
+  contentId: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  startDateFormatted: string;
+  endDateFormatted: string;
+  ongoing: boolean;
+  address: string | null;
+  tel: string | null;
+  imageUrl: string | null;
+  mapx: string | null;
+  mapy: string | null;
+};
+
+export function FestivalSection({ festivals }: { festivals: FestivalData[] }) {
+  if (festivals.length === 0) return null;
+
+  const ongoing = festivals.filter((f) => f.ongoing);
+  const upcoming = festivals.filter((f) => !f.ongoing);
+  const sorted = [...ongoing, ...upcoming];
+
+  return (
+    <div className="festival-section">
+      <h3 className="festival-section-title">🎪 이번 달 축제 · 행사 <span className="festival-count">{festivals.length}개</span></h3>
+      <p className="festival-section-desc">한국관광공사 관광정보 서비스 · 반려동물 동반 가능 여부는 축제 홈페이지에서 확인해 주세요</p>
+      <ul className="festival-list">
+        {sorted.slice(0, 8).map((festival) => (
+          <li key={festival.contentId} className={`festival-item ${festival.ongoing ? "festival-ongoing" : "festival-upcoming"}`}>
+            <div className="festival-header">
+              <strong className="festival-name">{festival.title}</strong>
+              {festival.ongoing ? <span className="festival-badge festival-badge-live">진행 중</span> : <span className="festival-badge festival-badge-soon">예정</span>}
+            </div>
+            <div className="festival-meta">
+              <span>📅 {festival.startDateFormatted} ~ {festival.endDateFormatted}</span>
+              {festival.address ? <span>📍 {festival.address.split(" ").slice(0, 2).join(" ")}</span> : null}
+            </div>
+            {festival.tel ? <div className="festival-tel">📞 {festival.tel}</div> : null}
+          </li>
+        ))}
+      </ul>
+      {festivals.length > 8 ? <p className="festival-more">외 {festivals.length - 8}개 축제 더 있어요</p> : null}
+    </div>
+  );
+}

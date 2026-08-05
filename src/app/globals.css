@@ -465,6 +465,22 @@ h1 {
 .trail-gpx { display: inline-flex; min-height: 36px; align-items: center; margin-top: 6px; color: var(--brand); font-size: 12px; font-weight: 700; text-underline-offset: 3px; }
 .trail-more { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
 
+.festival-section { margin: 20px 0 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.festival-section-title { font-size: 14px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; gap: 6px; }
+.festival-count { font-size: 11px; color: var(--muted); background: var(--card); padding: 2px 8px; border-radius: 4px; }
+.festival-section-desc { font-size: 11px; color: var(--muted); margin: 0 0 12px; }
+.festival-list { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
+.festival-item { padding: 10px 12px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); }
+.festival-ongoing { border-left: 3px solid var(--brand); }
+.festival-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.festival-name { font-size: 13px; font-weight: 700; }
+.festival-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
+.festival-badge-live { background: rgba(74,222,128,0.15); color: #4ade80; }
+.festival-badge-soon { background: rgba(139,143,153,0.15); color: var(--muted); }
+.festival-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.festival-tel { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.festival-more { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
+
 .zero-state {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);

@@ -11,6 +11,7 @@ import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultC
 import type { AccessibilityData } from "@/features/results/AccessibilitySection";
 import type { CampingData } from "@/features/results/CampingSection";
 import { TrailSection, type TrailData } from "@/features/results/TrailSection";
+import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
@@ -46,6 +47,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
   const [trails, setTrails] = useState<TrailData[]>([]);
+  const [festivals, setFestivals] = useState<FestivalData[]>([]);
   const constraints = useMemo(() => [
     ...(petSize ? [selected(petSize, "hard")] : []),
     ...hard.map((key) => selected(key, "hard")),
@@ -101,6 +103,18 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         } else {
           setTrails([]);
         }
+        // Fetch festivals (live API, next 30 days, optionally filtered by region)
+        try {
+          const festivalParams = new URLSearchParams();
+          if (region.trim()) festivalParams.set("region", region.trim());
+          const festivalResponse = await fetch(`/api/festivals?${festivalParams}`, { signal: controller.signal });
+          const festivalBody = await festivalResponse.json() as { success: boolean; data?: { festivals: FestivalData[] } };
+          if (festivalResponse.ok && festivalBody.success && festivalBody.data) {
+            setFestivals(festivalBody.data.festivals as FestivalData[]);
+          } else {
+            setFestivals([]);
+          }
+        } catch { setFestivals([]); }
         setCatalogRequestKey(requestKey);
       })
       .catch((error: unknown) => {
@@ -166,6 +180,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
         {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
         {catalogIsCurrent && region.trim() && trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} /> : null}
+        {catalogIsCurrent && festivals.length > 0 ? <FestivalSection festivals={festivals} /> : null}
         <nav className="catalog-pagination" aria-label="장소 결과 페이지">
           <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
           <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
