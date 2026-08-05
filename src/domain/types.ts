@@ -14,7 +14,7 @@ export type ConditionEvidence = {
   sourceUrl: string;
   observedAt: string;
   excerpt: string;
-  evidenceClass: "source-explicit" | "source-derived";
+  evidenceClass: "source-explicit" | "source-derived" | "inferred-from-general-admission";
 };
 
 export type ConditionFact = {

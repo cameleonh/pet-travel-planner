@@ -104,6 +104,25 @@ function applyWeightAllowance(place: RawPlace, text: string, facts: Record<Condi
   }
 }
 
+const generalAdmissionPattern = /동반\s*가능/;
+const explicitSizeFalsePattern = /(?:소형견|중형견|대형견).{0,8}(불가|제한|금지)/;
+const weightOrAgeLimitPattern = /(?:\d+(?:\.\d+)?\s*(?:kg|㎏|킬로그램))|(?:\d+\s*(?:개월|살|세))/i;
+
+function applyGeneralAdmissionFallback(place: RawPlace, text: string, facts: Record<ConditionKey, ConditionFact>): void {
+  if (!generalAdmissionPattern.test(text)) return;
+  if (explicitSizeFalsePattern.test(text)) return;
+  if (weightOrAgeLimitPattern.test(text)) return;
+  for (const key of dogSizeKeys) {
+    if (facts[key].value === "unknown") {
+      facts[key] = fact(
+        key,
+        "true",
+        evidenceFor(place, "반려동물 동반 가능 명시 (전 견종 제한 없음)", "inferred-from-general-admission"),
+      );
+    }
+  }
+}
+
 export function normalizePlace(place: RawPlace): NormalizedPlace {
   const facts = Object.fromEntries(conditionKeys.map((key) => [key, fact(key, "unknown", null)])) as Record<ConditionKey, ConditionFact>;
   const text = place.petPolicy.sourceText.replace(/\r?\n+/g, ". ").replace(/[\t ]+/g, " ").trim();
@@ -130,6 +149,11 @@ export function normalizePlace(place: RawPlace): NormalizedPlace {
   }
 
   applyWeightAllowance(place, text, facts);
+
+  // Fallback: if no specific size rule matched but the source explicitly states
+  // general pet admission (e.g., "동반 가능", "출입 가능"), promote unknown dog-size
+  // facts to true. Explicit false values (e.g., "대형견 불가") are preserved.
+  applyGeneralAdmissionFallback(place, text, facts);
 
   if (place.amenities.includes("outdoor") && facts.outdoor.value === "unknown") {
     facts.outdoor = fact("outdoor", "true", evidenceFor(place, "amenities: outdoor", "source-explicit"));
