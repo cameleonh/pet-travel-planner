@@ -1,6 +1,6 @@
 # Project Status
 
-**As of:** 2026-07-31
+**As of:** 2026-08-05
 **Current objective:** Present complete-catalog filter outcomes truthfully while preserving strict evidence-backed matching, then expand confirmed pet-detail coverage without exceeding the upstream quota.
 
 ## State Ledger
@@ -58,6 +58,9 @@
 
 ### Verified
 
+- On 2026-08-05, `npm run db:sync:daily` completed successfully as run 30 / snapshot 13 after creating backup `pet-travel-2026-08-05T11-59-10-599Z.sqlite`. It used 910 official requests and increased fetched pet-detail coverage from 8,555 to 9,449. The not-fetched queue is fully exhausted (646 → 0); failed rows decreased from 500 to 246.
+- Snapshot 13 reconciles exactly to 9,695 places: 9,449 fetched, 0 not-fetched, and 246 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
+- On 2026-08-05, Next.js was upgraded from 16.2.10 to 16.3.0 and the postcss override from 8.5.19 to 8.5.25, resolving 3 moderate advisories (GHSA-fxqj-rqcc-2cmp). Lint, typecheck, 63 Vitest tests, the production build, and `npm audit --audit-level=moderate` (0 vulnerabilities) all passed.
 - On 2026-07-31, `npm run db:sync:daily` completed successfully as run 29 / snapshot 12 after creating backup `pet-travel-2026-07-30T15-21-29-477Z.sqlite`. It used 910 official requests and increased fetched pet-detail coverage from 7,655 to 8,555.
 - Snapshot 12 reconciles exactly to 9,701 places: 8,555 fetched, 646 not-fetched, and 500 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
 - On 2026-07-30, a production-shaped 1,000-row official catalog probe returned HTTP 200 in 9.34 seconds, proving the previous fixed 8-second request timeout could cancel a valid response. A regression test failed with the observed 8,000 ms timeout before the repair, and the provider suite passed 22/22 after the timeout was increased to 30 seconds.
@@ -126,17 +129,17 @@
 - Safety, legal, accessibility, and admission constraints are never automatically relaxed.
 - Course generation consumes one exact-qualified result set and cannot requalify partial places.
 - Tourism data freshness is not real-time venue confirmation.
-- The implementation baseline is Next.js 16.2.10, React 19.2.7, TypeScript 6.0.3, Vitest 4.1.10, and ESLint 9.39.5.
+- The implementation baseline is Next.js 16.3.0, React 19.2.7, TypeScript 6.0.3, Vitest 4.1.10, and ESLint 9.39.5.
 - The working product name is `같이갈개`; final competition branding remains reversible.
 - Routing provider and native-app scope remain reversible.
 
 ## Current Risks
 
-- A fresh 2026-07-30 `npm audit` reports 11 high-severity dependency findings. The runtime-relevant `next` and `sharp` chain has a non-major Next.js 16.2.12 fix available; the remaining ESLint/minimatch development-tool chain reports major-version fix paths. No dependency upgrade was included in the data-ingestion repair.
+- A fresh 2026-08-05 `npm audit` reports 0 vulnerabilities after upgrading Next.js to 16.3.0 and the postcss override to 8.5.25, resolving all previously reported findings including GHSA-fxqj-rqcc-2cmp.
 - Free-text policy coverage may be uneven across place types and regions.
 - Source policy may be stale even when the API record is recently ingested.
 - Exact-result recall may be low until condition coverage improves; precision remains the MVP priority.
-- The deterministic fixture remains intentionally small for automated verification; the latest persisted official snapshot contains 9,701 base records, of which 8,555 currently have fetched pet-detail records.
+- The deterministic fixture remains intentionally small for automated verification; the latest persisted official snapshot contains 9,695 base records, of which 9,449 currently have fetched pet-detail records.
 - The official gateway succeeded over HTTP but returned `403` over HTTPS during verification. The API key therefore has an unencrypted-transit residual risk; live calls remain server-only and must never expose constructed request URLs.
 - Base-list pagination is complete, but pet-detail coverage grows only by the configured quota budget. Automated quota-aware scheduling and a production operations account remain future hardening scope.
 - The database is an embedded single-instance store. Multi-instance deployment requires a service database adapter rather than a shared network SQLite file.
@@ -144,9 +147,17 @@
 
 ## Exact Next Action
 
-Continue `npm run db:sync:daily` after each development-key quota reset. Continue treating unknown records as non-matches.
+The not-fetched queue is fully exhausted. The next `npm run db:sync:daily` will rotate the remaining 246 failed rows. Continue treating unknown records as non-matches.
 
-## Latest Ingestion Checkpoint (2026-07-31)
+## Latest Ingestion Checkpoint (2026-08-05)
+
+- The daily synchronization completed as run 30 / snapshot 13 with `requestsUsed=910`, `batchesCompleted=1`, and `stopReason=batch-limit`.
+- The upstream source total decreased from 9,701 to 9,695 places. Fetched pet-detail coverage increased by 894, from 8,555 to 9,449.
+- The not-fetched queue is fully exhausted (646 → 0). Failed rows decreased from 500 to 246 after retry rotation recovered 254 previously failed details.
+- Pre-sync backup `pet-travel-2026-08-05T11-59-10-599Z.sqlite` and the published database both passed independent `PRAGMA integrity_check` checks.
+- The next safe data action is another `npm run db:sync:daily` after the development-key quota resets to continue rotating the 246 failed rows. Unknown records remain non-matches.
+
+## Previous Ingestion Checkpoint (2026-07-31)
 
 - The daily synchronization completed as run 29 / snapshot 12 with `requestsUsed=910`, `batchesCompleted=1`, and `stopReason=batch-limit`.
 - The upstream source total remained 9,701 places. Fetched pet-detail coverage increased by exactly 900, from 7,655 to 8,555.
