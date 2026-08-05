@@ -303,4 +303,29 @@ export class SqlitePlaceRepository {
     const result = this.db.prepare("SELECT COUNT(*) as count FROM place_camping").get() as { count: number };
     return result.count;
   }
+
+  saveTrail(trail: {
+    crs_idx: string; route_idx: string; crs_kor_nm: string;
+    theme_nm: string | null; linemsg: string | null;
+    crs_dstnc: number | null; crs_totl_rqrm_hour: number | null;
+    crs_level: number | null; crs_cycle: string | null;
+    sigun: string | null; brd_div: string | null; gpxpath: string | null;
+    crs_summary: string | null; crs_tour_info: string | null; travelerinfo: string | null;
+  }, fetchedAt: string): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO trails (crs_idx, route_idx, crs_kor_nm, theme_nm, linemsg, crs_dstnc, crs_totl_rqrm_hour, crs_level, crs_cycle, sigun, brd_div, gpxpath, crs_summary, crs_tour_info, travelerinfo, fetched_at)
+       VALUES (@crs_idx, @route_idx, @crs_kor_nm, @theme_nm, @linemsg, @crs_dstnc, @crs_totl_rqrm_hour, @crs_level, @crs_cycle, @sigun, @brd_div, @gpxpath, @crs_summary, @crs_tour_info, @travelerinfo, @fetched_at)`,
+    ).run({ ...trail, fetched_at: fetchedAt });
+  }
+
+  loadTrailsByRegion(sigun: string): Record<string, unknown>[] {
+    return this.db.prepare(
+      `SELECT * FROM trails WHERE sigun LIKE '%' || ? || '%' ORDER BY crs_level, crs_dstnc`,
+    ).all(sigun) as Record<string, unknown>[];
+  }
+
+  getTrailCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM trails").get() as { count: number };
+    return result.count;
+  }
 }

@@ -252,4 +252,38 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS place_camping;
     `,
   },
+  {
+    version: 6,
+    name: "trail_catalog",
+    up: `
+      CREATE TABLE trails (
+        crs_idx TEXT PRIMARY KEY,
+        route_idx TEXT NOT NULL,
+        crs_kor_nm TEXT NOT NULL,
+        theme_nm TEXT,
+        linemsg TEXT,
+        crs_dstnc REAL,
+        crs_totl_rqrm_hour INTEGER,
+        crs_level INTEGER,
+        crs_cycle TEXT,
+        sigun TEXT,
+        brd_div TEXT,
+        gpxpath TEXT,
+        crs_summary TEXT,
+        crs_tour_info TEXT,
+        travelerinfo TEXT,
+        fetched_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_trails_sigun ON trails(sigun);
+      CREATE INDEX idx_trails_route ON trails(route_idx);
+      CREATE INDEX idx_trails_level ON trails(crs_level);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_trails_level;
+      DROP INDEX IF EXISTS idx_trails_route;
+      DROP INDEX IF EXISTS idx_trails_sigun;
+      DROP TABLE IF EXISTS trails;
+    `,
+  },
 ];
