@@ -1,6 +1,6 @@
 # Project Status
 
-**As of:** 2026-07-17  
+**As of:** 2026-07-31
 **Current objective:** Present complete-catalog filter outcomes truthfully while preserving strict evidence-backed matching, then expand confirmed pet-detail coverage without exceeding the upstream quota.
 
 ## State Ledger
@@ -58,6 +58,15 @@
 
 ### Verified
 
+- On 2026-07-31, `npm run db:sync:daily` completed successfully as run 29 / snapshot 12 after creating backup `pet-travel-2026-07-30T15-21-29-477Z.sqlite`. It used 910 official requests and increased fetched pet-detail coverage from 7,655 to 8,555.
+- Snapshot 12 reconciles exactly to 9,701 places: 8,555 fetched, 646 not-fetched, and 500 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
+- On 2026-07-30, a production-shaped 1,000-row official catalog probe returned HTTP 200 in 9.34 seconds, proving the previous fixed 8-second request timeout could cancel a valid response. A regression test failed with the observed 8,000 ms timeout before the repair, and the provider suite passed 22/22 after the timeout was increased to 30 seconds.
+- `npm run db:sync:daily` then completed successfully as run 28 / snapshot 11 after creating backup `pet-travel-2026-07-30T08-04-35-246Z.sqlite`. It used 910 official requests and increased fetched pet-detail coverage from 6,797 to 7,655.
+- The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`. Snapshot 11 reconciles exactly to 9,701 places: 7,655 fetched, 1,546 not-fetched, and 500 failed.
+- On 2026-07-23, whitespace-separated destination terms were repaired with AND matching across place name and address. The regression test failed at 0 results before the fix and passed at 1 matching fixture afterward.
+- The empty-result browser regression failed with a request to `/api/places/closures?ids=` before the fix and passed after closure lookup was skipped for an empty page.
+- Post-repair verification passed zero-warning lint and typecheck, 62/62 Vitest tests, 11/11 active fixture Playwright tests, and the production build. The database-mode Playwright flow also passed with `부산 해운대`, and the live local API returned 49 matching rows.
+- On 2026-07-24, `npm run db:sync:daily` completed successfully as run 22 / snapshot 8 after creating backup `pet-travel-2026-07-24T02-24-31-361Z.sqlite`. It used 910 official requests and advanced fetched pet-detail coverage from 4,097 to 4,997 while preserving 503 failed rows.
 - On 2026-07-17, `npm run check` passed with zero lint/type errors and 43/43 Vitest tests; `npm run test:e2e` passed 10/10 Playwright scenarios; and `npm run build` completed successfully.
 - A deterministic held-request E2E proves that changing a filter immediately hides stale counts and browsing cards until the matching response arrives.
 - Live SQLite browser QA at 390x844 confirmed the medium-dog view reads `현재 37곳에서 가능을 확인했어요` and partitions all 9,764 rows as 37 confirmed matches, 0 confirmed non-matches, and 9,727 unverified. The large-dog API now reports 37 rather than the previous false-positive 38.
@@ -123,10 +132,11 @@
 
 ## Current Risks
 
+- A fresh 2026-07-30 `npm audit` reports 11 high-severity dependency findings. The runtime-relevant `next` and `sharp` chain has a non-major Next.js 16.2.12 fix available; the remaining ESLint/minimatch development-tool chain reports major-version fix paths. No dependency upgrade was included in the data-ingestion repair.
 - Free-text policy coverage may be uneven across place types and regions.
 - Source policy may be stale even when the API record is recently ingested.
 - Exact-result recall may be low until condition coverage improves; precision remains the MVP priority.
-- The deterministic fixture remains intentionally small for automated verification; the persisted judged-demo snapshot contains all 9,764 official base records but only 100 currently confirmed pet-detail records.
+- The deterministic fixture remains intentionally small for automated verification; the latest persisted official snapshot contains 9,701 base records, of which 8,555 currently have fetched pet-detail records.
 - The official gateway succeeded over HTTP but returned `403` over HTTPS during verification. The API key therefore has an unencrypted-transit residual risk; live calls remain server-only and must never expose constructed request URLs.
 - Base-list pagination is complete, but pet-detail coverage grows only by the configured quota budget. Automated quota-aware scheduling and a production operations account remain future hardening scope.
 - The database is an embedded single-instance store. Multi-instance deployment requires a service database adapter rather than a shared network SQLite file.
@@ -134,15 +144,43 @@
 
 ## Exact Next Action
 
-Increase confirmed pet-detail coverage through resumable scheduled enrichment and an approved production traffic quota, without allowing unknown records to pass exact conditions.
+Continue `npm run db:sync:daily` after each development-key quota reset. Continue treating unknown records as non-matches.
 
-## Latest Diagnostic Note (2026-07-21)
+## Latest Ingestion Checkpoint (2026-07-31)
 
-- The current latest snapshot contains 9,764 source places, but only 3,281 have fetched pet-detail records; 6,064 remain not-fetched and 419 are failed.
-- The displayed dog-size counts are exact evidence-backed matches within those 3,281 fetched records, not a complete size classification: small dog 304, medium dog 283, large dog 278.
-- For the current normalized data, the size sets are nested: 278 places pass all three sizes, 5 pass small+medium but not large, and 21 pass small only.
-- The remaining records are intentionally `unknown` unless the source explicitly supports the selected size. Current unknown/false splits are small `2,977/0`, medium `2,991/7`, and large `2,975/28`.
+- The daily synchronization completed as run 29 / snapshot 12 with `requestsUsed=910`, `batchesCompleted=1`, and `stopReason=batch-limit`.
+- The upstream source total remained 9,701 places. Fetched pet-detail coverage increased by exactly 900, from 7,655 to 8,555.
+- The current remainder is 646 not-fetched and 500 failed. The next daily batch should exhaust the not-fetched queue first and then begin rotating explicit failures.
+- Pre-sync backup `pet-travel-2026-07-30T15-21-29-477Z.sqlite` and the published database both passed independent `PRAGMA integrity_check` checks.
+- The next safe data action is another `npm run db:sync:daily` after the development-key quota resets. Unknown records remain non-matches.
+
+## Previous Ingestion Checkpoint (2026-07-30)
+
+- Two initial daily attempts created verified backups but failed before publication because the official 1,000-row catalog response exceeded the provider's fixed 8-second request timeout. Runs 26 and 27 are recorded as failed without snapshot links; snapshot 10 remained active and intact.
+- A production-shaped probe returned the same official catalog successfully in 9.34 seconds. The provider timeout was increased to 30 seconds and locked with a regression test.
+- The repaired daily synchronization completed as run 28 / snapshot 11 with `requestsUsed=910`, `batchesCompleted=1`, and `stopReason=batch-limit`.
+- The upstream source total changed from 9,763 to 9,701 places. Fetched pet-detail coverage increased from 6,797 to 7,655; the current remainder is 1,546 not-fetched and 500 failed.
+- Pre-sync backup `pet-travel-2026-07-30T08-04-35-246Z.sqlite` and the published database both passed independent `PRAGMA integrity_check` checks.
+- The next safe data action is another `npm run db:sync:daily` after the development-key quota resets. Unknown records remain non-matches.
+
+## Previous Ingestion Checkpoint (2026-07-24)
+
+- The latest daily synchronization completed successfully as run 22 / snapshot 8 after creating backup `pet-travel-2026-07-24T02-24-31-361Z.sqlite`.
+- The official catalog still reports 9,763 source places, one fewer than the earlier 9,764-place snapshot.
+- Fetched pet-detail coverage increased from 4,097 to 4,997. The current remainder is 4,263 not-fetched and 503 failed.
+- The daily profile used 910 official requests: ten catalog pages and 900 detail attempts. All 900 attempts advanced fetched coverage without increasing the failed count.
+- A second 2026-07-24 synchronization attempt started after creating backup `pet-travel-2026-07-24T02-31-26-628Z.sqlite`, but run 23 failed with `The operation was aborted due to timeout` before publication. Snapshot 8 remained the latest successful snapshot, and the counts stayed at 4,997 fetched, 4,263 not-fetched, and 503 failed.
+- Both the pre-sync backup and latest database passed `PRAGMA integrity_check` with `ok`.
+- The 2026-07-21 dog-size distribution has not yet been regenerated against snapshot 8; its previous counts must be treated as historical, not current.
 - Before competition submission, finish detail enrichment and consider relabeling the UI counts as “명시적으로 가능 확인” so they are not read as nationwide totals. Review additional Korean policy phrasing only after coverage is complete.
+
+## Latest Search Repair (2026-07-23)
+
+- `buildCatalogPage` now normalizes and tokenizes whitespace-separated destination input, then requires every term to occur somewhere across the combined address and place name.
+- A catalog regression covers trimmed repeated whitespace and distributed matches across address and name. It failed with zero results before the repair and now returns only the expected fixture.
+- `SearchExperience` no longer requests `/api/places/closures?ids=` for an empty result page and clears stale closure state instead. The corresponding browser test failed before the repair and now passes.
+- The database E2E no longer pins historical ingestion counts. It now validates the current coverage shape and exercises the placeholder example `부산 해운대`.
+- The live Windows-localhost database API returned 49 matching rows for `부산 해운대`; the database-mode mobile search, pet profile, proof, and course flow passed.
 
 ## Continuity Evidence
 

@@ -108,4 +108,29 @@ describe("catalog pagination", () => {
     expect(page.detailCoverage).toBe(3);
     expect(page.pendingDetailCount).toBe(1);
   });
+
+  it("matches every whitespace-separated destination term across the address and place name", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...source, id: "busan-haeundae", address: "부산광역시 해운대구 달맞이길 1", name: "바다공원" },
+        { ...source, id: "busan-only", address: "부산광역시 부산진구 중앙대로 2", name: "도심공원" },
+        { ...source, id: "haeundae-only", address: "서울특별시 중구 세종대로 3", name: "해운대식당" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, {
+      hard: [],
+      preferences: [],
+      page: 1,
+      region: " 부산   해운대 ",
+    });
+
+    expect(page.searchableCount).toBe(1);
+    expect(page.results.map((result) => result.place.id)).toEqual(["busan-haeundae"]);
+  });
 });

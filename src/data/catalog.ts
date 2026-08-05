@@ -41,10 +41,11 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const detailPlaces = snapshot.places.filter((place) => (place.petDetailStatus ?? "fetched") === "fetched");
   const pendingDetailCount = snapshot.places.filter((place) => place.petDetailStatus === "not-fetched").length;
   const failedDetailCount = snapshot.places.filter((place) => place.petDetailStatus === "failed").length;
-  const region = query.region?.trim().toLocaleLowerCase("ko-KR") ?? "";
+  const regionTerms = query.region?.trim().toLocaleLowerCase("ko-KR").split(/\s+/).filter(Boolean) ?? [];
   const categories = new Set(query.categories ?? []);
   const filteredPlaces = detailPlaces.filter((place) => {
-    const regionMatches = !region || `${place.address} ${place.name}`.toLocaleLowerCase("ko-KR").includes(region);
+    const searchText = `${place.address} ${place.name}`.toLocaleLowerCase("ko-KR");
+    const regionMatches = regionTerms.every((term) => searchText.includes(term));
     const categoryMatches = categories.size === 0 || categories.has(place.category);
     return regionMatches && categoryMatches;
   });

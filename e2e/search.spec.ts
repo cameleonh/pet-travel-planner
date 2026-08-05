@@ -79,3 +79,19 @@ test("a pending filter request never labels stale browsing rows as filtered resu
   releaseRequest();
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
 });
+
+test("an empty destination result does not request closures without place IDs", async ({ page }) => {
+  const emptyClosureRequests: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/places/closures" && !url.searchParams.get("ids")) {
+      emptyClosureRequests.push(request.url());
+    }
+  });
+
+  await page.goto("/");
+  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("없는 지역");
+  await expect(page.getByRole("heading", { name: "0곳을 둘러보세요" })).toBeVisible();
+
+  expect(emptyClosureRequests).toEqual([]);
+});

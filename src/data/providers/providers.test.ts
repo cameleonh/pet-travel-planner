@@ -92,6 +92,26 @@ describe("place providers", () => {
     expect(requestedUrls[1]?.searchParams.get("contentId")).toBe("2930927");
   });
 
+  it("allows slow official catalog responses to complete", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockReturnValue(new AbortController().signal);
+    try {
+      const provider = new TourApiPlaceProvider({
+        apiKey: "issued-test-key",
+        fetchImpl: async () => responseJson({
+          response: {
+            header: { resultCode: "0000", resultMsg: "OK" },
+            body: { items: "", numOfRows: 1000, pageNo: 1, totalCount: 0 },
+          },
+        }),
+      });
+
+      await expect(provider.getSnapshot()).resolves.toMatchObject({ places: [] });
+      expect(timeoutSpy).toHaveBeenCalledWith(30_000);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
   it("uses the official fine category to distinguish cafes from restaurants", async () => {
     const items = [
       { ...LIST_ITEM, contentid: "cafe", contenttypeid: "39", cat3: "A05020900", title: "바다 카페" },

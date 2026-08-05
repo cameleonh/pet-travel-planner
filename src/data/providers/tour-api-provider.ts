@@ -168,7 +168,7 @@ export class TourApiPlaceProvider implements PlaceProvider {
       this.nextRequestAt = scheduledAt + this.requestIntervalMs;
       const pacingDelay = scheduledAt - Date.now();
       if (pacingDelay > 0) await this.sleep(pacingDelay);
-      response = await this.fetchImpl(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
+      response = await this.fetchImpl(url, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
       if (response.status !== 429 || attempt === 1) break;
       await this.sleep(this.rateLimitRetryDelayMs);
     }

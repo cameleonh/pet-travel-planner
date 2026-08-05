@@ -70,10 +70,15 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         const body = await response.json() as CatalogApiResponse;
         if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "장소를 불러오지 못했어요.");
         setCatalog(body.data.catalog);
-        const closureParameters = new URLSearchParams({ ids: body.data.catalog.results.map((result) => result.place.id).join(",") });
-        const closureResponse = await fetch(`/api/places/closures?${closureParameters}`, { signal: controller.signal });
-        const closureBody = await closureResponse.json() as ClosureApiResponse;
-        if (closureResponse.ok && closureBody.success) setClosureByPlaceId(Object.fromEntries(Object.entries(closureBody.closures).map(([placeId, closures]) => [placeId, { closures }])));
+        const placeIds = body.data.catalog.results.map((result) => result.place.id);
+        if (placeIds.length === 0) {
+          setClosureByPlaceId({});
+        } else {
+          const closureParameters = new URLSearchParams({ ids: placeIds.join(",") });
+          const closureResponse = await fetch(`/api/places/closures?${closureParameters}`, { signal: controller.signal });
+          const closureBody = await closureResponse.json() as ClosureApiResponse;
+          if (closureResponse.ok && closureBody.success) setClosureByPlaceId(Object.fromEntries(Object.entries(closureBody.closures).map(([placeId, closures]) => [placeId, { closures }])));
+        }
         setCatalogRequestKey(requestKey);
       })
       .catch((error: unknown) => {

@@ -5,12 +5,19 @@ test.skip(process.env.E2E_DATA_PROVIDER !== "database", "Runs only against the l
 test("official database snapshot supports mobile destination, profile, proof, and course flow", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "1,000곳을 둘러보세요" })).toBeVisible();
-  await expect(page.getByText(/전국 원천 9,764곳 · 상세 수집률 10.2% · 미수집 8,764곳 · 실패 0곳/)).toBeVisible();
+  const resultHeading = page.getByRole("heading", { name: /곳을 둘러보세요/ });
+  await expect(resultHeading).toBeVisible();
+  await expect(page.locator(".catalog-coverage")).toHaveText(
+    /현재 상세정보 확인 가능 [\d,]+곳 · 전국 원천 [\d,]+곳 · 상세 수집률 \d+\.\d% · 미수집 [\d,]+곳 · 실패 [\d,]+곳/,
+  );
   await expect(page.getByRole("heading", { name: "근처에 같이 들를 곳" })).toHaveCount(0);
 
-  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("서울");
-  await expect(page.getByRole("heading", { name: /곳을 둘러보세요/ })).toBeVisible();
+  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("부산 해운대");
+  const firstResult = page.locator(".place-card").first();
+  await expect(firstResult).toContainText("부산");
+  await expect(firstResult).toContainText("해운대");
+  const resultCount = Number((await resultHeading.textContent())?.replace(/[^\d]/g, ""));
+  expect(resultCount).toBeGreaterThan(0);
 
   await page.locator(".weight-input input").fill("8.5");
   await expect(page.getByLabel("소형견")).toBeChecked();
