@@ -6,6 +6,7 @@ import { loadPlaceSnapshot } from "@/data/providers";
 import { buildCatalogPage } from "@/data/catalog";
 import { rawPlaceSchema } from "@/data/contracts";
 import { conditionKeys, type ConditionKey, type SelectedConstraint } from "@/domain/types";
+import { SqlitePlaceRepository, resolveDatabasePath } from "@/data/database/repository";
 
 const conditionSchema = z.enum(conditionKeys);
 const categorySchema = rawPlaceSchema.shape.category;
@@ -39,6 +40,23 @@ export async function GET(request: Request) {
     const categoriesRaw = url.searchParams.get("categories");
     const categories = categoriesRaw ? categoryListSchema.parse(categoriesRaw.split(",").filter(Boolean)) : [];
     const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories });
+
+    // Enrich results with accessibility data when available
+    const accessibilityMap: Record<string, Record<string, string | undefined>> = {};
+    try {
+      const repo = new SqlitePlaceRepository(resolveDatabasePath());
+      try {
+        for (const result of catalog.results) {
+          const acc = repo.loadAccessibility(result.place.id);
+          if (acc) accessibilityMap[result.place.id] = acc;
+        }
+      } finally {
+        repo.close();
+      }
+    } catch {
+      // Accessibility enrichment is optional; skip silently if unavailable
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -46,6 +64,7 @@ export async function GET(request: Request) {
         fetchedAt: snapshot.fetchedAt,
         auxiliaryPlaces: snapshot.auxiliaryPlaces,
         catalog,
+        accessibility: accessibilityMap,
       },
       error: null,
       meta: { requestId, provider: snapshot.provider, dataSource, notice: notice ?? null },

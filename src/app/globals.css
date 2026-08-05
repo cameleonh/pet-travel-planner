@@ -424,6 +424,18 @@ h1 {
 .proof-details small, .fixture-source { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
 .proof-details a { display: inline-flex; min-height: 44px; align-items: center; color: var(--brand); font-size: 12px; font-weight: 800; text-underline-offset: 3px; }
 
+.accessibility-details { border-top: 1px solid var(--line); padding-top: 11px; }
+.accessibility-details summary { width: fit-content; min-height: 44px; padding: 10px 0; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+.accessibility-count { font-size: 11px; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 4px; }
+.accessibility-groups { display: grid; gap: 14px; margin: 8px 0 0; }
+.accessibility-group { display: grid; gap: 6px; }
+.accessibility-group-title { font-size: 12px; font-weight: 800; color: var(--muted); }
+.accessibility-group ul { display: grid; gap: 4px; list-style: none; padding: 0; margin: 0; }
+.accessibility-group li { display: flex; gap: 8px; font-size: 12px; line-height: 1.5; }
+.accessibility-label { min-width: 80px; color: var(--muted); flex-shrink: 0; }
+.accessibility-value { color: var(--text); }
+.accessibility-source { margin-top: 8px; font-size: 10px; color: var(--muted); }
+
 .zero-state {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);

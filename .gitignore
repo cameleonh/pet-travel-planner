@@ -16,3 +16,4 @@ npm-debug.log*
 output/
 *.sqlite
 *.sqlite-*
+자료/

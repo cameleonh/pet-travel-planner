@@ -8,6 +8,7 @@ import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
 import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultCard";
+import type { AccessibilityData } from "@/features/results/AccessibilitySection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
@@ -20,7 +21,7 @@ function selected(key: ConditionKey, kind: SelectedConstraint["kind"]): Selected
 
 type CatalogApiResponse = {
   success: boolean;
-  data: { catalog: CatalogPage } | null;
+  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData> } | null;
   error: { message: string } | null;
 };
 
@@ -40,6 +41,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
+  const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const constraints = useMemo(() => [
     ...(petSize ? [selected(petSize, "hard")] : []),
     ...hard.map((key) => selected(key, "hard")),
@@ -70,6 +72,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         const body = await response.json() as CatalogApiResponse;
         if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "장소를 불러오지 못했어요.");
         setCatalog(body.data.catalog);
+        setAccessibilityByPlaceId(body.data.accessibility ?? {});
         const placeIds = body.data.catalog.results.map((result) => result.place.id);
         if (placeIds.length === 0) {
           setClosureByPlaceId({});
@@ -141,7 +144,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span>{region.trim()}</span> : null}{categories.map((category) => <span key={category}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 ? <span>전체 장소</span> : constraints.map((item) => <span key={`${item.key}-${item.kind}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}</div></div>
         {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
-        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
+        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
         {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
         <nav className="catalog-pagination" aria-label="장소 결과 페이지">
           <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
