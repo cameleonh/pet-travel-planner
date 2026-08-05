@@ -280,4 +280,27 @@ export class SqlitePlaceRepository {
     ).get() as { id: number } | undefined;
     return row?.id ?? null;
   }
+
+  saveCamping(snapshotId: number, placeId: string, fetchedAt: string, detail: {
+    animal_cmg_cl?: string; induty?: string; sbrs_cl?: string;
+    glamp_site_co?: number; carav_site_co?: number; gnrl_site_co?: number;
+    oper_pd_cl?: string; oper_de_cl?: string; resve_url?: string; first_image_url?: string;
+  }): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO place_camping (place_id, snapshot_id, fetched_at, animal_cmg_cl, induty, sbrs_cl, glamp_site_co, carav_site_co, gnrl_site_co, oper_pd_cl, oper_de_cl, resve_url, first_image_url)
+       VALUES (@place_id, @snapshot_id, @fetched_at, @animal_cmg_cl, @induty, @sbrs_cl, @glamp_site_co, @carav_site_co, @gnrl_site_co, @oper_pd_cl, @oper_de_cl, @resve_url, @first_image_url)`,
+    ).run({ place_id: placeId, snapshot_id: snapshotId, fetched_at: fetchedAt, ...detail });
+  }
+
+  loadCamping(placeId: string): Record<string, unknown> | null {
+    const row = this.db.prepare(
+      `SELECT * FROM place_camping WHERE place_id = ? ORDER BY snapshot_id DESC LIMIT 1`,
+    ).get(placeId) as Record<string, unknown> | undefined;
+    return row ?? null;
+  }
+
+  getCampingCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM place_camping").get() as { count: number };
+    return result.count;
+  }
 }

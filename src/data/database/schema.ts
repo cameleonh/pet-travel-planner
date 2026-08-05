@@ -224,4 +224,32 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS place_accessibility;
     `,
   },
+  {
+    version: 5,
+    name: "camping_catalog",
+    up: `
+      CREATE TABLE place_camping (
+        place_id TEXT NOT NULL,
+        snapshot_id INTEGER NOT NULL REFERENCES source_snapshots(id) ON DELETE CASCADE,
+        fetched_at TEXT NOT NULL,
+        animal_cmg_cl TEXT,
+        induty TEXT,
+        sbrs_cl TEXT,
+        glamp_site_co INTEGER,
+        carav_site_co INTEGER,
+        gnrl_site_co INTEGER,
+        oper_pd_cl TEXT,
+        oper_de_cl TEXT,
+        resve_url TEXT,
+        first_image_url TEXT,
+        PRIMARY KEY (place_id, snapshot_id)
+      ) STRICT;
+
+      CREATE INDEX idx_place_camping_place ON place_camping(place_id);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_place_camping_place;
+      DROP TABLE IF EXISTS place_camping;
+    `,
+  },
 ];

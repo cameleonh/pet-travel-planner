@@ -1,6 +1,7 @@
 import type { MatchEvaluation } from "@/domain/types";
 import { MatchProof } from "@/features/results/MatchProof";
 import { AccessibilitySection, type AccessibilityData } from "@/features/results/AccessibilitySection";
+import { CampingSection, type CampingData } from "@/features/results/CampingSection";
 
 export type PublicClosureStatus = {
   readonly closures: readonly { readonly closureKind: "weekly" | "date"; readonly weekday: number | null; readonly closureDate: string | null; readonly reason: string }[];
@@ -9,7 +10,7 @@ export type PublicClosureStatus = {
 const categoryLabel = { attraction: "관광지", restaurant: "식당", cafe: "카페", accommodation: "숙소", shopping: "쇼핑" } as const;
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
-export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData }) {
+export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility, camping }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData; camping?: CampingData }) {
   const isCatalogResult = !result.exact && result.proof.length === 0;
   const preparations = result.place.requiredPreparations.filter((item) => item.scope !== "dangerous-dog" || dangerousDog);
   return (
@@ -21,6 +22,7 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
       {preparations.length > 0 ? <div className="preparation-list" aria-label="방문 준비물"><strong>방문 전 준비</strong><ul>{preparations.map((item) => <li key={`${item.key}-${item.scope}`}>✓ {preparationLabel[item.key]}{item.scope === "indoor" ? " · 실내 이용 시" : item.scope === "dangerous-dog" ? " · 맹견 필수" : ""}</li>)}</ul></div> : null}
       {isCatalogResult ? <p className="catalog-hint">크기와 필요한 조건을 고르면 이 장소가 모두 맞는지 확인해요.</p> : <><div className="proof-preview">{result.proof.slice(0, 3).map((item) => <span key={item.constraint.key}>✓ {item.constraint.label}{item.fact.requirements.length > 0 ? " · 조건부" : ""}</span>)}</div><MatchProof proof={result.proof} /></>}
       <AccessibilitySection data={accessibility} />
+      <CampingSection data={camping} />
     </article>
   );
 }

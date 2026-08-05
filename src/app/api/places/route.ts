@@ -41,20 +41,23 @@ export async function GET(request: Request) {
     const categories = categoriesRaw ? categoryListSchema.parse(categoriesRaw.split(",").filter(Boolean)) : [];
     const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories });
 
-    // Enrich results with accessibility data when available
+    // Enrich results with accessibility and camping data when available
     const accessibilityMap: Record<string, Record<string, string | undefined>> = {};
+    const campingMap: Record<string, Record<string, unknown>> = {};
     try {
       const repo = new SqlitePlaceRepository(resolveDatabasePath());
       try {
         for (const result of catalog.results) {
           const acc = repo.loadAccessibility(result.place.id);
           if (acc) accessibilityMap[result.place.id] = acc;
+          const camp = repo.loadCamping(result.place.id);
+          if (camp) campingMap[result.place.id] = camp;
         }
       } finally {
         repo.close();
       }
     } catch {
-      // Accessibility enrichment is optional; skip silently if unavailable
+      // Enrichment is optional; skip silently if unavailable
     }
 
     return NextResponse.json({
@@ -65,6 +68,7 @@ export async function GET(request: Request) {
         auxiliaryPlaces: snapshot.auxiliaryPlaces,
         catalog,
         accessibility: accessibilityMap,
+        camping: campingMap,
       },
       error: null,
       meta: { requestId, provider: snapshot.provider, dataSource, notice: notice ?? null },

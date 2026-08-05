@@ -436,6 +436,15 @@ h1 {
 .accessibility-value { color: var(--text); }
 .accessibility-source { margin-top: 8px; font-size: 10px; color: var(--muted); }
 
+.camping-details { border-top: 1px solid var(--line); padding-top: 11px; }
+.camping-details summary { width: fit-content; min-height: 44px; padding: 10px 0; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+.camping-types { font-size: 11px; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 4px; }
+.camping-info { display: grid; gap: 6px; margin: 8px 0 0; }
+.camping-row { display: flex; gap: 8px; font-size: 12px; line-height: 1.5; }
+.camping-label { min-width: 70px; color: var(--muted); flex-shrink: 0; }
+.camping-reserve { display: inline-flex; min-height: 44px; align-items: center; color: var(--brand); font-size: 12px; font-weight: 800; text-underline-offset: 3px; margin-top: 4px; }
+.camping-source { margin-top: 8px; font-size: 10px; color: var(--muted); }
+
 .zero-state {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);

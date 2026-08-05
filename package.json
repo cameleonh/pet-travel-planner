@@ -27,6 +27,7 @@
     "db:sync:all": "npm run db:backup && tsx --env-file=.env.local scripts/sync-tour-db-all.ts",
     "db:backup": "tsx --env-file=.env.local scripts/backup-db.ts",
     "sync:accessibility": "tsx --env-file=.env.local scripts/sync-accessibility.ts",
+    "sync:camping": "tsx --env-file=.env.local scripts/sync-camping.ts",
     "check": "npm run lint && npm run typecheck && npm run test",
     "verify": "npm run check && npm run test:coverage && npm run test:e2e && npm run build && npm audit --audit-level=moderate"
   },
