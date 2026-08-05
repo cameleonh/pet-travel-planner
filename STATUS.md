@@ -1,7 +1,7 @@
 # Project Status
 
 **As of:** 2026-08-06
-**Current objective:** Pet-detail ingestion is 100% complete (9,695/9,695 fetched, 0 failed). General-admission fallback promotes "동반 가능" without explicit size restriction to size-qualified true, raising confirmed matches to ~9,600 per size band. Next focus shifts to Phase 2 multi-source API integration.
+**Current objective:** Pet-detail ingestion is 100% complete (9,695/9,695 fetched, 0 failed). General-admission fallback promotes "동반 가능" without explicit size restriction to size-qualified true, raising confirmed matches to ~9,600 per size band. Phase 2 integration in progress: GoCamping catalog ingested (2,602 pet-admitted sites), barrier-free provider and UI built, accessibility data ingestion scheduled after quota reset.
 
 ## State Ledger
 
@@ -55,9 +55,15 @@
 - Mutually exclusive filtered-result dispositions: confirmed match, confirmed non-match, and unverified, with an exhaustive complete-catalog count invariant
 - Qualified result copy that separates confirmed availability from ingestion coverage and makes clear that unverified places may still qualify
 - Conservative dog-size parsing that does not promote weight- or age-qualified admission text to an entire clicked size band
+- General-admission fallback that promotes "동반 가능" without explicit size restriction to size-qualified true with inferred evidence class
+- Phase 2 barrier-free accessibility provider, `place_accessibility` schema (28 fields, 4 disability groups), and expandable UI section
+- Phase 2 GoCamping provider, `place_camping` schema, sync script, and expandable UI section with reservation link
+- `/api/places` enrichment pipeline that left-joins accessibility and camping data at query time without modifying pet-policy matching
 
 ### Verified
 
+- On 2026-08-06, GoCamping catalog was ingested via `npm run sync:camping`. It fetched all 3,084 camping sites in 4 API calls and saved 2,602 pet-admitted sites (84%) to `place_camping` with camping type, facilities, site counts, reservation URL, and image URL. The CampingProvider, DB migration v5, CampingSection UI component, and `/api/places` enrichment are all verified: 63/63 tests pass, production build succeeds.
+- On 2026-08-06, barrier-free accessibility infrastructure was completed: BarrierFreeProvider (`KorWithService2/detailWithTour2`), DB migration v4 (`place_accessibility` with 28 fields across 4 disability groups), AccessibilitySection UI component, and `/api/places` enrichment. Smoke test confirmed data retrieval for contentId 988449. Full data ingestion is scheduled after quota reset.
 - On 2026-08-06, `npm run db:sync:daily` completed as run 32 / snapshot 14 after creating backup `pet-travel-2026-08-05T15-10-16-235Z.sqlite`. It used 271 official requests and recovered all 246 remaining failed rows. Pet-detail ingestion is now 100% complete: 9,695 fetched, 0 not-fetched, 0 failed.
 - Snapshot 14 reconciles exactly to 9,695 places: 9,695 fetched, 0 not-fetched, and 0 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
 - On 2026-08-06, a general-admission fallback was added to the dog-size normalizer. Places that state "동반 가능" without explicit size restriction, weight limit, or age limit now promote all three dog-size facts to true with evidence class "inferred-from-general-admission". Confirmed matches rose from ~760 to ~9,600 per size band. Explicit false values (25 medium-dog, 64 large-dog restrictions) and weight/age-qualified unknowns are preserved. Verified: 63/63 tests pass, production build succeeds.
@@ -150,7 +156,7 @@
 
 ## Exact Next Action
 
-Pet-detail ingestion is 100% complete (9,695/9,695, 0 failed). No further Pet Tour sync is needed. Next focus: Phase 2 multi-source API integration — start with Tier 1 providers (barrier-free, GoCamping, congestion forecast).
+Run `npm run sync:accessibility` after the KorWithService2 quota resets to ingest barrier-free data for existing places. The GoCamping catalog (2,602 pet-admitted sites) is already ingested. Next implementation target: congestion forecast provider (Step 3) or festival discovery (Step 4).
 
 ## Latest Ingestion Checkpoint (2026-08-06)
 
