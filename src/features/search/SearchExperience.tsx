@@ -10,6 +10,7 @@ import { DestinationPanel } from "@/features/search/DestinationPanel";
 import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultCard";
 import type { AccessibilityData } from "@/features/results/AccessibilitySection";
 import type { CampingData } from "@/features/results/CampingSection";
+import { TrailSection, type TrailData } from "@/features/results/TrailSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
@@ -44,6 +45,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
+  const [trails, setTrails] = useState<TrailData[]>([]);
   const constraints = useMemo(() => [
     ...(petSize ? [selected(petSize, "hard")] : []),
     ...hard.map((key) => selected(key, "hard")),
@@ -84,6 +86,20 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           const closureResponse = await fetch(`/api/places/closures?${closureParameters}`, { signal: controller.signal });
           const closureBody = await closureResponse.json() as ClosureApiResponse;
           if (closureResponse.ok && closureBody.success) setClosureByPlaceId(Object.fromEntries(Object.entries(closureBody.closures).map(([placeId, closures]) => [placeId, { closures }])));
+        }
+        // Fetch trails for the selected region
+        if (region.trim()) {
+          try {
+            const trailResponse = await fetch(`/api/trails?region=${encodeURIComponent(region.trim())}`, { signal: controller.signal });
+            const trailBody = await trailResponse.json() as { success: boolean; data?: { trails: TrailData[] } };
+            if (trailResponse.ok && trailBody.success && trailBody.data) {
+              setTrails(trailBody.data.trails as TrailData[]);
+            } else {
+              setTrails([]);
+            }
+          } catch { setTrails([]); }
+        } else {
+          setTrails([]);
         }
         setCatalogRequestKey(requestKey);
       })
@@ -149,6 +165,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
         {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
         {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
+        {catalogIsCurrent && region.trim() && trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} /> : null}
         <nav className="catalog-pagination" aria-label="장소 결과 페이지">
           <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
           <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>

@@ -445,6 +445,26 @@ h1 {
 .camping-reserve { display: inline-flex; min-height: 44px; align-items: center; color: var(--brand); font-size: 12px; font-weight: 800; text-underline-offset: 3px; margin-top: 4px; }
 .camping-source { margin-top: 8px; font-size: 10px; color: var(--muted); }
 
+.trail-section { margin: 20px 0 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.trail-section-title { font-size: 14px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; gap: 6px; }
+.trail-count { font-size: 11px; color: var(--muted); background: var(--card); padding: 2px 8px; border-radius: 4px; }
+.trail-section-desc { font-size: 11px; color: var(--muted); margin: 0 0 12px; }
+.trail-list { display: grid; gap: 12px; list-style: none; padding: 0; margin: 0; }
+.trail-item { padding: 12px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); }
+.trail-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trail-name { font-size: 13px; font-weight: 700; }
+.trail-level { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
+.trail-level-1 { background: rgba(74,222,128,0.15); color: #4ade80; }
+.trail-level-2 { background: rgba(250,204,21,0.15); color: #facc15; }
+.trail-level-3 { background: rgba(248,113,113,0.15); color: #f87171; }
+.trail-tagline { font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
+.trail-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--muted); }
+.trail-details { margin-top: 6px; }
+.trail-details summary { min-height: 36px; padding: 6px 0; cursor: pointer; font-size: 12px; color: var(--brand); font-weight: 600; }
+.trail-details p { font-size: 12px; line-height: 1.6; color: var(--muted); white-space: pre-line; max-width: 65ch; }
+.trail-gpx { display: inline-flex; min-height: 36px; align-items: center; margin-top: 6px; color: var(--brand); font-size: 12px; font-weight: 700; text-underline-offset: 3px; }
+.trail-more { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
+
 .zero-state {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
