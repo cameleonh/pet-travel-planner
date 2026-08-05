@@ -1,7 +1,7 @@
 # Project Status
 
-**As of:** 2026-08-05
-**Current objective:** Present complete-catalog filter outcomes truthfully while preserving strict evidence-backed matching, then expand confirmed pet-detail coverage without exceeding the upstream quota.
+**As of:** 2026-08-06
+**Current objective:** Pet-detail ingestion is 100% complete (9,695/9,695 fetched, 0 failed). General-admission fallback promotes "동반 가능" without explicit size restriction to size-qualified true, raising confirmed matches to ~9,600 per size band. Next focus shifts to Phase 2 multi-source API integration.
 
 ## State Ledger
 
@@ -58,6 +58,9 @@
 
 ### Verified
 
+- On 2026-08-06, `npm run db:sync:daily` completed as run 32 / snapshot 14 after creating backup `pet-travel-2026-08-05T15-10-16-235Z.sqlite`. It used 271 official requests and recovered all 246 remaining failed rows. Pet-detail ingestion is now 100% complete: 9,695 fetched, 0 not-fetched, 0 failed.
+- Snapshot 14 reconciles exactly to 9,695 places: 9,695 fetched, 0 not-fetched, and 0 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
+- On 2026-08-06, a general-admission fallback was added to the dog-size normalizer. Places that state "동반 가능" without explicit size restriction, weight limit, or age limit now promote all three dog-size facts to true with evidence class "inferred-from-general-admission". Confirmed matches rose from ~760 to ~9,600 per size band. Explicit false values (25 medium-dog, 64 large-dog restrictions) and weight/age-qualified unknowns are preserved. Verified: 63/63 tests pass, production build succeeds.
 - On 2026-08-05, `npm run db:sync:daily` completed successfully as run 30 / snapshot 13 after creating backup `pet-travel-2026-08-05T11-59-10-599Z.sqlite`. It used 910 official requests and increased fetched pet-detail coverage from 8,555 to 9,449. The not-fetched queue is fully exhausted (646 → 0); failed rows decreased from 500 to 246.
 - Snapshot 13 reconciles exactly to 9,695 places: 9,449 fetched, 0 not-fetched, and 246 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
 - On 2026-08-05, Next.js was upgraded from 16.2.10 to 16.3.0 and the postcss override from 8.5.19 to 8.5.25, resolving 3 moderate advisories (GHSA-fxqj-rqcc-2cmp). Lint, typecheck, 63 Vitest tests, the production build, and `npm audit --audit-level=moderate` (0 vulnerabilities) all passed.
@@ -147,9 +150,16 @@
 
 ## Exact Next Action
 
-The not-fetched queue is fully exhausted. The next `npm run db:sync:daily` will rotate the remaining 246 failed rows. Continue treating unknown records as non-matches.
+Pet-detail ingestion is 100% complete (9,695/9,695, 0 failed). No further Pet Tour sync is needed. Next focus: Phase 2 multi-source API integration — start with Tier 1 providers (barrier-free, GoCamping, congestion forecast).
 
-## Latest Ingestion Checkpoint (2026-08-05)
+## Latest Ingestion Checkpoint (2026-08-06)
+
+- The daily synchronization completed as run 32 / snapshot 14 with `requestsUsed=271`, `batchesCompleted=1`, and `stopReason=complete`.
+- All 246 remaining failed rows were recovered. Pet-detail ingestion is now 100% complete: 9,695 fetched, 0 not-fetched, 0 failed.
+- Pre-sync backup `pet-travel-2026-08-05T15-10-16-235Z.sqlite` and the published database both passed independent `PRAGMA integrity_check` checks.
+- Confirmed match counts with general-admission fallback: smallDog 9,625 / mediumDog 9,592 / largeDog 9,583 / leash 826.
+
+## Previous Ingestion Checkpoint (2026-08-05)
 
 - The daily synchronization completed as run 30 / snapshot 13 with `requestsUsed=910`, `batchesCompleted=1`, and `stopReason=batch-limit`.
 - The upstream source total decreased from 9,701 to 9,695 places. Fetched pet-detail coverage increased by 894, from 8,555 to 9,449.
