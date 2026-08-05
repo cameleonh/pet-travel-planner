@@ -1,6 +1,6 @@
 import type { RawPlace } from "@/data/contracts";
 
-export const conditionKeys = ["outdoor", "indoor", "leash", "carrier", "smallDog", "mediumDog", "largeDog"] as const;
+export const conditionKeys = ["smallDog", "mediumDog", "largeDog"] as const;
 export type ConditionKey = (typeof conditionKeys)[number];
 export const preparationKeys = ["leash", "carrier", "muzzle", "wasteBag", "stroller", "mannerBelt"] as const;
 export type PreparationKey = (typeof preparationKeys)[number];

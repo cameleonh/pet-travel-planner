@@ -35,7 +35,7 @@ export function TrailSection({ trails, region }: { trails: TrailData[]; region: 
               {trail.crs_cycle ? <span>🔄 {trail.crs_cycle}</span> : null}
             </div>
             {trail.crs_summary ? <details className="trail-details"><summary>코스 설명</summary><p>{trail.crs_summary.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "")}</p></details> : null}
-            {trail.gpxpath ? <a href={trail.gpxpath} target="_blank" rel="noreferrer" className="trail-gpx">GPX 경로 다운로드 <span aria-hidden="true">↗</span></a> : null}
+            {trail.gpxpath ? <a href={`/api/gpx?url=${encodeURIComponent(trail.gpxpath)}&name=${encodeURIComponent(trail.crs_kor_nm)}`} className="trail-gpx" download>GPX 경로 받기 <span aria-hidden="true">↗</span></a> : null}
           </li>
         ))}
       </ul>

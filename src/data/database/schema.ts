@@ -286,4 +286,31 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS trails;
     `,
   },
+  {
+    version: 7,
+    name: "congestion_forecast",
+    up: `
+      CREATE TABLE place_congestion (
+        place_id TEXT NOT NULL,
+        snapshot_id INTEGER NOT NULL REFERENCES source_snapshots(id) ON DELETE CASCADE,
+        fetched_at TEXT NOT NULL,
+        t_ats_nm TEXT NOT NULL,
+        area_cd TEXT,
+        area_nm TEXT,
+        signgu_cd TEXT,
+        signgu_nm TEXT,
+        base_ymd TEXT NOT NULL,
+        cnctr_rate REAL NOT NULL,
+        PRIMARY KEY (place_id, snapshot_id, base_ymd)
+      ) STRICT;
+
+      CREATE INDEX idx_place_congestion_place ON place_congestion(place_id);
+      CREATE INDEX idx_place_congestion_region ON place_congestion(area_cd, signgu_cd);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_place_congestion_region;
+      DROP INDEX IF EXISTS idx_place_congestion_place;
+      DROP TABLE IF EXISTS place_congestion;
+    `,
+  },
 ];

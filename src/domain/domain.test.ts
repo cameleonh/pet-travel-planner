@@ -38,11 +38,11 @@ function withValues(values: Partial<Record<ConditionKey, TriState>>): Normalized
 
 describe("policy normalization", () => {
   it("extracts positive, negative, and source-backed facts conservatively", () => {
-    const place = normalizePlace(rawPlace("목줄 착용 시 야외 공간 동반 가능. 실내 전시관은 출입 제한."));
-    expect(place.facts.leash.value).toBe("true");
-    expect(place.facts.outdoor.value).toBe("true");
-    expect(place.facts.indoor.value).toBe("false");
-    expect(place.facts.leash.evidence?.sourceUrl).toBe("https://example.invalid/place-1");
+    const place = normalizePlace(rawPlace("목줄 착용 후 이용 가능. 전 견종 동반 가능."));
+    expect(place.facts.smallDog.value).toBe("true");
+    expect(place.facts.mediumDog.value).toBe("true");
+    expect(place.facts.largeDog.value).toBe("true");
+    expect(place.facts.smallDog.evidence?.sourceUrl).toBe("https://example.invalid/place-1");
   });
 
   it("keeps missing or ambiguous policy facts unknown", () => {
@@ -55,9 +55,6 @@ describe("policy normalization", () => {
     expect(place.facts.smallDog.value).toBe("true");
     expect(place.facts.mediumDog.value).toBe("true");
     expect(place.facts.largeDog.value).toBe("true");
-    expect(place.facts.leash.value).toBe("true");
-    expect(place.facts.indoor.value).toBe("unknown");
-    expect(place.facts.outdoor.value).toBe("unknown");
   });
 
   it("maps the official all-breeds entrance phrase to every dog-size condition", () => {
@@ -81,10 +78,8 @@ describe("policy normalization", () => {
     ]));
   });
 
-  it("preserves carrier-gated indoor admission as a conditional fact", () => {
+  it("detects carrier-gated indoor admission as a preparation requirement", () => {
     const place = normalizePlace(rawPlace("이동가방 사용 시 실내 동반 가능합니다."));
-    expect(place.facts.indoor.value).toBe("true");
-    expect(place.facts.indoor.requirements).toEqual(["carrier"]);
     expect(place.requiredPreparations).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "carrier", scope: "indoor" }),
     ]));
@@ -100,25 +95,18 @@ describe("policy normalization", () => {
     const place = normalizePlace(rawPlace("주차 20대 가능. 대형견 동반 가능."));
     expect(place.facts.largeDog.value).toBe("true");
   });
-
-  it("uses structured amenities as explicit evidence without inventing other facts", () => {
-    const place = normalizePlace(rawPlace("상세 정책은 현장 확인", ["outdoor"]));
-    expect(place.facts.outdoor.value).toBe("true");
-    expect(place.facts.outdoor.evidence?.evidenceClass).toBe("source-explicit");
-    expect(place.facts.indoor.value).toBe("unknown");
-  });
 });
 
 describe("strict AND matching", () => {
   it("excludes a hard UNKNOWN and reports the missing proof", () => {
-    const result = evaluatePlace(withValues({ outdoor: "true", leash: "unknown" }), [constraint("outdoor"), constraint("leash")]);
+    const result = evaluatePlace(withValues({ smallDog: "true", mediumDog: "unknown" }), [constraint("smallDog"), constraint("mediumDog")]);
     expect(result.exact).toBe(false);
     expect(result.proof).toHaveLength(1);
     expect(result.failures).toEqual([expect.objectContaining({ value: "unknown", reason: "unknown" })]);
   });
 
   it("returns one source-backed proof per selected condition", () => {
-    const result = evaluatePlace(withValues({ outdoor: "true", leash: "true", smallDog: "true" }), [constraint("outdoor"), constraint("leash"), constraint("smallDog")]);
+    const result = evaluatePlace(withValues({ smallDog: "true", mediumDog: "true", largeDog: "true" }), [constraint("smallDog"), constraint("mediumDog"), constraint("largeDog")]);
     expect(result.exact).toBe(true);
     expect(result.proof).toHaveLength(3);
     expect(result.proof.every((item) => item.evidence.sourceUrl.startsWith("https://"))).toBe(true);
@@ -127,49 +115,49 @@ describe("strict AND matching", () => {
   it("accepts only all-TRUE combinations across the tri-state space", () => {
     const states: TriState[] = ["true", "false", "unknown"];
     let exactCount = 0;
-    for (const outdoor of states) for (const leash of states) for (const carrier of states) {
-      const exact = evaluatePlace(withValues({ outdoor, leash, carrier }), [constraint("outdoor"), constraint("leash"), constraint("carrier")]).exact;
+    for (const smallDog of states) for (const mediumDog of states) for (const largeDog of states) {
+      const exact = evaluatePlace(withValues({ smallDog, mediumDog, largeDog }), [constraint("smallDog"), constraint("mediumDog"), constraint("largeDog")]).exact;
       if (exact) exactCount += 1;
-      expect(exact).toBe(outdoor === "true" && leash === "true" && carrier === "true");
+      expect(exact).toBe(smallDog === "true" && mediumDog === "true" && largeDog === "true");
     }
     expect(exactCount).toBe(1);
   });
 
   it("does not classify an empty constraint set as an exact match", () => {
-    const result = evaluatePlace(withValues({ outdoor: "true" }), []);
+    const result = evaluatePlace(withValues({ smallDog: "true" }), []);
     expect(result.status).toBe("not-evaluated");
-    expect(findExactMatches([withValues({ outdoor: "true" })], [])).toHaveLength(0);
+    expect(findExactMatches([withValues({ smallDog: "true" })], [])).toHaveLength(0);
   });
 
   it("assigns one mutually exclusive disposition with explicit false taking precedence", () => {
-    expect(evaluatePlace(withValues({ outdoor: "true" }), [constraint("outdoor")]).status).toBe("confirmed-match");
-    expect(evaluatePlace(withValues({ outdoor: "false", leash: "unknown" }), [constraint("outdoor"), constraint("leash")]).status).toBe("confirmed-non-match");
-    expect(evaluatePlace(withValues({ outdoor: "true", leash: "unknown" }), [constraint("outdoor"), constraint("leash")]).status).toBe("unverified");
+    expect(evaluatePlace(withValues({ smallDog: "true" }), [constraint("smallDog")]).status).toBe("confirmed-match");
+    expect(evaluatePlace(withValues({ smallDog: "false", mediumDog: "unknown" }), [constraint("smallDog"), constraint("mediumDog")]).status).toBe("confirmed-non-match");
+    expect(evaluatePlace(withValues({ smallDog: "true", mediumDog: "unknown" }), [constraint("smallDog"), constraint("mediumDog")]).status).toBe("unverified");
   });
 });
 
 describe("minimal relaxation", () => {
   it("removes the smallest ordinary preference set that yields results", () => {
-    const places = [withValues({ outdoor: "true", leash: "true", carrier: "false" })];
-    const proposal = findMinimalRelaxation(places, [constraint("outdoor"), constraint("leash", "preference"), constraint("carrier", "preference")]);
-    expect(proposal?.removedPreferences.map((item) => item.key)).toEqual(["carrier"]);
+    const places = [withValues({ smallDog: "true", mediumDog: "true", largeDog: "false" })];
+    const proposal = findMinimalRelaxation(places, [constraint("smallDog"), constraint("mediumDog", "preference"), constraint("largeDog", "preference")]);
+    expect(proposal?.removedPreferences.map((item) => item.key)).toEqual(["largeDog"]);
     expect(proposal?.matches).toHaveLength(1);
   });
 
   it("never relaxes hard or safety/legal/access/admission constraints", () => {
     const protectedCategories = ["safety", "legal", "access", "admission"] as const;
     for (const protectedCategory of protectedCategories) {
-      const places = [withValues({ leash: "false" })];
-      const proposal = findMinimalRelaxation(places, [constraint("leash", "preference", protectedCategory)]);
+      const places = [withValues({ smallDog: "false" })];
+      const proposal = findMinimalRelaxation(places, [constraint("smallDog", "preference", protectedCategory)]);
       expect(proposal).toBeNull();
     }
-    expect(findMinimalRelaxation([withValues({ leash: "false" })], [constraint("leash", "hard")])).toBeNull();
+    expect(findMinimalRelaxation([withValues({ smallDog: "false" })], [constraint("smallDog", "hard")])).toBeNull();
   });
 
   it("preserves a hard constraint even when a preference has the same key", () => {
-    const hard = constraint("leash", "hard");
-    const preference = constraint("leash", "preference");
-    const proposal = findMinimalRelaxation([withValues({ leash: "false" })], [hard, preference]);
+    const hard = constraint("smallDog", "hard");
+    const preference = constraint("smallDog", "preference");
+    const proposal = findMinimalRelaxation([withValues({ smallDog: "false" })], [hard, preference]);
     expect(proposal).toBeNull();
   });
 });

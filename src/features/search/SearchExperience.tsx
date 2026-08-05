@@ -10,13 +10,14 @@ import { DestinationPanel } from "@/features/search/DestinationPanel";
 import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultCard";
 import type { AccessibilityData } from "@/features/results/AccessibilitySection";
 import type { CampingData } from "@/features/results/CampingSection";
+import type { CongestionData } from "@/features/results/CongestionSection";
 import { TrailSection, type TrailData } from "@/features/results/TrailSection";
 import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 
-const labels: Record<ConditionKey, string> = { outdoor: "야외 동반", indoor: "실내 동반", leash: "목줄 착용", carrier: "이동가방", smallDog: "소형견", mediumDog: "중형견", largeDog: "대형견" };
+const labels: Record<ConditionKey, string> = { smallDog: "소형견", mediumDog: "중형견", largeDog: "대형견" };
 
 function selected(key: ConditionKey, kind: SelectedConstraint["kind"]): SelectedConstraint {
   return { key, label: labels[key], kind, protectedCategory: kind === "hard" ? "admission" : null };
@@ -24,7 +25,7 @@ function selected(key: ConditionKey, kind: SelectedConstraint["kind"]): Selected
 
 type CatalogApiResponse = {
   success: boolean;
-  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData> } | null;
+  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData> } | null;
   error: { message: string } | null;
 };
 
@@ -46,13 +47,22 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
+  const [congestionByPlaceId, setCongestionByPlaceId] = useState<Record<string, CongestionData>>({});
   const [trails, setTrails] = useState<TrailData[]>([]);
   const [festivals, setFestivals] = useState<FestivalData[]>([]);
-  const constraints = useMemo(() => [
-    ...(petSize ? [selected(petSize, "hard")] : []),
-    ...hard.map((key) => selected(key, "hard")),
-    ...preferences.map((key) => selected(key, "preference")),
-  ], [petSize, hard, preferences]);
+  const constraints = useMemo(() => {
+    const seen = new Set<string>();
+    const result: SelectedConstraint[] = [];
+    for (const key of hard) {
+      const id = `${key}-hard`;
+      if (!seen.has(id)) { seen.add(id); result.push(selected(key, "hard")); }
+    }
+    for (const key of preferences) {
+      const id = `${key}-preference`;
+      if (!seen.has(id)) { seen.add(id); result.push(selected(key, "preference")); }
+    }
+    return result;
+  }, [hard, preferences]);
   const isBrowsing = constraints.length === 0;
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
@@ -80,6 +90,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         setCatalog(body.data.catalog);
         setAccessibilityByPlaceId(body.data.accessibility ?? {});
         setCampingByPlaceId(body.data.camping ?? {});
+        setCongestionByPlaceId(body.data.congestion ?? {});
         const placeIds = body.data.catalog.results.map((result) => result.place.id);
         if (placeIds.length === 0) {
           setClosureByPlaceId({});
@@ -129,20 +140,27 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
 
   const toggle = (items: ConditionKey[], key: ConditionKey, update: (next: ConditionKey[]) => void) => {
     setPage(1);
-    update(items.includes(key) ? items.filter((item) => item !== key) : [...items, key]);
+    update(items.includes(key) ? items.filter((item) => item !== key) : [...new Set([...items, key])]);
   };
   const selectSize = (key: ConditionKey | null) => {
     setPage(1);
     setPetSize(key);
+    setHard((current) => {
+      const next = key ? (current.includes(key) ? current : [...current, key]) : current.filter((item) => item !== petSize);
+      return [...new Set(next)];
+    });
   };
   const changeWeight = (value: string) => {
     setPage(1);
     setPetWeight(value);
     const weight = Number(value);
-    if (!value || !Number.isFinite(weight) || weight <= 0) setPetSize(null);
-    else if (weight < 10) setPetSize("smallDog");
-    else if (weight < 25) setPetSize("mediumDog");
-    else setPetSize("largeDog");
+    const newSize: ConditionKey | null = !value || !Number.isFinite(weight) || weight <= 0 ? null : weight < 10 ? "smallDog" : weight < 25 ? "mediumDog" : "largeDog";
+    setHard((current) => {
+      const withoutOld = petSize && petSize !== newSize ? current.filter((item) => item !== petSize) : current;
+      const next = newSize && !withoutOld.includes(newSize) ? [...withoutOld, newSize] : withoutOld;
+      return [...new Set(next)];
+    });
+    setPetSize(newSize);
   };
   const toggleCategory = (category: RawPlace["category"]) => {
     setPage(1);
@@ -174,20 +192,27 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           <div><dt>불가 확인</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
           <div><dt>정보 미확인</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
         </dl> : null}
-        <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span>{region.trim()}</span> : null}{categories.map((category) => <span key={category}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 ? <span>전체 장소</span> : constraints.map((item) => <span key={`${item.key}-${item.kind}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}</div></div>
+        <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 ? <span key="all">전체 장소</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}</div></div>
         {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
-        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
+        {catalogIsCurrent && (trails.length > 0 || festivals.length > 0) ? (
+          <div className="discovery-row">
+            {region.trim() && trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} /> : null}
+            {festivals.length > 0 ? <FestivalSection festivals={festivals} /> : null}
+          </div>
+        ) : null}
+        {catalogIsCurrent && !isBrowsing && exactPageResults.length > 0 ? (
+          <CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace?.coordinates ?? exactPageResults[0]!.place.coordinates} />
+        ) : null}
+        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
         {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
-        {catalogIsCurrent && region.trim() && trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} /> : null}
-        {catalogIsCurrent && festivals.length > 0 ? <FestivalSection festivals={festivals} /> : null}
         <nav className="catalog-pagination" aria-label="장소 결과 페이지">
           <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
           <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
           <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
         </nav>
       </div>
-      {referencePlace ? <div className="extensions">{auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}<CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace.coordinates} /></div> : null}
+      {referencePlace ? <div className="extensions">{auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}</div> : null}
     </section>
   );
 }

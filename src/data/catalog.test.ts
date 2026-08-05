@@ -50,7 +50,7 @@ describe("catalog pagination", () => {
   });
 
   it("computes a global exact count and excludes unknown detail", async () => {
-    const page = buildCatalogPage(await largeSnapshot(), { hard: [hard("leash")], preferences: [], page: 1 });
+    const page = buildCatalogPage(await largeSnapshot(), { hard: [hard("smallDog")], preferences: [], page: 1 });
     expect(page.filteredCount).toBe(60);
     expect(page.confirmedMatchCount).toBe(60);
     expect(page.confirmedNonMatchCount).toBe(0);
@@ -68,13 +68,13 @@ describe("catalog pagination", () => {
       ...fixture,
       sourceTotalCount: 3,
       places: [
-        { ...indoorPlace!, id: "match" },
-        { ...outdoorOnly!, id: "non-match", petPolicy: { ...outdoorOnly!.petPolicy, sourceText: "실내 입장 불가. 목줄 정보는 문의." } },
-        { ...outdoorOnly!, id: "unverified", amenities: [], petPolicy: { ...outdoorOnly!.petPolicy, sourceText: "실내 및 목줄 정책은 문의." } },
+        { ...outdoorOnly!, id: "match", petPolicy: { ...outdoorOnly!.petPolicy, sourceText: "전 견종 동반 가능." } },
+        { ...outdoorOnly!, id: "non-match", petPolicy: { ...outdoorOnly!.petPolicy, sourceText: "대형견 동반 불가." } },
+        { ...outdoorOnly!, id: "unverified", petPolicy: { ...outdoorOnly!.petPolicy, sourceText: "반려동물 정책은 전화 문의 바랍니다." } },
       ],
       auxiliaryPlaces: [],
     };
-    const page = buildCatalogPage(snapshot, { hard: [hard("indoor"), hard("leash")], preferences: [], page: 1 });
+    const page = buildCatalogPage(snapshot, { hard: [hard("smallDog"), hard("largeDog")], preferences: [], page: 1 });
     expect(page).toMatchObject({ confirmedMatchCount: 1, confirmedNonMatchCount: 1, unverifiedCount: 1, unknownPlaceCount: 1 });
     expect(page.confirmedMatchCount + page.confirmedNonMatchCount + page.unverifiedCount).toBe(3);
   });

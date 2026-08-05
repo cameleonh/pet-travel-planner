@@ -13,10 +13,6 @@ const categorySchema = rawPlaceSchema.shape.category;
 const conditionListSchema = z.array(conditionSchema).max(conditionKeys.length).refine((keys) => new Set(keys).size === keys.length, "Duplicate conditions are not allowed.");
 const categoryListSchema = z.array(categorySchema).max(5).refine((keys) => new Set(keys).size === keys.length, "Duplicate categories are not allowed.");
 const conditionLabels: Record<ConditionKey, string> = {
-  outdoor: "야외 동반",
-  indoor: "실내 동반",
-  leash: "목줄 착용",
-  carrier: "이동가방",
   smallDog: "소형견 가능",
   mediumDog: "중형견 가능",
   largeDog: "대형견 가능"
@@ -42,17 +38,16 @@ export async function GET(request: Request) {
     const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories });
 
     // Enrich results with accessibility and camping data when available
-    const accessibilityMap: Record<string, Record<string, string | undefined>> = {};
-    const campingMap: Record<string, Record<string, unknown>> = {};
+    const placeIds = catalog.results.map((result) => result.place.id);
+    let accessibilityMap: Record<string, Record<string, string | undefined>> = {};
+    let campingMap: Record<string, Record<string, unknown>> = {};
+    let congestionMap: Record<string, { t_ats_nm: string; forecasts: { base_ymd: string; cnctr_rate: number }[] }> = {};
     try {
       const repo = new SqlitePlaceRepository(resolveDatabasePath());
       try {
-        for (const result of catalog.results) {
-          const acc = repo.loadAccessibility(result.place.id);
-          if (acc) accessibilityMap[result.place.id] = acc;
-          const camp = repo.loadCamping(result.place.id);
-          if (camp) campingMap[result.place.id] = camp;
-        }
+        accessibilityMap = repo.loadAccessibilityBatch(placeIds);
+        campingMap = repo.loadCampingBatch(placeIds);
+        congestionMap = repo.loadCongestionBatch(placeIds);
       } finally {
         repo.close();
       }
@@ -69,6 +64,7 @@ export async function GET(request: Request) {
         catalog,
         accessibility: accessibilityMap,
         camping: campingMap,
+        congestion: congestionMap,
       },
       error: null,
       meta: { requestId, provider: snapshot.provider, dataSource, notice: notice ?? null },

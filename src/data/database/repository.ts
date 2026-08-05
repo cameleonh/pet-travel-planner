@@ -63,6 +63,17 @@ export function resolveDatabasePath(path = process.env.DATABASE_PATH): string {
   return resolve(/* turbopackIgnore: true */ path?.trim() || ".data/pet-travel.sqlite");
 }
 
+const ACCESSIBILITY_METADATA_KEYS = new Set(["place_id", "snapshot_id", "fetched_at"]);
+
+function stripAccessibilityMetadata(row: Record<string, unknown>): Record<string, string | undefined> {
+  const detail: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (ACCESSIBILITY_METADATA_KEYS.has(key)) continue;
+    detail[key] = typeof value === "string" ? value : undefined;
+  }
+  return detail;
+}
+
 export class SqlitePlaceRepository {
   readonly path: string;
   private readonly db: Database.Database;
@@ -261,10 +272,24 @@ export class SqlitePlaceRepository {
       `SELECT * FROM place_accessibility WHERE place_id = ? ORDER BY snapshot_id DESC LIMIT 1`,
     ).get(placeId) as Record<string, unknown> | undefined;
     if (!row) return null;
-    const { place_id, snapshot_id, fetched_at, ...fields } = row;
-    const result: Record<string, string | undefined> = {};
-    for (const [key, value] of Object.entries(fields)) {
-      result[key] = typeof value === "string" ? value : undefined;
+    return stripAccessibilityMetadata(row);
+  }
+
+  loadAccessibilityBatch(placeIds: string[]): Record<string, Record<string, string | undefined>> {
+    if (placeIds.length === 0) return {};
+    const placeholders = placeIds.map(() => "?").join(", ");
+    const rows = this.db.prepare(
+      `SELECT pa.* FROM place_accessibility pa
+       INNER JOIN (
+         SELECT place_id, MAX(snapshot_id) AS max_snapshot_id
+         FROM place_accessibility
+         WHERE place_id IN (${placeholders})
+         GROUP BY place_id
+       ) latest ON pa.place_id = latest.place_id AND pa.snapshot_id = latest.max_snapshot_id`,
+    ).all(...placeIds) as Record<string, unknown>[];
+    const result: Record<string, Record<string, string | undefined>> = {};
+    for (const row of rows) {
+      result[row.place_id as string] = stripAccessibilityMetadata(row);
     }
     return result;
   }
@@ -299,6 +324,25 @@ export class SqlitePlaceRepository {
     return row ?? null;
   }
 
+  loadCampingBatch(placeIds: string[]): Record<string, Record<string, unknown>> {
+    if (placeIds.length === 0) return {};
+    const placeholders = placeIds.map(() => "?").join(", ");
+    const rows = this.db.prepare(
+      `SELECT pc.* FROM place_camping pc
+       INNER JOIN (
+         SELECT place_id, MAX(snapshot_id) AS max_snapshot_id
+         FROM place_camping
+         WHERE place_id IN (${placeholders})
+         GROUP BY place_id
+       ) latest ON pc.place_id = latest.place_id AND pc.snapshot_id = latest.max_snapshot_id`,
+    ).all(...placeIds) as Record<string, unknown>[];
+    const result: Record<string, Record<string, unknown>> = {};
+    for (const row of rows) {
+      result[row.place_id as string] = row;
+    }
+    return result;
+  }
+
   getCampingCount(): number {
     const result = this.db.prepare("SELECT COUNT(*) as count FROM place_camping").get() as { count: number };
     return result.count;
@@ -326,6 +370,53 @@ export class SqlitePlaceRepository {
 
   getTrailCount(): number {
     const result = this.db.prepare("SELECT COUNT(*) as count FROM trails").get() as { count: number };
+    return result.count;
+  }
+
+  saveCongestion(snapshotId: number, placeId: string, fetchedAt: string, forecast: {
+    t_ats_nm: string; area_cd: string | null; area_nm: string | null;
+    signgu_cd: string | null; signgu_nm: string | null;
+    base_ymd: string; cnctr_rate: number;
+  }): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO place_congestion (place_id, snapshot_id, fetched_at, t_ats_nm, area_cd, area_nm, signgu_cd, signgu_nm, base_ymd, cnctr_rate)
+       VALUES (@place_id, @snapshot_id, @fetched_at, @t_ats_nm, @area_cd, @area_nm, @signgu_cd, @signgu_nm, @base_ymd, @cnctr_rate)`,
+    ).run({ place_id: placeId, snapshot_id: snapshotId, fetched_at: fetchedAt, ...forecast });
+  }
+
+  loadCongestion(placeId: string): { t_ats_nm: string; forecasts: { base_ymd: string; cnctr_rate: number }[] } | null {
+    const rows = this.db.prepare(
+      `SELECT base_ymd, cnctr_rate, t_ats_nm FROM place_congestion WHERE place_id = ? ORDER BY snapshot_id DESC, base_ymd ASC`,
+    ).all(placeId) as { base_ymd: string; cnctr_rate: number; t_ats_nm: string }[];
+    if (rows.length === 0) return null;
+    return {
+      t_ats_nm: rows[0]!.t_ats_nm,
+      forecasts: rows.map((row) => ({ base_ymd: row.base_ymd, cnctr_rate: row.cnctr_rate })),
+    };
+  }
+
+  loadCongestionBatch(placeIds: string[]): Record<string, { t_ats_nm: string; forecasts: { base_ymd: string; cnctr_rate: number }[] }> {
+    if (placeIds.length === 0) return {};
+    const placeholders = placeIds.map(() => "?").join(", ");
+    const rows = this.db.prepare(
+      `SELECT place_id, base_ymd, cnctr_rate, t_ats_nm FROM place_congestion
+       WHERE place_id IN (${placeholders})
+       ORDER BY place_id, snapshot_id DESC, base_ymd ASC`,
+    ).all(...placeIds) as { place_id: string; base_ymd: string; cnctr_rate: number; t_ats_nm: string }[];
+    const result: Record<string, { t_ats_nm: string; forecasts: { base_ymd: string; cnctr_rate: number }[] }> = {};
+    for (const row of rows) {
+      let entry = result[row.place_id];
+      if (!entry) {
+        entry = { t_ats_nm: row.t_ats_nm, forecasts: [] };
+        result[row.place_id] = entry;
+      }
+      entry.forecasts.push({ base_ymd: row.base_ymd, cnctr_rate: row.cnctr_rate });
+    }
+    return result;
+  }
+
+  getCongestionCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM place_congestion").get() as { count: number };
     return result.count;
   }
 }

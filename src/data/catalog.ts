@@ -1,5 +1,5 @@
 import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
-import { evaluatePlace, findExactMatches } from "@/domain/match";
+import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
 import { findMinimalRelaxation } from "@/domain/relax";
 import type { MatchEvaluation, SelectedConstraint } from "@/domain/types";
@@ -38,9 +38,15 @@ export type CatalogQuery = {
 };
 
 export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery): CatalogPage {
-  const detailPlaces = snapshot.places.filter((place) => (place.petDetailStatus ?? "fetched") === "fetched");
-  const pendingDetailCount = snapshot.places.filter((place) => place.petDetailStatus === "not-fetched").length;
-  const failedDetailCount = snapshot.places.filter((place) => place.petDetailStatus === "failed").length;
+  const detailPlaces: RawPlace[] = [];
+  let pendingDetailCount = 0;
+  let failedDetailCount = 0;
+  for (const place of snapshot.places) {
+    const status = place.petDetailStatus ?? "fetched";
+    if (status === "fetched") detailPlaces.push(place);
+    else if (status === "not-fetched") pendingDetailCount += 1;
+    else if (status === "failed") failedDetailCount += 1;
+  }
   const regionTerms = query.region?.trim().toLocaleLowerCase("ko-KR").split(/\s+/).filter(Boolean) ?? [];
   const categories = new Set(query.categories ?? []);
   const filteredPlaces = detailPlaces.filter((place) => {
@@ -53,7 +59,7 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const constraints = [...query.hard, ...query.preferences];
   const browsing = constraints.length === 0;
   const evaluations = places.map((place) => evaluatePlace(place, constraints));
-  const exactMatches = browsing ? [] : findExactMatches(places, constraints);
+  const exactMatches = browsing ? [] : evaluations.filter((evaluation) => evaluation.exact);
   const candidates = browsing ? evaluations : exactMatches;
   const confirmedMatchCount = browsing ? 0 : evaluations.filter((result) => result.status === "confirmed-match").length;
   const confirmedNonMatchCount = browsing ? 0 : evaluations.filter((result) => result.status === "confirmed-non-match").length;

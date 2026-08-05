@@ -14,12 +14,7 @@ import {
 type Rule = { key: ConditionKey; value: Exclude<TriState, "unknown">; patterns: RegExp[] };
 
 const rules: Rule[] = [
-  { key: "indoor", value: "false", patterns: [/실내.{0,12}(출입|입장).{0,6}(제한|불가)/] },
   { key: "largeDog", value: "false", patterns: [/대형견.{0,8}(불가|제한)/] },
-  { key: "outdoor", value: "true", patterns: [/(야외|테라스).{0,16}(동반|이용).{0,8}(가능|허용)/, /동반 가능.{0,12}(야외|테라스)/] },
-  { key: "indoor", value: "true", patterns: [/실내.{0,16}(동반|이용).{0,8}(가능|허용)/, /이동가방.{0,16}실내.{0,12}(동반|이용)?.{0,8}(가능|허용)/] },
-  { key: "leash", value: "true", patterns: [/(목줄|리드줄).{0,12}(착용|사용|필수)/] },
-  { key: "carrier", value: "true", patterns: [/(이동가방|이동장|캐리어|케이지).{0,12}(사용|착용|필수|가능)/] },
   { key: "smallDog", value: "true", patterns: [/소형견.{0,12}(가능|허용)/, /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/] },
   { key: "mediumDog", value: "true", patterns: [/중형견.{0,12}(가능|허용)/, /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/] },
   { key: "largeDog", value: "true", patterns: [/대형견.{0,12}(가능|허용)/, /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/] }
@@ -141,10 +136,7 @@ export function normalizePlace(place: RawPlace): NormalizedPlace {
       facts[rule.key] = fact(rule.key, "unknown", null);
       continue;
     }
-    const requirements = rule.key === "indoor"
-      && /(이동가방|이동장|캐리어|케이지|켄넬)/.test(containingClaim(text, match.index ?? 0))
-      ? ["carrier" as const]
-      : [];
+    const requirements: PreparationKey[] = [];
     facts[rule.key] = fact(rule.key, rule.value, evidenceFor(place, match[0], "source-derived"), requirements);
   }
 
@@ -154,16 +146,6 @@ export function normalizePlace(place: RawPlace): NormalizedPlace {
   // general pet admission (e.g., "동반 가능", "출입 가능"), promote unknown dog-size
   // facts to true. Explicit false values (e.g., "대형견 불가") are preserved.
   applyGeneralAdmissionFallback(place, text, facts);
-
-  if (place.amenities.includes("outdoor") && facts.outdoor.value === "unknown") {
-    facts.outdoor = fact("outdoor", "true", evidenceFor(place, "amenities: outdoor", "source-explicit"));
-  }
-  if (place.amenities.includes("indoor") && facts.indoor.value === "unknown") {
-    facts.indoor = fact("indoor", "true", evidenceFor(place, "amenities: indoor", "source-explicit"));
-  }
-  if (place.amenities.includes("carrier") && facts.carrier.value === "unknown") {
-    facts.carrier = fact("carrier", "true", evidenceFor(place, "amenities: carrier", "source-explicit"));
-  }
 
   const { petPolicy, ...placeFields } = place;
   return { ...placeFields, policySource: petPolicy, facts, requiredPreparations };
