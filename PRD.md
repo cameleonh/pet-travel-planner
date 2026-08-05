@@ -2,8 +2,8 @@
 
 **Working title:** Pet Travel Planner  
 **Product name:** 같이갈개<br>
-**Status:** Competition MVP implemented and verified; post-MVP requirements are explicitly separated  
-**Last updated:** 2026-07-16  
+**Status:** Competition MVP implemented and verified; Phase 2 multi-source data integration in progress
+**Last updated:** 2026-08-05
 **Primary audience:** Korean pet guardians planning local trips
 
 ## 1. Problem Statement
@@ -258,4 +258,92 @@ Animal hospitals and pet-supply stores are auxiliary trip-support data, not tour
 - Animal hospitals: use the [Ministry of the Interior and Safety animal hospital lookup API](https://www.data.go.kr/data/15154952/openapi.do) as the nationwide source; retain hospital name, address, business status, license date, coordinates when available, source URL, and observation time.
 - Pet-supply stores: use a configured [Kakao Local API](https://developers.kakao.com/docs/ko/local/dev-guide) keyword search (`동물용품점`, `애견용품`, `펫샵`) or a documented local-government dataset; retain store name, address, phone, coordinates, map URL, provider, and observation time. Product price, inventory, and delivery are explicitly out of scope.
 
-Support-facility records are shown in separate “nearby hospital” and “nearby supplies” modes, each with its own freshness and source label. Until API credentials and an ingestion job are configured, the product must not imply nationwide coverage.
+Support-facility records are shown in separate "nearby hospital" and "nearby supplies" modes, each with its own freshness and source label. Until API credentials and an ingestion job are configured, the product must not imply nationwide coverage.
+
+## 18. Phase 2 — Multi-Source Data Integration
+
+**Status:** Design in progress; API analysis complete, implementation pending
+**Last updated:** 2026-08-05
+**Goal:** Expand from a single-source pet-tourism lookup into a multi-dimensional travel planning surface by integrating additional Korea Tourism Organization OpenAPI services that share the same `contentId` identifier or `areaCode`/`sigunguCode` regional system.
+
+The MVP proves that official pet-policy text can become an auditable admission decision. Phase 2 enriches that decision with contextual data — accessibility, congestion forecasting, camping, trails, festivals, and regional analytics — so that a guardian can answer "can I go here, and should I?"
+
+### Design Principles for Integration
+
+- **Pet safety remains first:** no new data source may weaken the existing tri-state exact-match contract or promote unknown records to qualified results.
+- **Separate quota budgets:** each OpenAPI service has its own daily 1,000-request limit; ingestion schedules must not interfere with the existing Pet Tour sync.
+- **ContentId where possible:** sources that share the standard `contentId` join directly to existing place rows; sources with proprietary identifiers use name-and-region mapping with explicit confidence labels.
+- **Context, not admission:** congestion forecasts, visitor patterns, and accessibility metadata inform the user's judgment but never override pet-policy constraints.
+- **One source of truth per dimension:** each enrichment type (accessibility, congestion, camping, trails) has exactly one canonical provider; fallback or duplicate providers are out of scope.
+
+### Phase 2A — Direct Enrichment (contentId-shared)
+
+These APIs share the standard TourAPI `contentId` and join directly to existing place rows.
+
+| Source | Service ID | Data added | Priority |
+|---|---|---|---|
+| Barrier-free tourism | `KorWithService2` | Wheelchair access, disabled restroom, elevator, assistance-dog admission, stroller, nursing room — 28 fields across 4 disability groups | P2A-1 |
+| GoCamping | `GoCamping` | Pet-admission flag (`animalCmgCl`), camping type (glamping/caravan/general), facility list, reservation URL, site counts | P2A-2 |
+| Congestion forecast | `TatsCnctrRateService` | 30-day forward `cnctrRate` per tourist site — "quiet day" / "busy day" badge | P2A-3 |
+
+### Phase 2B — Discovery Expansion
+
+These APIs expand the catalog beyond pet-tourism-only listings or add auxiliary context.
+
+| Source | Service ID | Data added | Priority |
+|---|---|---|---|
+| General tourism (Korean) | `KorService2` | Festivals (`searchFestival2`), nearby places (`locationBasedList2`), images (`detailImage2`), `chkpet` field for non-pet-API places | P2B-1 |
+| Related tourist sites | `TarRlteTarService1` | "People who visit X also visit Y" ranked associations with category labels | P2B-2 |
+| Visitor volume | `DataLabService` | Daily visitor counts by region with resident/visitor/foreigner breakdown and weekday patterns | P2B-3 |
+
+### Phase 2C — Experience Enhancement
+
+| Source | Service ID | Data added | Priority |
+|---|---|---|---|
+| Durunubi trails | `Durunubi` | Walking/cycling courses with difficulty level, distance, duration, and GPX route data for dog-walking route planning | P2C-1 |
+| Tourism photo gallery | `PhotoGalleryService1` | Official KTO-certified high-quality tourism photos for place cards and detail views | P2C-2 |
+| Regional analytics | `AreaTarDivService` / `AreaTarDemDsService` | Monthly regional diversity (age groups, international visitors) and demand intensity (lodging ratio, spending) for destination scoring | P2C-3 |
+
+### Phase 2D — Multilingual Expansion
+
+| Source | Service ID | Data added | Priority |
+|---|---|---|---|
+| English tourism | `EngService2` | English translations for all places sharing the same `contentId` | P2D-1 |
+| Traditional Chinese tourism | `ChtService2` | Chinese translations for the same `contentId` set | P2D-2 |
+
+**Note:** `detailPetTour2` exists only in Korean services; multilingual expansion covers general tourism fields, not pet-policy fields. Pet-policy display remains Korean-only until official translations are provided.
+
+### New Functional Requirements (Phase 2)
+
+#### FR-9 Accessibility Context
+
+- Accessibility data from `detailWithTour2` is displayed as an optional expandable section per place, never as a pet-admission criterion.
+- Empty accessibility fields are labeled "정보 없음" and never shown as a guarantee of inaccessibility.
+- The assistance-dog admission field (`helpdog`) is cross-referenced with pet-policy data but does not modify the tri-state pet match.
+
+#### FR-10 Congestion Awareness
+
+- The congestion forecast badge ("여유", "보통", "혼잡") appears on place cards and detail views when forecast data is available.
+- The badge references a specific future date, not a generic pattern.
+- Missing forecast data does not block results; the badge is simply absent.
+
+#### FR-11 Camping Catalog
+
+- Camping places from `GoCamping` that report `animalCmgCl` = "가능" enter the exact-match pipeline under the same tri-state contract as existing pet-tourism places.
+- Camping-specific attributes (type, facilities, reservation URL) appear in an expanded detail section.
+- Camping places that do not report pet admission are treated as `unknown`, matching the existing contract.
+
+#### FR-12 Festival and Event Discovery
+
+- Festival data from `searchFestival2` appears in a separate "이번 주 반려동물 동반 축제" section, not in the main search flow.
+- A festival is included only when its location overlaps with a region that has existing exact-match places or when the user has selected a region.
+- Festival dates are checked against the user's visit context when available.
+
+### New User Stories (Phase 2)
+
+16. As a guardian with mobility needs, I want to see wheelchair access and disabled restroom availability so that I can plan a trip that works for all companions.
+17. As a guardian, I want to see a congestion forecast for the next 30 days so that I can pick a quiet day.
+18. As a guardian, I want to find pet-friendly camping sites with reservation links so that I can book an overnight stay.
+19. As a guardian, I want to see nearby festivals during my trip window so that I can add an event to my course.
+20. As a guardian, I want walking trails with difficulty levels so that I can choose a route suitable for my dog's size and stamina.
+21. As a guardian comparing regions, I want to see which areas are popular with families so that I can find a pet-friendly atmosphere.

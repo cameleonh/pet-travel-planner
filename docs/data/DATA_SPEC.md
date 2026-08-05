@@ -28,6 +28,92 @@ Product behavior and terminology remain canonical in [PRD.md](../../PRD.md).
 
 **Evidence date:** All source pages above were accessed on 2026-07-16.
 
+### Phase 2 Sources (accessed 2026-08-05 from official v4.x manuals)
+
+Each Phase 2 source has an independent daily quota of 1,000 requests and does not share budget with the Pet Travel Service. Sources marked "contentId-shared" join directly to existing `place_id` rows.
+
+#### Barrier-free Tourism Service
+
+- Base service: `KorWithService2`
+- Endpoint: `http://apis.data.go.kr/B551011/KorWithService2`
+- Key operation: `detailWithTour2` — per-`contentId` accessibility detail
+- Scope: 28 accessibility fields across 4 disability groups (지체장애, 시각장애, 청각장애, 영유아가족)
+- Cross-reference: standard `contentId` — joins directly to existing place rows
+- Evidence class: `SOURCE_EXPLICIT` for factual presence of a facility; never modifies pet-admission tri-state
+
+#### GoCamping Service
+
+- Base service: `GoCamping`
+- Endpoint: `http://apis.data.go.kr/B551011/GoCamping`
+- Key operations: `basedList` (full catalog), `locationBasedList` (GPS + radius)
+- Key field: `animalCmgCl` — pet admission flag ("가능" / "불가능")
+- Additional fields: camping type (`induty`), facility list (`sbrsCl`), site counts, reservation URL (`resveUrl`)
+- Cross-reference: standard `contentId` with `contentTypeId=28`
+- Evidence class: `SOURCE_EXPLICIT` for pet admission; enters the same tri-state pipeline
+
+#### Congestion Forecast Service
+
+- Base service: `TatsCnctrRateService`
+- Endpoint: `http://apis.data.go.kr/B551011/TatsCnctrRateService`
+- Key operation: `tatsCnctrRatedList` — 30-day forward `cnctrRate` per tourist site
+- Manual errata: service URL has "d" in `Rate` (not `Rated`); operation has "d" in `Rated` (not `Rate`)
+- Cross-reference: `areaCd` + `sigunguCd` + `tAtsNm` (name-based); not contentId-direct
+- Evidence class: `MODEL_DERIVED` — forecast data, not a policy constraint
+
+#### General Tourism Service (Korean)
+
+- Base service: `KorService2`
+- Endpoint: `http://apis.data.go.kr/B551011/KorService2`
+- Key operations: `searchFestival2` (festivals/events), `locationBasedList2` (nearby places), `detailImage2` (images)
+- Additional field: `chkpet` in `detailIntro2` — pet-admission text for non-pet-API places
+- Cross-reference: standard `contentId`
+
+#### Related Tourist Sites Service
+
+- Base service: `TarRlteTarService1`
+- Endpoint: `http://apis.data.go.kr/B551011/TarRlteTarService1`
+- Key operation: `areaBasedList1` — ranked related-tourist-site associations
+- Cross-reference: proprietary hash codes (`tAtsCd`, `rlteTatsCd`); name + area mapping required
+- Update cycle: monthly (8th of each month)
+
+#### Visitor Volume Service
+
+- Base service: `DataLabService`
+- Endpoint: `http://apis.data.go.kr/B551011/DataLabService`
+- Key operations: `metcoRegnVisitrDDList` (시도), `locgoRegnVisitrDDList` (시군구)
+- Fields: daily visitor count, weekday, tourist type (현지인/외지인/외국인)
+- Cross-reference: `areaCd` + `sigunguCd`
+
+#### Durunubi Trail Service
+
+- Base service: `Durunubi`
+- Endpoint: `http://apis.data.go.kr/B551011/Durunubi`
+- Key operations: `routeList` (길 목록), `courseList` (코스 상세)
+- Fields: difficulty (`crsLevel`), distance, duration, GPX route URL
+- Cross-reference: proprietary `routeIdx` / `crsIdx`; not contentId-compatible
+
+#### Tourism Photo Gallery Service
+
+- Base service: `PhotoGalleryService1`
+- Endpoint: `http://apis.data.go.kr/B551011/PhotoGalleryService1`
+- Key operation: `galleryDetailList1`
+- Cross-reference: `galContentId` with `galContentTypeId=17` (separate type)
+
+#### Regional Analytics Services
+
+- Diversity: `AreaTarDivService` — `https://apis.data.go.kr/B551011/AreaTarDivService`
+- Demand intensity: `AreaTarDemDsService` — `https://apis.data.go.kr/B551011/AreaTarDemDsService`
+- Update cycle: monthly (16th of each month)
+- Manual errata: diversity op#3 endpoint is `areaIntlDivList`, not `areaTouDivList` as shown in some manual sections
+
+#### Multilingual Tourism Services
+
+- English: `EngService2` — `http://apis.data.go.kr/B551011/EngService2`
+- Traditional Chinese: `ChtService2` — `http://apis.data.go.kr/B551011/ChtService2`
+- Cross-reference: standard `contentId`; pet-policy fields (`detailPetTour2`) are Korean-only
+
+**Phase 2 evidence date:** All official manuals were accessed on 2026-08-05 from the competition OT materials distributed in `자료/[2026 관광데이터 활용 공모전] 웹·앱구현 부문 OT자료_/`.
+
 ## 3. Evidence Classes
 
 | Class | Meaning | Can satisfy a hard constraint? |

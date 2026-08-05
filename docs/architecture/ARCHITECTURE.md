@@ -198,6 +198,7 @@ Logs must not contain API keys, precise user location, or pet-profile labels.
 | Web framework | Next.js 16 App Router | One full-stack TypeScript runtime with static shell and server-only provider boundary |
 | SQLite runtime mode | Default and implemented | Fast stable reads from the latest successful official snapshot |
 | Fixture mode | Verification default | Deterministic, keyless, and network-free automated verification |
+| Multi-source provider registry | Phase 2 — in design | Each enrichment source gets its own adapter, quota budget, and sync schedule; all join to existing `contentId` where possible |
 
 ## 13. External Boundaries
 
@@ -205,3 +206,64 @@ Logs must not contain API keys, precise user location, or pet-profile labels.
 - [Korean Tourism Information Service](https://www.data.go.kr/data/15101578/openapi.do) may supplement events, stays, images, and nearby tourism records.
 - A future map/routing provider supplies navigation evidence only.
 - Venue phone calls remain the final confirmation path for stale or ambiguous admission policy.
+
+## 14. Phase 2 — Multi-Provider Architecture
+
+**Status:** Design in progress
+**Last updated:** 2026-08-05
+**Reference:** [Phase 2 Upgrade Roadmap](../roadmap/PHASE2_UPGRADE.md)
+
+### Provider Registry
+
+The current architecture has one tourism adapter (`TourApiPlaceProvider`). Phase 2 introduces a provider registry that maps enrichment dimensions to independent adapters, each with its own service endpoint, quota budget, and sync schedule:
+
+```
+EnrichmentRequest(contentId, dimension)
+  → ProviderRegistry.resolve(dimension)
+    → EnrichmentProvider.fetch(contentId)
+      → validated Zod response
+        → SQLite enrichment table
+          → joined at query time
+```
+
+Each provider is isolated by:
+- **Service key:** a separate `TOUR_API_KEY` is used for all KTO services; the endpoint path differs per service.
+- **Quota tracker:** each service has its own 1,000/day counter; the existing `requestBudget` pattern is extended to a per-service map.
+- **Sync schedule:** daily, weekly, or monthly depending on the source's update cycle (see roadmap §6).
+
+### Enrichment Dimensions
+
+| Dimension | Provider | Joins by | Isolation |
+|---|---|---|---|
+| Accessibility | `BarrierFreeProvider` (`KorWithService2`) | `contentId` | Read-only enrichment; never modifies pet tri-state |
+| Camping | `CampingProvider` (`GoCamping`) | `contentId` | Independent catalog; enters tri-state pipeline via `animalCmgCl` |
+| Congestion | `CongestionProvider` (`TatsCnctrRateService`) | `areaCd` + name | Forecast only; displayed as badge, not constraint |
+| Festivals | `FestivalProvider` (`KorService2`) | `contentId` | Separate discovery flow |
+| Trails | `TrailProvider` (`Durunubi`) | proprietary | Standalone table; no contentId join |
+| Related sites | `RelatedSitesProvider` (`TarRlteTarService1`) | name + area | Recommendation hint; not authoritative |
+| Visitor volume | `VisitorVolumeProvider` (`DataLabService`) | `areaCd` | Statistical context only |
+| Photos | `PhotoProvider` (`PhotoGalleryService1`) | `galContentId` | Media enrichment only |
+| Multilingual | `TranslationProvider` (`EngService2` / `ChtService2`) | `contentId` | UI-layer only; pet-policy fields stay Korean |
+
+### Query-Time Join Strategy
+
+Enrichment data is never merged into the normalized place record at ingestion time. Instead, the application API performs a left join at query time:
+
+1. The match engine evaluates pet-policy conditions exactly as in the MVP.
+2. After qualification, the API layer attaches enrichment rows (accessibility, congestion, camping, photos) by `contentId`.
+3. Missing enrichment rows are silently absent — the UI shows no badge or section rather than a placeholder.
+
+This preserves the MVP invariant: pet-policy matching depends only on `places` + `place_amenities`, and enrichment cannot accidentally qualify or disqualify a result.
+
+### Schema Migration Sequence
+
+Each enrichment source adds a versioned migration:
+
+| Migration | Version | Table(s) | Status |
+|---|---|---|---|
+| v4 | `accessibility_enrichment` | `place_accessibility` | Design |
+| v5 | `camping_catalog` | `place_camping` | Design |
+| v6 | `congestion_forecast` | `place_congestion` | Design |
+| v7 | `festival_discovery` | `festivals` | Design |
+
+All migrations are additive — no existing column or constraint is altered.
