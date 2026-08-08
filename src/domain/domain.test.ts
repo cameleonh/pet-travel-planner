@@ -161,3 +161,22 @@ describe("minimal relaxation", () => {
     expect(proposal).toBeNull();
   });
 });
+
+describe("preparation filter extraction", () => {
+  it("extracts leash from source text mentioning 목줄 착용", () => {
+    const place = normalizePlace(rawPlace("목줄 착용 후 동반 가능합니다."));
+    expect(place.requiredPreparations.some((p) => p.key === "leash")).toBe(true);
+  });
+
+  it("extracts carrier from source text mentioning 이동장 사용", () => {
+    const place1 = normalizePlace(rawPlace("이동장 사용 시 동반 가능"));
+    expect(place1.requiredPreparations.some((p) => p.key === "carrier")).toBe(true);
+    const place2 = normalizePlace(rawPlace("이동가방 착용 필수"));
+    expect(place2.requiredPreparations.some((p) => p.key === "carrier")).toBe(true);
+  });
+
+  it("does not extract preparations when text has no preparation keywords", () => {
+    const place = normalizePlace(rawPlace("전 구역 동반 가능합니다."));
+    expect(place.requiredPreparations).toHaveLength(0);
+  });
+});

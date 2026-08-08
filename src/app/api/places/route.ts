@@ -5,12 +5,14 @@ import { ProviderConfigurationError } from "@/data/providers/provider";
 import { loadPlaceSnapshot } from "@/data/providers";
 import { buildCatalogPage } from "@/data/catalog";
 import { rawPlaceSchema } from "@/data/contracts";
-import { conditionKeys, type ConditionKey, type SelectedConstraint } from "@/domain/types";
+import { conditionKeys, preparationFilterKeys, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { SqlitePlaceRepository, resolveDatabasePath } from "@/data/database/repository";
 
 const conditionSchema = z.enum(conditionKeys);
 const categorySchema = rawPlaceSchema.shape.category;
 const conditionListSchema = z.array(conditionSchema).max(conditionKeys.length).refine((keys) => new Set(keys).size === keys.length, "Duplicate conditions are not allowed.");
+const preparationFilterSchema = z.enum(preparationFilterKeys as unknown as [string, ...string[]]);
+const preparationFilterListSchema = z.array(preparationFilterSchema).max(preparationFilterKeys.length).refine((keys) => new Set(keys).size === keys.length, "Duplicate preparation filters are not allowed.");
 const categoryListSchema = z.array(categorySchema).max(5).refine((keys) => new Set(keys).size === keys.length, "Duplicate categories are not allowed.");
 const conditionLabels: Record<ConditionKey, string> = {
   smallDog: "소형견 가능",
@@ -35,19 +37,26 @@ export async function GET(request: Request) {
     const region = z.string().trim().max(40).default("").parse(url.searchParams.get("region") ?? "");
     const categoriesRaw = url.searchParams.get("categories");
     const categories = categoriesRaw ? categoryListSchema.parse(categoriesRaw.split(",").filter(Boolean)) : [];
-    const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories });
+    const prepFiltersRaw = url.searchParams.get("prep");
+    const preparationFilters = (prepFiltersRaw ? preparationFilterListSchema.parse(prepFiltersRaw.split(",").filter(Boolean)) : []) as PreparationFilterKey[];
+    const lang = z.enum(["ko", "en", "zh"]).default("ko").parse(url.searchParams.get("lang") ?? "ko");
+    const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories, preparationFilters });
 
-    // Enrich results with accessibility and camping data when available
+    // Enrich results with accessibility, camping, congestion, and translation data when available
     const placeIds = catalog.results.map((result) => result.place.id);
     let accessibilityMap: Record<string, Record<string, string | undefined>> = {};
     let campingMap: Record<string, Record<string, unknown>> = {};
     let congestionMap: Record<string, { t_ats_nm: string; forecasts: { base_ymd: string; cnctr_rate: number }[] }> = {};
+    let translationsMap: Record<string, { title: string | null; address: string | null; overview: string | null }> = {};
     try {
       const repo = new SqlitePlaceRepository(resolveDatabasePath());
       try {
         accessibilityMap = repo.loadAccessibilityBatch(placeIds);
         campingMap = repo.loadCampingBatch(placeIds);
         congestionMap = repo.loadCongestionBatch(placeIds);
+        if (lang !== "ko") {
+          translationsMap = repo.loadTranslationBatch(placeIds, lang);
+        }
       } finally {
         repo.close();
       }
@@ -65,10 +74,12 @@ export async function GET(request: Request) {
         accessibility: accessibilityMap,
         camping: campingMap,
         congestion: congestionMap,
+        translations: translationsMap,
+        lang,
       },
       error: null,
       meta: { requestId, provider: snapshot.provider, dataSource, notice: notice ?? null },
-    }, { headers: { "Content-Language": "ko", "X-Request-Id": requestId } });
+    }, { headers: { "Content-Language": lang, "X-Request-Id": requestId } });
   } catch (error) {
     const configurationError = error instanceof ProviderConfigurationError;
     const validationError = error instanceof z.ZodError;

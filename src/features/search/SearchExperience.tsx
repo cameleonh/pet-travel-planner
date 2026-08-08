@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
-import type { ConditionKey, SelectedConstraint } from "@/domain/types";
+import { preparationFilterLabels, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
@@ -11,6 +11,7 @@ import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultC
 import type { AccessibilityData } from "@/features/results/AccessibilitySection";
 import type { CampingData } from "@/features/results/CampingSection";
 import type { CongestionData } from "@/features/results/CongestionSection";
+import type { TranslationData } from "@/features/results/TranslationSection";
 import { TrailSection, type TrailData } from "@/features/results/TrailSection";
 import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
@@ -25,7 +26,7 @@ function selected(key: ConditionKey, kind: SelectedConstraint["kind"]): Selected
 
 type CatalogApiResponse = {
   success: boolean;
-  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData> } | null;
+  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData>; translations?: Record<string, TranslationData>; lang?: string } | null;
   error: { message: string } | null;
 };
 
@@ -39,6 +40,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [categories, setCategories] = useState<RawPlace["category"][]>([]);
   const [hard, setHard] = useState<ConditionKey[]>([]);
   const [preferences, setPreferences] = useState<ConditionKey[]>([]);
+  const [prepFilters, setPrepFilters] = useState<PreparationFilterKey[]>([]);
   const [page, setPage] = useState(1);
   const [catalog, setCatalog] = useState(initialCatalog);
   const [catalogRequestKey, setCatalogRequestKey] = useState("||1||");
@@ -48,6 +50,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
   const [congestionByPlaceId, setCongestionByPlaceId] = useState<Record<string, CongestionData>>({});
+  const [translationByPlaceId, setTranslationByPlaceId] = useState<Record<string, TranslationData>>({});
+  const [lang, setLang] = useState<string>("ko");
   const [trails, setTrails] = useState<TrailData[]>([]);
   const [festivals, setFestivals] = useState<FestivalData[]>([]);
   const constraints = useMemo(() => {
@@ -66,7 +70,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const isBrowsing = constraints.length === 0;
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
-  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}`;
+  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}`;
   const catalogIsCurrent = catalogRequestKey === requestKey;
   const exactPageResults = catalogIsCurrent ? catalog.results.filter((result) => result.exact) : [];
   const referencePlace = exactPageResults[0]?.place ?? (catalogIsCurrent ? catalog.results[0]?.place : undefined);
@@ -78,6 +82,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
     if (preferenceKeys.length > 0) parameters.set("preferences", preferenceKeys.join(","));
     if (region.trim()) parameters.set("region", region.trim());
     if (categories.length > 0) parameters.set("categories", categories.join(","));
+    if (prepFilters.length > 0) parameters.set("prep", prepFilters.join(","));
+    if (lang !== "ko") parameters.set("lang", lang);
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
       setLoading(true);
@@ -91,6 +97,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         setAccessibilityByPlaceId(body.data.accessibility ?? {});
         setCampingByPlaceId(body.data.camping ?? {});
         setCongestionByPlaceId(body.data.congestion ?? {});
+        setTranslationByPlaceId(body.data.translations ?? {});
         const placeIds = body.data.catalog.results.map((result) => result.place.id);
         if (placeIds.length === 0) {
           setClosureByPlaceId({});
@@ -136,11 +143,15 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [hardKeys, preferenceKeys, page, region, categories, requestKey]);
+  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, requestKey]);
 
   const toggle = (items: ConditionKey[], key: ConditionKey, update: (next: ConditionKey[]) => void) => {
     setPage(1);
     update(items.includes(key) ? items.filter((item) => item !== key) : [...new Set([...items, key])]);
+  };
+  const togglePrepFilter = (key: PreparationFilterKey) => {
+    setPage(1);
+    setPrepFilters((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   };
   const selectSize = (key: ConditionKey | null) => {
     setPage(1);
@@ -178,7 +189,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel region={region} selectedCategories={categories} onRegionChange={(value) => { setPage(1); setRegion(value); }} onToggleCategory={toggleCategory} />
-          <ConditionPicker hard={hard} preferences={preferences} onToggleHard={(key) => toggle(hard, key, setHard)} onTogglePreference={(key) => toggle(preferences, key, setPreferences)} />
+          <ConditionPicker hard={hard} preferences={preferences} prepFilters={prepFilters} onToggleHard={(key) => toggle(hard, key, setHard)} onTogglePreference={(key) => toggle(preferences, key, setPreferences)} onTogglePrepFilter={togglePrepFilter} />
+          <div className="lang-toggle" role="group" aria-label="언어 선택">
+            <button type="button" className={lang === "ko" ? "active" : ""} onClick={() => setLang("ko")}>한국어</button>
+            <button type="button" className={lang === "en" ? "active" : ""} onClick={() => setLang("en")}>English</button>
+            <button type="button" className={lang === "zh" ? "active" : ""} onClick={() => setLang("zh")}>中文</button>
+          </div>
         </aside>
       </div>
       <div className="results-panel interactive-results" aria-busy={loading}>
@@ -192,7 +208,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           <div><dt>불가 확인</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
           <div><dt>정보 미확인</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
         </dl> : null}
-        <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 ? <span key="all">전체 장소</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}</div></div>
+        <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">전체 장소</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{preparationFilterLabels[key]}</span>)}</div></div>
         {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
         {catalogIsCurrent && (trails.length > 0 || festivals.length > 0) ? (
@@ -204,7 +220,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         {catalogIsCurrent && !isBrowsing && exactPageResults.length > 0 ? (
           <CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace?.coordinates ?? exactPageResults[0]!.place.coordinates} />
         ) : null}
-        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
+        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
         {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
         <nav className="catalog-pagination" aria-label="장소 결과 페이지">
           <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>

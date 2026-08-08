@@ -2,6 +2,17 @@ import type { RawPlace } from "@/data/contracts";
 
 export const conditionKeys = ["smallDog", "mediumDog", "largeDog"] as const;
 export type ConditionKey = (typeof conditionKeys)[number];
+export type PreparationFilterKey = "leash" | "carrier" | "indoor" | "outdoor";
+
+export const preparationFilterKeys: PreparationFilterKey[] = ["leash", "carrier", "indoor", "outdoor"];
+
+export const preparationFilterLabels: Record<PreparationFilterKey, string> = {
+  leash: "목줄 착용",
+  carrier: "이동가방 가능",
+  indoor: "실내 동반",
+  outdoor: "야외 동반",
+};
+
 export const preparationKeys = ["leash", "carrier", "muzzle", "wasteBag", "stroller", "mannerBelt"] as const;
 export type PreparationKey = (typeof preparationKeys)[number];
 export type PreparationScope = "all" | "indoor" | "dangerous-dog";
