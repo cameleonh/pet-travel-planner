@@ -3,7 +3,7 @@ import type { MatchProof as MatchProofItem } from "@/domain/types";
 export function MatchProof({ proof }: { proof: MatchProofItem[] }) {
   return (
     <details className="proof-details">
-      <summary>왜 맞는지 확인 · 근거 {proof.length}개</summary>
+      <summary>동반 조건 자세히 보기</summary>
       <ul>
         {proof.map((item) => (
           <li key={item.constraint.key}>

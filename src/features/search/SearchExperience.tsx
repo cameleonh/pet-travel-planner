@@ -193,6 +193,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
 
   return (
     <section className="search-workspace" id="search" aria-label="반려견 동반 장소 조건 검색">
+      <div className="lang-toggle" role="group" aria-label="언어 선택">
+        <button type="button" className={lang === "ko" ? "active" : ""} onClick={() => setLang("ko")}>한국어</button>
+        <button type="button" className={lang === "en" ? "active" : ""} onClick={() => setLang("en")}>English</button>
+        <button type="button" className={lang === "zh" ? "active" : ""} onClick={() => setLang("zh")}>中文</button>
+      </div>
       <div className="control-panel">
         <header className="control-heading">
           <div><p className="section-kicker">장소 찾기</p><h2>어떤 곳을 찾고 있나요?</h2></div>
@@ -202,11 +207,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel region={region} selectedCategories={categories} onRegionChange={(value) => { setPage(1); setRegion(value); }} onToggleCategory={toggleCategory} />
           <ConditionPicker hard={hard} preferences={preferences} prepFilters={prepFilters} onToggleHard={(key) => toggle(hard, key, setHard)} onTogglePreference={(key) => toggle(preferences, key, setPreferences)} onTogglePrepFilter={togglePrepFilter} />
-          <div className="lang-toggle" role="group" aria-label="언어 선택">
-            <button type="button" className={lang === "ko" ? "active" : ""} onClick={() => setLang("ko")}>한국어</button>
-            <button type="button" className={lang === "en" ? "active" : ""} onClick={() => setLang("en")}>English</button>
-            <button type="button" className={lang === "zh" ? "active" : ""} onClick={() => setLang("zh")}>中文</button>
-          </div>
         </aside>
       </div>
       <div className="results-panel interactive-results" aria-busy={loading}>
