@@ -17,11 +17,9 @@ const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "�
 
 function PlaceThumbnail({ name, address }: { name: string; address: string }) {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setThumbUrl(null);
-    setLoaded(false);
     const region = address.split(" ").slice(0, 2).join(" ");
     const query = region ? `${name} ${region}` : name;
     fetch(`/api/place-image?q=${encodeURIComponent(query)}`).then((r) => r.json()).then((d) => {
@@ -32,9 +30,8 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
   if (!thumbUrl) return null;
   return (
     <div className="place-thumbnail" aria-hidden="true">
-      {loaded ? null : <div className="thumbnail-placeholder" />}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={thumbUrl} alt="" loading="lazy" onLoad={() => setLoaded(true)} onError={() => setThumbUrl(null)} style={{ display: loaded ? "block" : "none" }} />
+      <img src={thumbUrl} alt="" loading="lazy" onError={() => setThumbUrl(null)} />
     </div>
   );
 }

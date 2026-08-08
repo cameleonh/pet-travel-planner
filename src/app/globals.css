@@ -410,20 +410,17 @@ h1 {
   white-space: nowrap;
 }
 .active-query small { padding: 1px 4px; border-radius: 4px; background: var(--accent-soft); color: #8d3826; }
-.place-list { display: grid; margin-top: 14px; border-top: 1px solid var(--line); }
-.place-card { padding: 20px 2px; transition: background 150ms ease; }
-.place-card + .place-card { border-top: 1px solid var(--line); }
-.place-thumbnail { width: 100%; height: 160px; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: var(--bg); position: relative; }
-.place-thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
-.thumbnail-placeholder { position: absolute; inset: 0; background: linear-gradient(90deg, var(--bg) 25%, var(--card) 50%, var(--bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 10px; }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.place-card:hover { background: color-mix(in srgb, var(--brand-soft) 36%, white); }
+.place-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 14px; gap: 14px; }
+.place-card { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); transition: box-shadow 150ms ease, border-color 150ms ease; }
+.place-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); border-color: var(--line-strong); }
+.place-thumbnail { width: 100%; height: 120px; margin-bottom: 8px; border-radius: 8px; overflow: hidden; background: var(--bg); }
+.place-thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
 .place-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
 .place-top strong { color: var(--brand); }
 .catalog-card .place-top strong { color: var(--muted); }
 .catalog-hint { margin: 14px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.place-card h3 { max-width: 35ch; margin: 8px 0 3px; font-size: 21px; letter-spacing: -0.015em; }
-.address { max-width: 65ch; margin: 0; color: var(--muted); font-size: 13px; }
+.place-card h3 { margin: 6px 0 2px; font-size: 16px; letter-spacing: -0.01em; }
+.address { margin: 0; color: var(--muted); font-size: 12px; }
 .proof-preview { display: flex; margin: 14px 0 12px; flex-wrap: wrap; gap: 6px; }
 .proof-preview span { padding: 5px 8px; border-radius: 7px; background: var(--brand-soft); color: var(--brand-strong); font-size: 11px; font-weight: 700; }
 .preparation-list { margin-top: 14px; padding: 11px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
@@ -523,8 +520,8 @@ h1 {
 .festival-section-title { font-size: 14px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; gap: 6px; }
 .festival-count { font-size: 11px; color: var(--muted); background: var(--card); padding: 2px 8px; border-radius: 4px; }
 .festival-section-desc { font-size: 11px; color: var(--muted); margin: 0 0 12px; }
-.festival-list { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
-.festival-item { padding: 10px 12px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); }
+.festival-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; list-style: none; padding: 0; margin: 0; }
+.festival-item { padding: 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); }
 .festival-ongoing { border-left: 3px solid var(--brand); }
 .festival-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .festival-name { font-size: 13px; font-weight: 700; }
@@ -702,11 +699,10 @@ footer p { margin: 0; }
 }
 
 /* ===== Plan Builder ===== */
-.place-row { position: relative; }
-.place-row .place-card { padding-right: 100px; }
+.place-row { display: flex; flex-direction: column; }
 .plan-add-button {
-  position: absolute; top: 20px; right: 0;
-  padding: 6px 12px; border: 1px solid var(--brand); border-radius: 8px;
+  align-self: flex-start; margin-top: 8px;
+  padding: 5px 10px; border: 1px solid var(--brand); border-radius: 8px;
   background: var(--surface); color: var(--brand-strong);
   font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
   transition: background 150ms ease;
