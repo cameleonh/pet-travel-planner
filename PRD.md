@@ -1,9 +1,10 @@
 # Product Requirements Document — Pet Travel Planner
 
-**Working title:** Pet Travel Planner  
+**Working title:** Pet Travel Planner
 **Product name:** 같이갈개<br>
+**Tagline:** 함께라서 더 가치 있는 여행, 같이갈개
 **Status:** Competition MVP implemented and verified; Phase 2 multi-source data integration in progress
-**Last updated:** 2026-08-08
+**Last updated:** 2026-08-09
 **Primary audience:** Korean pet guardians planning local trips
 
 ## 1. Problem Statement
@@ -253,12 +254,17 @@ Required routes:
 
 ## 17. Separate Support-Facility Data (P1)
 
-Animal hospitals and pet-supply stores are auxiliary trip-support data, not tourism destinations and not pet-admission evidence. They must remain behind a separate user selector so they cannot be confused with exact tourism matches.
+Animal hospitals, pet-supply stores, and pet-friendly restaurants/cafés are auxiliary trip-support data, not tourism destinations and not pet-admission evidence. They must remain behind a separate user selector so they cannot be confused with exact tourism matches.
 
-- Animal hospitals: use the [Ministry of the Interior and Safety animal hospital lookup API](https://www.data.go.kr/data/15154952/openapi.do) as the nationwide source; retain hospital name, address, business status, license date, coordinates when available, source URL, and observation time.
-- Pet-supply stores: use a configured [Kakao Local API](https://developers.kakao.com/docs/ko/local/dev-guide) keyword search (`동물용품점`, `애견용품`, `펫샵`) or a documented local-government dataset; retain store name, address, phone, coordinates, map URL, provider, and observation time. Product price, inventory, and delivery are explicitly out of scope.
+**Status:** Implemented via Kakao Local API (`KAKAO_REST_API_KEY`).
 
-Support-facility records are shown in separate "nearby hospital" and "nearby supplies" modes, each with its own freshness and source label. Until API credentials and an ingestion job are configured, the product must not imply nationwide coverage.
+- Animal hospitals: use the [Kakao Local API](https://developers.kakao.com/docs/ko/local/dev-guide) category search with `category_group_code=HP8` (`/api/veterinary`); retain hospital name, address, phone, coordinates, distance, map URL, and observation time.
+- Pet-supply stores: use the Kakao Local API keyword search with the keyword `반려동물용품` (`/api/pet-shops`); retain store name, address, phone, coordinates, map URL, and observation time.
+- Pet-friendly restaurants and cafés: use the Kakao Local API keyword search (`/api/pet-restaurants`) merging four keywords — `반려동물동반 식당`, `강아지동반 식당`, `반려동물동반 카페`, `강아지동반 카페` — with duplicate results de-duplicated; retain name, address, phone, coordinates, category, map URL, and observation time.
+
+Support-facility records are shown in a three-column "nearby services" grid (restaurants/cafés, veterinary hospitals, pet shops) that appears only after the user has entered a region. Each entry links to Kakao Maps for directions and provides a tap-to-call phone link when available. Product price, inventory, and delivery are explicitly out of scope.
+
+The previous plan to use the Ministry of the Interior and Safety animal hospital lookup API has been superseded by the Kakao Local API, which provides phone numbers, map links, and category grouping that the ministry API lacks.
 
 ## 18. Phase 2 — Multi-Source Data Integration
 
@@ -315,8 +321,8 @@ These APIs expand the catalog beyond pet-tourism-only listings or add auxiliary 
 
 ### Phase 2E — Real-Time Traffic Information
 
-**Status:** Proposed; API credentials pending
-**Last updated:** 2026-08-08
+**Status:** Partially implemented — Kakao Navi API route guidance is live; expressway CCTV and AI vehicle detection remain proposed
+**Last updated:** 2026-08-09
 **Goal:** Answer "is the road to my pet-friendly destination safe right now?" by adding real-time traffic conditions, route-based CCTV, and AI-powered vehicle detection.
 
 Unlike Phases 2A–2D, these data sources are not Korea Tourism Organization services. They are separate government APIs operated by the Korea Expressway Corporation, Ministry of Land, Infrastructure and Transport, and Korea Meteorological Administration. Each has its own quota, ingestion schedule, and credential budget.
@@ -330,6 +336,23 @@ Unlike Phases 2A–2D, these data sources are not Korea Tourism Organization ser
 | AI vehicle detection | Client-side TensorFlow.js (COCO-SSD) | On-screen vehicle count (moving/stopped), density estimate | P2E-2 |
 
 The priority order reflects dependency: CCTV infrastructure (P2E-1) must exist before AI detection (P2E-2) can overlay on it, and the traffic-condition layer (P2E-3) is the broadest integration.
+
+#### Kakao Navi API — Implemented
+
+**Status:** Implemented via `/api/directions` endpoint
+**Last updated:** 2026-08-09
+
+The Kakao Navi API (`https://apis-navi.kakaomobility.com/v1/directions`) provides route guidance between selected places in the Travel Plan Builder (FR-16). It is a pragmatic alternative to the expressway-government APIs above because it returns a complete multi-leg route with traffic metadata in a single call.
+
+Data retrieved per route request:
+
+- Total and per-leg distance (metres) and duration (seconds)
+- Estimated taxi fare and toll fee
+- Per-segment traffic congestion (`smooth` / `slow` / `congested` / `jammed`) with distance and duration for each congestion level
+- Current vehicle speed per road segment
+- A Kakao Map deep link (`https://map.kakao.com/?...`) constructed from the actual origin and destination place names
+
+Congestion warnings surface directly in the plan builder timeline so the guardian sees road stress before departing with a pet. This implementation covers the practical "is this route pleasant for my dog?" question while the expressway CCTV and AI detection layers (P2E-1, P2E-2) remain planned for the deeper "is this road safe right now?" question.
 
 ### New Functional Requirements (Phase 2)
 
@@ -380,6 +403,30 @@ The priority order reflects dependency: CCTV infrastructure (P2E-1) must exist b
 - The detected vehicle count is labeled as an approximate estimate ("AI 추정"), never as an official traffic volume.
 - An ROI (region of interest) filter limits detection to a specific lane or direction selected by the user.
 
+#### FR-16 Travel Plan Builder
+
+- Each result card exposes a "+ 계획서" button that adds the place to a travel plan.
+- The plan builder aggregates selected places and generates route analysis between consecutive stops using Kakao Navi API (`/api/directions`), showing distance, estimated duration, taxi fare, and toll fee per leg.
+- Per-segment real-time traffic congestion is displayed with a status label (smooth/slow/congested/jammed) and the current vehicle speed for each road segment.
+- Congested or jammed segments are highlighted with a warning so the guardian can anticipate road stress before departing with a pet.
+- A Kakao Map link with actual place names is provided for each leg so the user can open turn-by-turn navigation.
+- The completed plan can be printed or exported as PDF via the browser's print dialog using dedicated `@media print` CSS that strips interactive controls and renders a clean itinerary.
+- Only places from the current qualified result set are eligible for plan construction; non-qualified places cannot be added.
+
+#### FR-17 Place Thumbnails
+
+- Each place card displays an auto-fetched thumbnail image from the Kakao Image Search API (`/api/place-image`).
+- The image query includes the place name together with the selected region context to improve accuracy and reduce mismatched results.
+- When no image is found, a neutral placeholder is shown; the absence of an image never affects qualification or ranking.
+- Thumbnails are decorative context, not admission evidence; they are never used to infer pet policy.
+
+#### FR-18 Sub-Category Display
+
+- Places are auto-classified into one of 18 sub-category types (e.g. park, beach, mountain, nature, culture, market, outlet, department, dutyfree) based on name-pattern matching against known Korean keywords.
+- Each sub-category is displayed with a dedicated emoji and a short Korean label (e.g. 🏞️ 공원, 🏖️ 해변, ⛰️ 산) alongside the place name.
+- Classification is informational and never overrides the category-group filter or the tri-state match contract.
+- Unclassified places fall back to the parent category label without a sub-type badge.
+
 ### New User Stories (Phase 2)
 
 16. As a guardian with mobility needs, I want to see wheelchair access and disabled restroom availability so that I can plan a trip that works for all companions.
@@ -391,3 +438,24 @@ The priority order reflects dependency: CCTV infrastructure (P2E-1) must exist b
 22. As a guardian planning a trip in heavy rain, I want to see real-time road conditions and flood warnings on my route so that I can decide whether it is safe to drive with my pet.
 23. As a guardian building a course, I want to see live CCTV cameras along my route in order so that I can visually check traffic before departing.
 24. As a competition judge, I want to see AI vehicle detection running in the browser so that the technical depth of client-side inference is demonstrated.
+
+## 19. Planned: Hybrid Popularity Ranking
+
+**Status:** Planned; not yet implemented
+**Last updated:** 2026-08-09
+**Goal:** Rank qualified places by a transparent blend of internal policy quality and external popularity signals, rather than by distance alone.
+
+The current MVP orders exact-match results by coordinate distance from the reference point. A hybrid ranking would let the guardian see the most promising places first without weakening the exact-match contract.
+
+### Proposed scoring model
+
+1. **Internal score (policy specificity + recency):** places whose pet-policy text contains detailed, condition-specific language (carrier required, outdoor only, weight limit) score higher than places with vague or generic "pet friendly" text. More recently observed or updated policies receive a recency bonus.
+2. **External popularity (Kakao ratings):** for the top N places by internal score, fetch the Kakao Local API rating and review count to provide a community-popularity signal.
+3. **Composite rank:** the internal score is the primary sort key; external ratings act as a tie-breaker and secondary display signal, never overriding qualification or internal quality.
+
+### Guardrails
+
+- Ranking never promotes a partial or unknown match into the exact result set.
+- The external rating is labeled with its source and observation time; it is never presented as pet-admission evidence.
+- When Kakao rating data is unavailable for a place, the place retains its internal-score rank without penalty.
+- The hybrid model is opt-in: the default sort remains distance-based until the user explicitly switches to "추천순."

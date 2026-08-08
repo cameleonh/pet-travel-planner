@@ -11,8 +11,8 @@ typography:
   body: { fontFamily: "Noto Sans KR", fontSize: "16px" }
 ---
 
-**Status:** Task-first MVP visual system implemented and accessibility-checked; final competition artwork is deferred  
-**Last updated:** 2026-07-19
+**Status:** Task-first MVP visual system implemented and accessibility-checked; final competition artwork is deferred
+**Last updated:** 2026-08-09
 
 ## 1. Design Read
 
@@ -165,19 +165,30 @@ Components use semantic tokens. Primitive scales exist only to define them.
 
 ## 6. Layout
 
+The MVP uses a single-flow scrollable layout — no tab navigation. The user scrolls top-to-bottom through a continuous narrative: festival summary → place grid → plan builder → nearby services. A language toggle sits in the top-right corner of the page header, replacing the earlier sidebar placement.
+
 ### Mobile
 
 - Primary canvas: 320–480px; page gutters reduce from 16px to 10px at the narrowest supported width.
 - Header and task introduction stay compact. Size controls remain a comparable three-column row; required conditions stack below 640px.
-- Results follow the controls in document order. Nearby and course utilities stack after the exact result and recovery state.
+- Results follow the controls in document order as a compact card grid. Nearby services and the plan builder stack after the place grid.
+- The place list uses a CSS grid of `repeat(auto-fill, minmax(280px, 1fr))` so cards wrap responsively; on narrow phones this collapses to a single column.
+- The festival list uses a tighter grid of `repeat(auto-fill, minmax(200px, 1fr))`.
+- Category filter cards are laid out as a grid of icon + label + description cards (e.g. "🏞️ 관광지 — 공원·산·해변·문화").
 - There is no decorative bottom navigation or hidden filter sheet in the MVP.
 
 ### Tablet and desktop
 
 - Content max width: 1200px.
 - Size and condition groups share one full-width control surface at 1024px and above, then stack without changing semantics.
-- Results span the content width. Nearby and course utilities use a 1.15/0.85 supporting grid and stack below 1024px.
-- The MVP does not include a map; straight-line nearby ordering and the external Kakao Maps handoff are represented in accessible text.
+- The place card grid expands to 3–4 columns; the festival grid to 5–6 columns.
+- Nearby services render as a three-column grid (restaurants/cafés, veterinary hospitals, pet shops), each column independently scrollable when content overflows.
+- The MVP does not include an embedded map; straight-line nearby ordering and the external Kakao Maps handoff are represented in accessible text.
+
+### Print layout
+
+- Dedicated `@media print` CSS strips interactive controls, filter panels, and navigation, rendering a clean travel-plan itinerary for PDF export.
+- The printed plan shows place names, sub-category labels, route legs with distance and congestion, and the Kakao Map link.
 
 ## 7. Component Inventory
 
@@ -188,9 +199,13 @@ Components use semantic tokens. Primitive scales exist only to define them.
 - `ConditionPicker`: hard-condition toggle group plus a separately labelled removable preference.
 - `MatchBar`: active hard conditions and preferences adjacent to the live exact count.
 - `ResultCard` and `MatchProof`: place identity, proof preview, evidence excerpt, and original-source handoff.
+- `PlaceThumbnail`: auto-fetched thumbnail from the Kakao Image Search API (`/api/place-image`) using place name plus region context; neutral placeholder on miss. Decorative only — never used as admission evidence.
 - `ZeroResultRecovery`: reason, protected-condition message, projected count, and explicit preference removal.
 - `NearbyCatalog`: confirmed and phone-confirmation groups with opt-in location ordering.
+- `NearbyServices`: three-column grid (restaurants/cafés, veterinary hospitals, pet shops) sourced from Kakao Local API; each entry has Kakao Map link and tap-to-call phone link; visible only when a region is entered.
 - `CourseBuilder` and `CourseTimeline`: current exact results only, approximate order disclosure, and external directions.
+- `PlanBuilder`: travel plan assembly surface — "+ 계획서" button on each result card adds a place; generates multi-leg route analysis via Kakao Navi API (`/api/directions`) with per-segment congestion warnings, taxi fare, toll fee, and Kakao Map link; supports print/PDF export via `@media print` CSS.
+- `FestivalSection`: weekly pet-friendly festival summary from `searchFestival2`; "홈페이지 바로가기" link to VisitKorea, expandable "더 보기" button, and compact `minmax(200px, 1fr)` card grid.
 - `LoadingShell`: task-shaped skeleton rather than an unexplained blank page.
 
 ## 8. Component State Rules
@@ -229,13 +244,15 @@ Components use semantic tokens. Primitive scales exist only to define them.
 ## 10. Content Style
 
 - Brand descriptor: `반려견과 함께 갈 수 있는 곳`
-- Brand slogan: `같이갈개, 함께라서 더 가치 있는 여행`
+- Brand tagline: `함께라서 더 가치 있는 여행, 같이갈개`
 - Use direct Korean UI copy, short verbs, and concrete condition names.
-- Say “확인되지 않았어요” rather than implying a policy.
-- Say “필수 조건은 그대로 유지돼요” in no-result recovery.
-- Say “대략적인 방문 순서” when routing is absent.
-- Avoid “AI 추천,” “완벽한,” “무조건 가능,” and other certainty claims unsupported by evidence.
-- Do not use emoji as navigation or state icons.
+- Say "동반 조건 자세히 보기" for the expandable proof ledger, replacing the earlier "왜 맞는지 확인 · 근거 N개" phrasing.
+- Say "확인 불가" for unknown-policy places, replacing the earlier "불가 확인" phrasing.
+- Say "확인되지 않았어요" rather than implying a policy.
+- Say "필수 조건은 그대로 유지돼요" in no-result recovery.
+- Say "대략적인 방문 순서" when routing is absent.
+- Avoid "AI 추천," "완벽한," "무조건 가능," and other certainty claims unsupported by evidence.
+- Do not use emoji as navigation or state icons. (Emoji are permitted as informational sub-category labels on place cards — see FR-18.)
 
 ## 11. Accessibility
 
