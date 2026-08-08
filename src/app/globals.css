@@ -413,6 +413,10 @@ h1 {
 .place-list { display: grid; margin-top: 14px; border-top: 1px solid var(--line); }
 .place-card { padding: 20px 2px; transition: background 150ms ease; }
 .place-card + .place-card { border-top: 1px solid var(--line); }
+.place-thumbnail { width: 100%; height: 160px; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: var(--bg); position: relative; }
+.place-thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.thumbnail-placeholder { position: absolute; inset: 0; background: linear-gradient(90deg, var(--bg) 25%, var(--card) 50%, var(--bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 10px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .place-card:hover { background: color-mix(in srgb, var(--brand-soft) 36%, white); }
 .place-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
 .place-top strong { color: var(--brand); }

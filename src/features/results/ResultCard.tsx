@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import type { MatchEvaluation } from "@/domain/types";
 import { MatchProof } from "@/features/results/MatchProof";
 import { AccessibilitySection, type AccessibilityData } from "@/features/results/AccessibilitySection";
@@ -12,11 +15,34 @@ export type PublicClosureStatus = {
 const categoryLabel = { attraction: "관광지", restaurant: "식당", cafe: "카페", accommodation: "숙소", shopping: "쇼핑" } as const;
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
+function PlaceThumbnail({ name }: { name: string }) {
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setThumbUrl(null);
+    setLoaded(false);
+    fetch(`/api/place-image?q=${encodeURIComponent(name)}`).then((r) => r.json()).then((d) => {
+      if (!cancelled && d.success && d.data?.thumbnailUrl) setThumbUrl(d.data.thumbnailUrl);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [name]);
+  if (!thumbUrl) return null;
+  return (
+    <div className="place-thumbnail" aria-hidden="true">
+      {loaded ? null : <div className="thumbnail-placeholder" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={thumbUrl} alt="" loading="lazy" onLoad={() => setLoaded(true)} onError={() => setThumbUrl(null)} style={{ display: loaded ? "block" : "none" }} />
+    </div>
+  );
+}
+
 export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility, camping, congestion, translation, lang = "ko" }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData; camping?: CampingData; congestion?: CongestionData; translation?: TranslationData; lang?: string }) {
   const isCatalogResult = !result.exact && result.proof.length === 0;
   const preparations = result.place.requiredPreparations.filter((item) => item.scope !== "dangerous-dog" || dangerousDog);
   return (
     <article className={`place-card ${isCatalogResult ? "catalog-card" : "exact-card"}`}>
+      <PlaceThumbnail name={result.place.name} />
       <div className="place-top"><span>{categoryLabel[result.place.category]}</span><strong>{isCatalogResult ? "조건 선택 전" : "선택한 조건 모두 확인"}</strong></div>
       <h3>{result.place.name}</h3>
       <p className="address">{result.place.address}</p>
