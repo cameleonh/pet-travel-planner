@@ -19,7 +19,7 @@ export default async function HomePage() {
       <section className="intro" id="top">
         <div className="intro-copy">
           <p className="eyebrow">반려견과 함께 갈 수 있는 곳</p>
-          <h1>같이갈개, 함께라서 더 가치 있는 여행</h1>
+          <h1>함께라서 더 가치 있는 여행, 같이갈개</h1>
           <p className="lede"><span className="keep-together">반려견 크기와 조건을 고르면,</span> <span className="keep-together">맞는 장소만 추려요.</span> <span className="keep-together">동반 규정은</span> 원문으로 확인할 수 있어요.</p>
         </div>
         <figure className="mascot-gallery" aria-label="같이갈개 마스코트의 여행 모습">
