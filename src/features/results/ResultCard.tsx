@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { MatchEvaluation } from "@/domain/types";
+import { resolveDisplayCategory, displayCategoryLabel, displayCategoryIcon } from "@/domain/categories";
 import { MatchProof } from "@/features/results/MatchProof";
 import { AccessibilitySection, type AccessibilityData } from "@/features/results/AccessibilitySection";
 import { CampingSection, type CampingData } from "@/features/results/CampingSection";
@@ -12,7 +13,6 @@ export type PublicClosureStatus = {
   readonly closures: readonly { readonly closureKind: "weekly" | "date"; readonly weekday: number | null; readonly closureDate: string | null; readonly reason: string }[];
 };
 
-const categoryLabel = { attraction: "관광지", restaurant: "식당", cafe: "카페", accommodation: "숙소", shopping: "쇼핑" } as const;
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
 function PlaceThumbnail({ name, address }: { name: string; address: string }) {
@@ -39,10 +39,11 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
 export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility, camping, congestion, translation, lang = "ko" }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData; camping?: CampingData; congestion?: CongestionData; translation?: TranslationData; lang?: string }) {
   const isCatalogResult = !result.exact && result.proof.length === 0;
   const preparations = result.place.requiredPreparations.filter((item) => item.scope !== "dangerous-dog" || dangerousDog);
+  const displayCat = resolveDisplayCategory(result.place);
   return (
     <article className={`place-card ${isCatalogResult ? "catalog-card" : "exact-card"}`}>
       <PlaceThumbnail name={result.place.name} address={result.place.address} />
-      <div className="place-top"><span>{categoryLabel[result.place.category]}</span><strong>{isCatalogResult ? "조건 선택 전" : "선택한 조건 모두 확인"}</strong></div>
+      <div className="place-top"><span>{displayCategoryIcon[displayCat]} {displayCategoryLabel[displayCat]}</span><strong>{isCatalogResult ? "조건 선택 전" : "선택한 조건 모두 확인"}</strong></div>
       <h3>{result.place.name}</h3>
       <p className="address">{result.place.address}</p>
       {closureStatus ? <div className="closure-status" aria-label="운영자 등록 휴무"><strong>{closureStatus.closures.length > 0 ? "운영자 등록 휴무" : "등록된 휴무 없음"}</strong>{closureStatus.closures.length > 0 ? <span>{closureStatus.closures.slice(0, 2).map((closure) => closure.closureKind === "weekly" && closure.weekday !== null ? `매주 ${["일", "월", "화", "수", "목", "금", "토"][closure.weekday]}요일 · ${closure.reason}` : `${closure.closureDate ?? "특정일"} · ${closure.reason}`).join(" / ")}</span> : <span>확정 영업을 의미하지 않아요. 방문 전 확인 권장</span>}</div> : null}

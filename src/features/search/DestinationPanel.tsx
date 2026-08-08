@@ -1,11 +1,11 @@
 import type { RawPlace } from "@/data/contracts";
 
-const categories: { key: RawPlace["category"]; label: string }[] = [
-  { key: "attraction", label: "관광지" },
-  { key: "restaurant", label: "식당" },
-  { key: "cafe", label: "카페" },
-  { key: "accommodation", label: "숙소" },
-  { key: "shopping", label: "쇼핑" },
+const categories: { key: RawPlace["category"]; label: string; icon: string; desc: string }[] = [
+  { key: "attraction", label: "관광지", icon: "🏞️", desc: "공원·산·해변·문화" },
+  { key: "restaurant", label: "식당", icon: "🍽️", desc: "반려동물 동반 식당" },
+  { key: "cafe", label: "카페", icon: "☕", desc: "반려동물 동반 카페" },
+  { key: "accommodation", label: "숙소", icon: "🏨", desc: "펫프렌들리 숙박" },
+  { key: "shopping", label: "쇼핑", icon: "🛍️", desc: "아울렛·시장·백화점" },
 ];
 
 type Props = {
@@ -32,7 +32,9 @@ export function DestinationPanel({ region, selectedCategories, onRegionChange, o
             key={category.key}
             onClick={() => onToggleCategory(category.key)}
           >
-            {category.label}
+            <span className="cat-icon">{category.icon}</span>
+            <span className="cat-label">{category.label}</span>
+            <small className="cat-desc">{category.desc}</small>
           </button>
         ))}
       </div>

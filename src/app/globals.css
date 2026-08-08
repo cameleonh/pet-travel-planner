@@ -290,9 +290,14 @@ h1 {
 .dangerous-dog-input input { width: 17px; height: 17px; accent-color: var(--brand); }
 .region-input { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .region-input input { min-height: 42px; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; }
-.category-grid { display: flex; margin-top: 10px; flex-wrap: wrap; gap: 6px; }
-.category-grid button { min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 12px; font-weight: 700; }
+.category-grid { display: grid; margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.category-grid button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer; text-align: center; transition: border-color 150ms ease, background 150ms ease; }
+.category-grid button:hover { border-color: var(--brand); }
 .category-grid button.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-strong); }
+.cat-icon { font-size: 20px; line-height: 1; }
+.cat-label { font-size: 13px; font-weight: 800; }
+.cat-desc { font-size: 10px; color: var(--muted); font-weight: 400; }
+.category-grid button.active .cat-desc { color: var(--brand-strong); opacity: .7; }
 
 .condition-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .condition-button {
