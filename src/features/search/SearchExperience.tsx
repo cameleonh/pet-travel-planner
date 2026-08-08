@@ -16,6 +16,7 @@ import { TrailSection, type TrailData } from "@/features/results/TrailSection";
 import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
+import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 
 const labels: Record<ConditionKey, string> = { smallDog: "소형견", mediumDog: "중형견", largeDog: "대형견" };
@@ -228,7 +229,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
         </nav>
       </div>
-      {referencePlace ? <div className="extensions">{auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}</div> : null}
+      {referencePlace ? <div className="extensions">{auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}<NearbyServices origin={referencePlace.coordinates} referenceName={referencePlace.name} /></div> : null}
     </section>
   );
 }
