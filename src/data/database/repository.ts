@@ -419,4 +419,53 @@ export class SqlitePlaceRepository {
     const result = this.db.prepare("SELECT COUNT(*) as count FROM place_congestion").get() as { count: number };
     return result.count;
   }
+
+  saveTranslation(snapshotId: number, placeId: string, language: string, fetchedAt: string, detail: {
+    title: string | null; address: string | null; overview: string | null;
+  }): void {
+    this.db.prepare(
+      `INSERT OR REPLACE INTO place_translations (place_id, snapshot_id, language, title, address, overview, fetched_at)
+       VALUES (@place_id, @snapshot_id, @language, @title, @address, @overview, @fetched_at)`,
+    ).run({ place_id: placeId, snapshot_id: snapshotId, language, ...detail, fetched_at: fetchedAt });
+  }
+
+  loadTranslation(placeId: string, language: string): { title: string | null; address: string | null; overview: string | null } | null {
+    const row = this.db.prepare(
+      `SELECT title, address, overview FROM place_translations
+       WHERE place_id = ? AND language = ?
+       ORDER BY snapshot_id DESC LIMIT 1`,
+    ).get(placeId, language) as { title: string | null; address: string | null; overview: string | null } | undefined;
+    return row ?? null;
+  }
+
+  loadTranslationBatch(placeIds: string[], language: string): Record<string, { title: string | null; address: string | null; overview: string | null }> {
+    if (placeIds.length === 0) return {};
+    const placeholders = placeIds.map(() => "?").join(", ");
+    const rows = this.db.prepare(
+      `SELECT pt.place_id, pt.title, pt.address, pt.overview FROM place_translations pt
+       INNER JOIN (
+         SELECT place_id, MAX(snapshot_id) AS max_snapshot_id
+         FROM place_translations
+         WHERE place_id IN (${placeholders}) AND language = ?
+         GROUP BY place_id
+       ) latest ON pt.place_id = latest.place_id AND pt.snapshot_id = latest.max_snapshot_id
+       WHERE pt.language = ?`,
+    ).all(...placeIds, language, language) as { place_id: string; title: string | null; address: string | null; overview: string | null }[];
+    const result: Record<string, { title: string | null; address: string | null; overview: string | null }> = {};
+    for (const row of rows) {
+      result[row.place_id] = { title: row.title, address: row.address, overview: row.overview };
+    }
+    return result;
+  }
+
+  getTranslationCount(language?: string): number {
+    if (language) {
+      const result = this.db.prepare(
+        "SELECT COUNT(*) as count FROM place_translations WHERE language = ?",
+      ).get(language) as { count: number };
+      return result.count;
+    }
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM place_translations").get() as { count: number };
+    return result.count;
+  }
 }

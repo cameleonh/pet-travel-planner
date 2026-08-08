@@ -107,7 +107,12 @@ export class TrailProvider {
     url.searchParams.set("_type", "json");
 
     const response = await this.fetchImpl(url.toString());
-    const json = await response.json();
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch {
+      return [];
+    }
     const parsed = routeEnvelopeSchema.safeParse(json);
     if (!parsed.success) return [];
 
@@ -125,7 +130,12 @@ export class TrailProvider {
     url.searchParams.set("_type", "json");
 
     const response = await this.fetchImpl(url.toString());
-    const json = await response.json();
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch {
+      return [];
+    }
     const parsed = courseEnvelopeSchema.safeParse(json);
     if (!parsed.success) return [];
 

@@ -1,7 +1,7 @@
 # Project Status
 
 **As of:** 2026-08-06
-**Current objective:** Pet-detail ingestion is 100% complete (9,695/9,695 fetched, 0 failed). General-admission fallback promotes "동반 가능" without explicit size restriction to size-qualified true, raising confirmed matches to ~9,600 per size band. Phase 2 integration in progress: GoCamping catalog ingested (2,602 pet-admitted sites), barrier-free provider and UI built, accessibility data ingestion scheduled after quota reset.
+**Current objective:** Pet-detail ingestion is 100% complete (9,695/9,695 fetched, 0 failed). General-admission fallback promotes "동반 가능" without explicit size restriction to size-qualified true, raising confirmed matches to ~9,600 per size band. Phase 2 integration largely complete: GoCamping catalog corrected to 1,131 pet-admitted sites (was 2,602 due to a regex bug that matched "불가능"), barrier-free provider and UI built (35 smoke rows; full ingestion pending quota reset), multilingual translations ingested (EN 3,618 / ZH 3,584 via coordinate matching). All Phase 2 providers have test coverage (53 new tests, 115 total).
 
 ## State Ledger
 
@@ -58,11 +58,14 @@
 - General-admission fallback that promotes "동반 가능" without explicit size restriction to size-qualified true with inferred evidence class
 - Phase 2 barrier-free accessibility provider, `place_accessibility` schema (28 fields, 4 disability groups), and expandable UI section
 - Phase 2 GoCamping provider, `place_camping` schema, sync script, and expandable UI section with reservation link
-- `/api/places` enrichment pipeline that left-joins accessibility and camping data at query time without modifying pet-policy matching
+- `/api/places` enrichment pipeline that left-joins accessibility, camping, congestion, and multilingual translation data at query time without modifying pet-policy matching
+- Phase 2 multilingual translation provider (`EngService2`/`ChtService2`), `place_translations` schema (v8), sync script, language toggle UI, and expandable translation section on result cards
+- Phase 2 provider test coverage: 51 tests covering barrier-free, camping, congestion, trail, and multilingual providers (quota handling, error isolation, credential safety, pagination, data mapping)
 
 ### Verified
 
-- On 2026-08-06, GoCamping catalog was ingested via `npm run sync:camping`. It fetched all 3,084 camping sites in 4 API calls and saved 2,602 pet-admitted sites (84%) to `place_camping` with camping type, facilities, site counts, reservation URL, and image URL. The CampingProvider, DB migration v5, CampingSection UI component, and `/api/places` enrichment are all verified: 63/63 tests pass, production build succeeds.
+- On 2026-08-06, multilingual translations were ingested via coordinate-based matching (EngService2/ChtService2 use different contentId spaces than KorPetTourService2, so coordinates at 4 decimal places ≈11m precision are the join key). English: 3,618 places matched from 15,108 total (16 API calls). Chinese: 3,584 places matched from 14,282 total (15 API calls). The MultilingualProvider, DB migration v8 (`place_translations`), TranslationSection UI with language toggle, `/api/places?lang=en|zh` enrichment, and 14 tests are verified: 115/115 tests pass, production build succeeds, 0 vulnerabilities.
+- On 2026-08-06, GoCamping catalog was ingested via `npm run sync:camping`. It fetched all 3,084 camping sites in 4 API calls. A regex bug (`/가능/` matched "불가능") initially saved 2,602 sites as pet-admitted. After fixing to `/^가능/`, 1,471 "불가능" rows were deleted, leaving the correct 1,131 pet-admitted sites (43.5%). The CampingProvider, DB migration v5, CampingSection UI component, and `/api/places` enrichment are all verified: 113/113 tests pass, production build succeeds.
 - On 2026-08-06, barrier-free accessibility infrastructure was completed: BarrierFreeProvider (`KorWithService2/detailWithTour2`), DB migration v4 (`place_accessibility` with 28 fields across 4 disability groups), AccessibilitySection UI component, and `/api/places` enrichment. Smoke test confirmed data retrieval for contentId 988449. Full data ingestion is scheduled after quota reset.
 - On 2026-08-06, `npm run db:sync:daily` completed as run 32 / snapshot 14 after creating backup `pet-travel-2026-08-05T15-10-16-235Z.sqlite`. It used 271 official requests and recovered all 246 remaining failed rows. Pet-detail ingestion is now 100% complete: 9,695 fetched, 0 not-fetched, 0 failed.
 - Snapshot 14 reconciles exactly to 9,695 places: 9,695 fetched, 0 not-fetched, and 0 failed. The current database and pre-sync backup independently returned `PRAGMA integrity_check=ok`.
@@ -141,6 +144,8 @@
 - The implementation baseline is Next.js 16.3.0, React 19.2.7, TypeScript 6.0.3, Vitest 4.1.10, and ESLint 9.39.5.
 - The working product name is `같이갈개`; final competition branding remains reversible.
 - Routing provider and native-app scope remain reversible.
+- Pet-policy fields remain Korean-only; only structural place data (title, address, overview) is translated via multilingual APIs.
+- Camping pet-admission filtering uses `/^가능/` (starts-with), not `/가능/` (substring), to avoid matching "불가능".
 
 ## Current Risks
 
@@ -156,7 +161,7 @@
 
 ## Exact Next Action
 
-Run `npm run sync:accessibility` after the KorWithService2 quota resets to ingest barrier-free data for existing places. The GoCamping catalog (2,602 pet-admitted sites) is already ingested. Next implementation target: congestion forecast provider (Step 3) or festival discovery (Step 4).
+Run `npm run sync:accessibility` after the KorWithService2 quota resets to ingest barrier-free data for existing places (cron scheduled for 00:07 KST). English (3,618) and Chinese (3,584) translations are ingested via coordinate-based matching. The GoCamping catalog (1,131 pet-admitted sites) is already ingested and corrected. The congestion forecast API (`TatsCnctrRateService`) remains unapproved (`SERVICE_KEY_IS_NOT_REGISTERED`); `TarRlteTarService1` and `PhotoGalleryService1` are deprecated (`NO_OPENAPI_SERVICE_ERROR`) and cannot be implemented.
 
 ## Latest Ingestion Checkpoint (2026-08-06)
 

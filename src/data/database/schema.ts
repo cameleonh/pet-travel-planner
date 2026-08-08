@@ -313,4 +313,28 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS place_congestion;
     `,
   },
+  {
+    version: 8,
+    name: "multilingual_translations",
+    up: `
+      CREATE TABLE place_translations (
+        place_id TEXT NOT NULL,
+        snapshot_id INTEGER NOT NULL REFERENCES source_snapshots(id) ON DELETE CASCADE,
+        language TEXT NOT NULL CHECK (language IN ('en', 'zh')),
+        title TEXT,
+        address TEXT,
+        overview TEXT,
+        fetched_at TEXT NOT NULL,
+        PRIMARY KEY (place_id, snapshot_id, language)
+      ) STRICT;
+
+      CREATE INDEX idx_place_translations_place ON place_translations(place_id);
+      CREATE INDEX idx_place_translations_language ON place_translations(language);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_place_translations_language;
+      DROP INDEX IF EXISTS idx_place_translations_place;
+      DROP TABLE IF EXISTS place_translations;
+    `,
+  },
 ];

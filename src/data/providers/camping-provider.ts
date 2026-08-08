@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { rawPlaceSchema, type ProviderSnapshot, type RawPlace } from "@/data/contracts";
+import { type RawPlace } from "@/data/contracts";
 
 const OFFICIAL_CATALOG_URL = "https://www.data.go.kr/data/15068066/openapi.do";
 
@@ -67,10 +67,6 @@ type Options = {
 
 class CampingQuotaError extends Error {}
 
-const CAMPING_CATEGORY_MAP: Record<string, RawPlace["category"]> = {
-  "관광지": "attraction",
-};
-
 export type CampingPlace = {
   item: CampingItem;
   rawPlace: RawPlace;
@@ -80,8 +76,6 @@ export type CampingPlace = {
 function mapCampingToRawPlace(item: CampingItem): RawPlace {
   const lat = item.mapY ? parseFloat(item.mapY) : NaN;
   const lng = item.mapX ? parseFloat(item.mapX) : NaN;
-  const animalCmg = item.animalCmgCl ?? "";
-  const petAdmitted = /가능/.test(animalCmg);
 
   const policyParts: string[] = [];
   if (item.animalCmgCl) policyParts.push(`애완동물 출입: ${item.animalCmgCl}`);
@@ -202,7 +196,7 @@ export class CampingProvider {
 
     return allItems.map((item) => {
       const rawPlace = mapCampingToRawPlace(item);
-      const petAdmitted = /가능/.test(item.animalCmgCl ?? "");
+      const petAdmitted = /^가능/.test((item.animalCmgCl ?? "").trim());
       return { item, rawPlace, petAdmitted };
     });
   }

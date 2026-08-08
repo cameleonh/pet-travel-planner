@@ -30,6 +30,8 @@
     "sync:camping": "tsx --env-file=.env.local scripts/sync-camping.ts",
     "sync:congestion": "tsx --env-file=.env.local scripts/sync-congestion.ts",
     "sync:trails": "tsx --env-file=.env.local scripts/sync-trails.ts",
+    "sync:translations:en": "TRANSLATION_LANGUAGE=en tsx --env-file=.env.local scripts/sync-translations.ts",
+    "sync:translations:zh": "TRANSLATION_LANGUAGE=zh tsx --env-file=.env.local scripts/sync-translations.ts",
     "check": "npm run lint && npm run typecheck && npm run test",
     "verify": "npm run check && npm run test:coverage && npm run test:e2e && npm run build && npm audit --audit-level=moderate"
   },

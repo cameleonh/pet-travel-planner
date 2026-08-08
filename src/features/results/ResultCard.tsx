@@ -3,6 +3,7 @@ import { MatchProof } from "@/features/results/MatchProof";
 import { AccessibilitySection, type AccessibilityData } from "@/features/results/AccessibilitySection";
 import { CampingSection, type CampingData } from "@/features/results/CampingSection";
 import { CongestionSection, type CongestionData } from "@/features/results/CongestionSection";
+import { TranslationSection, type TranslationData } from "@/features/results/TranslationSection";
 
 export type PublicClosureStatus = {
   readonly closures: readonly { readonly closureKind: "weekly" | "date"; readonly weekday: number | null; readonly closureDate: string | null; readonly reason: string }[];
@@ -11,7 +12,7 @@ export type PublicClosureStatus = {
 const categoryLabel = { attraction: "관광지", restaurant: "식당", cafe: "카페", accommodation: "숙소", shopping: "쇼핑" } as const;
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
-export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility, camping, congestion }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData; camping?: CampingData; congestion?: CongestionData }) {
+export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility, camping, congestion, translation, lang = "ko" }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData; camping?: CampingData; congestion?: CongestionData; translation?: TranslationData; lang?: string }) {
   const isCatalogResult = !result.exact && result.proof.length === 0;
   const preparations = result.place.requiredPreparations.filter((item) => item.scope !== "dangerous-dog" || dangerousDog);
   return (
@@ -25,6 +26,7 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
       <AccessibilitySection data={accessibility} />
       <CampingSection data={camping} />
       <CongestionSection data={congestion} />
+      <TranslationSection data={translation} lang={lang} />
     </article>
   );
 }
