@@ -77,6 +77,7 @@ export async function GET(request: Request) {
 
     const apiUrl = new URL(API_BASE);
     apiUrl.searchParams.set("query", SEARCH_KEYWORD);
+    apiUrl.searchParams.set("category_group_code", "HP8");
     apiUrl.searchParams.set("y", String(lat));
     apiUrl.searchParams.set("x", String(lng));
     apiUrl.searchParams.set("radius", String(radius));

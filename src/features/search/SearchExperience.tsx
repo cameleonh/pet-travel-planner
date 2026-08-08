@@ -100,40 +100,31 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         setCongestionByPlaceId(body.data.congestion ?? {});
         setTranslationByPlaceId(body.data.translations ?? {});
         const placeIds = body.data.catalog.results.map((result) => result.place.id);
-        if (placeIds.length === 0) {
-          setClosureByPlaceId({});
-        } else {
+
+        const closureTask = placeIds.length === 0 ? Promise.resolve() : (async () => {
           const closureParameters = new URLSearchParams({ ids: placeIds.join(",") });
           const closureResponse = await fetch(`/api/places/closures?${closureParameters}`, { signal: controller.signal });
           const closureBody = await closureResponse.json() as ClosureApiResponse;
           if (closureResponse.ok && closureBody.success) setClosureByPlaceId(Object.fromEntries(Object.entries(closureBody.closures).map(([placeId, closures]) => [placeId, { closures }])));
-        }
-        // Fetch trails for the selected region
-        if (region.trim()) {
-          try {
-            const trailResponse = await fetch(`/api/trails?region=${encodeURIComponent(region.trim())}`, { signal: controller.signal });
-            const trailBody = await trailResponse.json() as { success: boolean; data?: { trails: TrailData[] } };
-            if (trailResponse.ok && trailBody.success && trailBody.data) {
-              setTrails(trailBody.data.trails as TrailData[]);
-            } else {
-              setTrails([]);
-            }
-          } catch { setTrails([]); }
-        } else {
-          setTrails([]);
-        }
-        // Fetch festivals (live API, next 30 days, optionally filtered by region)
-        try {
+        })().catch(() => { if (!controller.signal.aborted) setClosureByPlaceId({}); });
+
+        const trailTask = region.trim() ? (async () => {
+          const trailResponse = await fetch(`/api/trails?region=${encodeURIComponent(region.trim())}`, { signal: controller.signal });
+          const trailBody = await trailResponse.json() as { success: boolean; data?: { trails: TrailData[] } };
+          if (trailResponse.ok && trailBody.success && trailBody.data) setTrails(trailBody.data.trails as TrailData[]);
+          else setTrails([]);
+        })().catch(() => { if (!controller.signal.aborted) setTrails([]); }) : Promise.resolve().then(() => { if (!controller.signal.aborted) setTrails([]); });
+
+        const festivalTask = (async () => {
           const festivalParams = new URLSearchParams();
           if (region.trim()) festivalParams.set("region", region.trim());
           const festivalResponse = await fetch(`/api/festivals?${festivalParams}`, { signal: controller.signal });
           const festivalBody = await festivalResponse.json() as { success: boolean; data?: { festivals: FestivalData[] } };
-          if (festivalResponse.ok && festivalBody.success && festivalBody.data) {
-            setFestivals(festivalBody.data.festivals as FestivalData[]);
-          } else {
-            setFestivals([]);
-          }
-        } catch { setFestivals([]); }
+          if (festivalResponse.ok && festivalBody.success && festivalBody.data) setFestivals(festivalBody.data.festivals as FestivalData[]);
+          else setFestivals([]);
+        })().catch(() => { if (!controller.signal.aborted) setFestivals([]); });
+
+        await Promise.all([closureTask, trailTask, festivalTask]);
         setCatalogRequestKey(requestKey);
       })
       .catch((error: unknown) => {
@@ -206,30 +197,39 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         <p className="catalog-coverage">현재 상세정보 확인 가능 {catalog.searchableCount.toLocaleString("ko-KR")}곳 · 전국 원천 {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳 · 상세 수집률 {catalog.sourceTotalCount > 0 ? ((catalog.detailCoverage / catalog.sourceTotalCount) * 100).toFixed(1) : "0.0"}% · 미수집 {catalog.pendingDetailCount.toLocaleString("ko-KR")}곳 · 실패 {catalog.failedDetailCount.toLocaleString("ko-KR")}곳</p>
         {!isBrowsing && catalogIsCurrent ? <dl className="decision-summary" aria-label="조건 판정 현황">
           <div><dt>가능 명시 확인</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
-          <div><dt>불가 확인</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
+          <div><dt>확인 불가</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
           <div><dt>정보 미확인</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
         </dl> : null}
         <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">전체 장소</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{preparationFilterLabels[key]}</span>)}</div></div>
         {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
-        {catalogIsCurrent && (trails.length > 0 || festivals.length > 0) ? (
-          <div className="discovery-row">
-            {region.trim() && trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} /> : null}
-            {festivals.length > 0 ? <FestivalSection festivals={festivals} /> : null}
-          </div>
+        {catalogIsCurrent ? (
+          <>
+            {catalogIsCurrent && festivals.length > 0 ? (
+              <div className="discovery-row">
+                {region.trim() && trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} /> : null}
+                <FestivalSection festivals={festivals} />
+              </div>
+            ) : null}
+            {catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
+            {!isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
+            <nav className="catalog-pagination" aria-label="장소 결과 페이지">
+              <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
+              <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
+              <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
+            </nav>
+            {!isBrowsing && exactPageResults.length > 0 ? (
+              <CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace?.coordinates ?? exactPageResults[0]!.place.coordinates} />
+            ) : null}
+            {referencePlace ? (
+              <div className="extensions">
+                {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}
+                <NearbyServices origin={referencePlace.coordinates} referenceName={referencePlace.name} />
+              </div>
+            ) : null}
+          </>
         ) : null}
-        {catalogIsCurrent && !isBrowsing && exactPageResults.length > 0 ? (
-          <CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace?.coordinates ?? exactPageResults[0]!.place.coordinates} />
-        ) : null}
-        {catalogIsCurrent ? catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} /> : null}
-        {catalogIsCurrent && !isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
-        <nav className="catalog-pagination" aria-label="장소 결과 페이지">
-          <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
-          <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
-          <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
-        </nav>
       </div>
-      {referencePlace ? <div className="extensions">{auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}<NearbyServices origin={referencePlace.coordinates} referenceName={referencePlace.name} /></div> : null}
     </section>
   );
 }

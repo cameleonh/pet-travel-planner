@@ -330,7 +330,7 @@ h1 {
 .condition-button.active .condition-indicator { border-color: var(--brand); background: var(--brand); }
 .prep-filter-group { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .prep-filter-label { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--ink-subtle); }
-.nearby-services-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.nearby-services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .nearby-services-grid h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
 .nearby-services-grid ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .nearby-services-grid li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -338,7 +338,7 @@ h1 {
 .nearby-services-grid li small { display: block; font-size: 11px; color: var(--ink-subtle); }
 .tel-link { font-size: 11px; color: var(--brand); text-decoration: none; }
 .place-link { font-size: 11px; color: var(--brand); text-decoration: none; margin-left: 8px; }
-@media (max-width: 640px) { .nearby-services-grid { grid-template-columns: 1fr; } }
+@media (max-width: 767px) { .nearby-services-grid { grid-template-columns: 1fr; } }
 .preference-block {
   display: flex;
   margin-top: 12px;
@@ -485,13 +485,15 @@ h1 {
 .translation-overview { font-size: 12px; line-height: 1.6; color: var(--text); margin: 4px 0 0; }
 .translation-source { margin-top: 8px; font-size: 10px; color: var(--muted); }
 
-.discovery-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
+.discovery-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 16px; margin: 16px 0 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
 .discovery-row > .trail-section,
 .discovery-row > .festival-section { margin-top: 0; }
 .discovery-row:has(> :only-child) { grid-template-columns: 1fr; }
 @media (max-width: 767px) { .discovery-row { grid-template-columns: 1fr; } }
 
-.results-panel > .course-card { margin-top: 14px; }
+.results-panel > .course-card { margin-top: 20px; border: 2px solid var(--brand); }
+
+/* 탭 CSS 제거됨 — 단일 흐름 구조 사용 */
 
 .trail-section { margin: 20px 0 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .trail-section-title { font-size: 14px; font-weight: 800; margin: 0 0 4px; display: flex; align-items: center; gap: 6px; }

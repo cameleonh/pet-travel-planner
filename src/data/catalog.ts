@@ -42,7 +42,45 @@ export type CatalogQuery = {
 const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/];
 const outdoorPatterns = [/야외.{0,12}(가능|동반|출입|허용)/, /일부\s?구역.{0,12}(가능|동반)/, /전구역.{0,12}(가능|동반)/];
 
-const noiseNamePatterns = [/약국$/, /안경원/, /편의점/, /마트$/, /슈퍼$/, /슈퍼마켓/, /세탁소/, /수선점/, /사진관/, /复印/];
+const noiseNamePatterns = [
+  /약국/,
+  /안경/,
+  /편의점/,
+  /마트$/,
+  /슈퍼$/,
+  /슈퍼마켓/,
+  /세탁소/,
+  /수선점/,
+  /사진관/,
+  /복권/,
+  /혼수/,
+  /이불/,
+  /침구/,
+  /의원/,
+  /성형외과/,
+  /피부과/,
+  /치과/,
+  /안과$/,
+  /내과/,
+  /외과/,
+  /산부인과/,
+  /소아과/,
+  /정형외과/,
+  /신경과/,
+  /이비인후과/,
+  /한의원/,
+  /가정의학/,
+  /올리브영/,
+  /다이소/,
+  /ABC마트/,
+  /은행$/,
+  /ATM/,
+  /도매$/,
+  /유통/,
+  /물산$/,
+  /상사$/,
+  /힐튼종합/,
+];
 
 function isNoisePlace(place: { name: string; category: string }): boolean {
   if (place.category !== "shopping") return false;
@@ -80,7 +118,7 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
     const categoryMatches = categories.size === 0 || categories.has(place.category);
     if (!regionMatches || !categoryMatches) return false;
     const userPickedShopping = categories.has("shopping");
-    if (!userPickedShopping && isNoisePlace(place)) return false;
+    if (userPickedShopping && isNoisePlace(place)) return false;
     return true;
   });
   const places = normalizePlaces(filteredPlaces);
