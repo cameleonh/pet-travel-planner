@@ -1,8 +1,8 @@
 # User Flows and UX State Contract
 
-**Product behavior source:** [PRD.md](../../PRD.md)  
-**Visual system source:** [DESIGN.md](../../DESIGN.md)  
-**Last updated:** 2026-07-16
+**Product behavior source:** [PRD.md](../../PRD.md)
+**Visual system source:** [DESIGN.md](../../DESIGN.md)
+**Last updated:** 2026-08-08
 
 ## 1. Information Architecture
 
@@ -132,15 +132,91 @@ Exact results
 - Approximate mode uses “approximate order” and distance, never invented travel minutes.
 - Duration, category, opening-hour feasibility, routed mode, and stop replacement are post-MVP.
 
-## 9. Nearby Auxiliary Flow
+### Course traffic context (Phase 2E)
+
+When traffic data is available, the course result gains a context strip below the stop list:
+
+```text
+Approximate course
+  → [Traffic context strip]
+      ├─ 정체 12구간 / 지체 8구간 (관측 14:32)
+      ├─ ⚠ 폭우 경보 — 경부선 천안~옥천
+      └─ 🚫 전면통제 — 영동IC 진출로
+  → [Route cameras button]
+```
+
+- Traffic context is read-only information; it never removes or reorders stops.
+- A closure alert does not disable the course; it warns the user to verify.
+- Missing traffic data produces no strip — the course appears as in the MVP.
+- Observation timestamps are shown; traffic data is never presented as predictive.
+
+## 9. Route Camera Flow (Phase 2E)
+
+```text
+Course result
+  → "이 길의 카메라 보기"
+  → Load CCTV list ordered by route sequence
+  → Camera list panel
+      ├─ 1. 안성 IC (상행)  [썸네일]
+      ├─ 2. 천안 JC (상행)  [썸네일]
+      └─ 3. 옥천 IC (상행)  [썸네일]
+  → Tap a camera
+  → CCTV stream view
+```
+
+### Camera list rules
+
+- Cameras are ordered by projected travel sequence along the course, not by distance from origin or catalog ID.
+- Each entry shows the camera name, direction label, and a live thumbnail or placeholder.
+- The list is available only within an active course; there is no standalone camera browser.
+- If no cameras match the route corridor, the button is absent rather than showing an empty state.
+
+### CCTV stream view
+
+```text
+CCTV stream view
+  → <video> with live stream
+  → [AI 차량 감지] toggle (off by default)
+  → Camera name, direction, observation time
+```
+
+- The stream URL is resolved through a server proxy; the client never sees provider credentials.
+- If the stream fails to load, show "스트림 일시 중단" with a button to the next camera.
+- The video element has `crossorigin="anonymous"` for canvas access when CORS is supported by the provider.
+
+## 10. AI Vehicle Detection Flow (Phase 2E)
+
+```text
+CCTV stream view
+  → Tap [AI 차량 감지] toggle
+  → Loading: "AI 모델 로드 중…" (first time only, ~2-5s)
+  → Detection overlay activates
+      ├─ Bounding boxes on moving vehicles
+      ├─ Count badge: "AI 추정 이동 23대 / 정지 5대"
+      ├─ ROI selector: [전체] [상행] [하행]
+      └─ Inference time: "추론 87ms"
+  → Toggle off to stop detection
+```
+
+### Detection rules
+
+- Detection is never auto-started; the user must explicitly toggle it on.
+- The first activation lazy-loads TensorFlow.js and the COCO-SSD model (~1MB) via dynamic import.
+- The video keeps playing normally if detection is off or fails to load.
+- The count badge always shows the "AI 추정" label; it is never presented as official traffic volume.
+- ROI filtering lets the user restrict counting to a specific lane direction; the default is the full frame.
+- Detection results exist only in client state for the open session; they are discarded on navigation.
+- If inference errors occur mid-stream, the last successful count is shown with a stale indicator until the next successful frame.
+
+## 11. Nearby Auxiliary Flow
 
 - Confirmed pet-compatible utilities and unknown-policy places render in separate groups.
 - Coordinate distance is explicitly labeled as straight-line rather than walking or driving distance.
 - Current location is requested only after the user presses the recalculation button, is not persisted, and falls back to the named reference place when permission is unavailable.
 
-## 10. UX State Matrix
+## 12. UX State Matrix
 
-The matrix below is the target-state contract. The verified MVP activates first use, no exact result, unknown policy, location denied, and exact-only approximate course states; refresh/cache, stale-policy, saved/share, and full infeasibility states remain post-MVP.
+The matrix below is the target-state contract. The verified MVP activates first use, no exact result, unknown policy, location denied, and exact-only approximate course states; refresh/cache, stale-policy, saved/share, and full infeasibility states remain post-MVP. Phase 2E adds traffic-context, CCTV stream, and AI detection states.
 
 | State | Meaning | Primary action | Required message |
 |---|---|---|---|
@@ -154,17 +230,23 @@ The matrix below is the target-state contract. The verified MVP activates first 
 | API failure without cache | No usable result data | Retry | Explain temporary retrieval failure |
 | Course infeasible | No safe sequence fits | Adjust one blocking input | Name the blocking input |
 | Location denied | Nearby search cannot access location | Choose region | Explain manual alternative |
+| Traffic unavailable | Traffic provider unreachable or no data | Continue without traffic | No traffic strip; course appears as MVP |
+| Road closure alert | Full closure on a course segment | Verify before departure | Closure type, road name, observation time |
+| CCTV stream failure | Stream URL resolution or playback failed | Try next camera | "스트림 일시 중단" |
+| AI model loading | TensorFlow.js model downloading on first activation | Wait or cancel | "AI 모델 로드 중…" with progress |
+| AI inference error | Detection failed for current frame | None (auto-retry next frame) | Show last count with stale indicator or "분석 중" |
 
 All changing result counts and error messages use appropriate live-region announcements for assistive technology.
 
-## 11. Navigation and Back Behavior
+## 13. Navigation and Back Behavior
 
 - System/browser back returns to the prior result position and preserves filters.
 - Opening a filter sheet does not create an unrecoverable navigation state.
 - Mobile sheets allow swipe dismissal and a visible close action.
 - Deep links reopen the matching search or place when possible.
+- Closing a CCTV stream view returns to the camera list; closing the camera list returns to the course result.
 
-## 12. Analytics Events
+## 14. Analytics Events
 
 Collect behavior needed to validate the product, not sensitive raw location.
 
@@ -179,10 +261,16 @@ Collect behavior needed to validate the product, not sensitive raw location.
 | `course_requested` | duration, stop categories, mobility mode |
 | `course_failed` | blocking reason |
 | `venue_contact_tapped` | freshness state, unresolved-condition count |
+| `traffic_context_shown` | congestion sections, closure count, weather alert present |
+| `route_cameras_opened` | camera count, route corridor |
+| `cctv_stream_opened` | camera name, stream source provider |
+| `cctv_stream_failed` | camera name, failure reason |
+| `ai_detection_toggled` | enabled/disabled, model load time |
+| `ai_detection_result` | total count, moving count, inference time |
 
-Do not send precise coordinates, pet names, or free-form policy text to general analytics.
+Do not send precise coordinates, pet names, free-form policy text, CCTV video frames, or AI detection frame data to general analytics.
 
-## 13. Accessibility Acceptance
+## 15. Accessibility Acceptance
 
 - All tap targets are at least 44×44 CSS pixels.
 - Filter states have text/checkmark equivalents and keyboard focus.

@@ -1,7 +1,7 @@
 # Logical Architecture
 
-**Status:** Executable MVP implemented; competition hardening in progress  
-**Last updated:** 2026-07-16
+**Status:** Executable MVP implemented; competition hardening in progress
+**Last updated:** 2026-08-08
 
 ## 1. Architectural Goal
 
@@ -51,6 +51,9 @@ Do not introduce a separate Python service, queue, native app, or microservice u
 | Relaxation engine | Smallest preference-only relaxation | Editing or bypassing hard constraints |
 | Course engine | Qualified candidate selection, opening feasibility, ordering | Requalifying partial places |
 | Routing adapter | External route distance/time when configured | Pet or venue policy truth |
+| CCTV adapter | CCTV catalog lookup, stream URL resolution, server-side credential proxy | Vehicle detection or traffic-condition interpretation |
+| Traffic adapter | Real-time congestion, speed, weather, and closure data fetch and validation | Pet-policy qualification or course candidate selection |
+| Vehicle detector | Client-side COCO-SSD inference, ROI filtering, count estimation | Server-side data persistence or official traffic-volume reporting |
 | Read model | Efficient place/result/detail projection | Raw evidence mutation |
 
 Each component exposes one explicit boundary. Provider DTOs do not leak into the UI contract.
@@ -93,6 +96,23 @@ The implemented MVP uses the current exact-match objects directly rather than a 
 4. Never present the confirmation-needed group as a match.
 5. Request browser geolocation only after a user action, do not persist it, and retain the reference-place fallback when permission is unavailable.
 
+### Traffic context
+
+1. Accept a course or route polyline and resolve CCTV cameras whose coordinates fall within a corridor buffer along the route.
+2. Order cameras by projected travel sequence, not by catalog ID or distance from origin.
+3. Serve each CCTV stream through a server-side proxy that resolves the provider stream URL and returns it to the client without exposing API keys or Referer-based credentials.
+4. Fetch real-time congestion, speed, weather, and closure data through the traffic adapter; validate each response with Zod at the provider boundary.
+5. Attach traffic context to course results as a read-only overlay; traffic conditions never modify the exact-match pipeline or remove a qualified place.
+6. Missing traffic data is silently absent — the UI shows no panel rather than a placeholder.
+
+### Client-side vehicle detection
+
+1. The user explicitly enables AI detection on an open CCTV stream; detection is never auto-started.
+2. The web client lazy-loads TensorFlow.js and the COCO-SSD model via dynamic import after the user opts in.
+3. Detection runs on a canvas backed by the `<video>` element; no video frames leave the browser.
+4. The detector applies an optional ROI filter to restrict counting to a user-selected lane or direction.
+5. The detected count is presented as an approximate estimate with an explicit "AI 추정" label; it is never displayed as official traffic volume.
+
 ## 5. Query Contracts
 
 ### Search request
@@ -130,10 +150,11 @@ The implemented MVP uses the current exact-match objects directly rather than a 
 - Ordered stops with match proof and opening state
 - Distance/route evidence
 - Warnings or structured infeasibility reason
+- Optional traffic context: congestion summary, weather alerts, closures, and route-ordered CCTV list when available
 
 ## 6. Persistence Model
 
-The implemented store has `schema_migrations`, `sync_runs`, `source_snapshots`, `places`, `place_amenities`, and `auxiliary_places`. Validated logical snapshots are append-only, checksummed, and linked only after successful publication. See [DATABASE.md](../data/DATABASE.md) for the physical schema, transactions, capacity, backup, and recovery contract.
+The implemented store has `schema_migrations`, `sync_runs`, `source_snapshots`, `places`, `place_amenities`, and `auxiliary_places`. Validated logical snapshots are append-only, checksummed, and linked only after successful publication. Traffic CCTV catalogs and real-time condition snapshots follow the same append-only pattern. See [DATABASE.md](../data/DATABASE.md) for the physical schema, transactions, capacity, backup, and recovery contract.
 
 ## 7. Deterministic and Model-Assisted Work
 
@@ -151,10 +172,13 @@ The implemented store has `schema_migrations`, `sync_runs`, `source_snapshots`, 
 - Serve the last valid snapshot with freshness metadata when refresh fails.
 - If no valid snapshot exists, return a recoverable error rather than an empty success.
 - Record parser exceptions per record; one malformed record must not abort the full ingestion batch.
+- Traffic CCTV catalogs are cached server-side and refreshed on a daily or weekly cycle; real-time stream URLs are resolved on demand with a short TTL and are not persisted.
+- Real-time traffic conditions (congestion, weather, closures) are fetched on demand per course request and are not cached beyond the response lifecycle; the UI must not serve stale traffic data.
 
 ## 9. Privacy and Security
 
 - Tourism and routing API keys remain server-side in environment configuration.
+- CCTV and traffic API keys (UTIC, MOLIT, Korea Expressway Corporation, KMA) remain server-side; the web client receives only resolved stream URLs and validated condition data, never raw API keys or provider Referer headers.
 - Nearby search requests location only at the moment of use.
 - Prefer coarse or transient origin coordinates; do not persist precise location by default.
 - Shared searches remove pet names and exact current location.
@@ -173,7 +197,7 @@ Track:
 - Course success and structured failure reason
 - Cache age and stale-result rate
 
-Logs must not contain API keys, precise user location, or pet-profile labels.
+Logs must not contain API keys, precise user location, or pet-profile labels. AI vehicle detection runs entirely client-side; detection results and video frames are never transmitted to the server or logged.
 
 ## 11. Verification Strategy
 
@@ -183,6 +207,9 @@ Logs must not contain API keys, precise user location, or pet-profile labels.
 - Course scenarios prove approximate/routed modes and infeasible paths.
 - API contract tests validate request/response behavior.
 - One browser flow proves profile → filter → exact proof → relaxation → course.
+- CCTV proxy contract tests validate stream URL resolution, credential isolation, and timeout behavior.
+- Traffic adapter contract tests validate Zod schema enforcement and graceful degradation when a provider is unavailable.
+- Vehicle detector unit tests validate ROI filtering, count classification, and the "AI 추정" labeling contract using a static test frame.
 
 ## 12. Architectural Decisions
 
@@ -199,6 +226,9 @@ Logs must not contain API keys, precise user location, or pet-profile labels.
 | SQLite runtime mode | Default and implemented | Fast stable reads from the latest successful official snapshot |
 | Fixture mode | Verification default | Deterministic, keyless, and network-free automated verification |
 | Multi-source provider registry | Phase 2 — in design | Each enrichment source gets its own adapter, quota budget, and sync schedule; all join to existing `contentId` where possible |
+| Traffic context as read-only overlay | Phase 2E — proposed | Traffic data informs user judgment but cannot qualify, disqualify, or reorder exact-match places; preserves the core safety promise |
+| CCTV stream server-side proxy | Phase 2E — proposed | Hides provider credentials and Referer-based auth from the web client; consistent with existing "provider credentials stay server-side" rule |
+| Client-side AI vehicle detection | Phase 2E — proposed | Zero server inference cost, no video frames transmitted; lazy-load keeps PWA initial bundle unaffected; results labeled as approximate estimates |
 
 ## 13. External Boundaries
 
@@ -206,6 +236,11 @@ Logs must not contain API keys, precise user location, or pet-profile labels.
 - [Korean Tourism Information Service](https://www.data.go.kr/data/15101578/openapi.do) may supplement events, stays, images, and nearby tourism records.
 - A future map/routing provider supplies navigation evidence only.
 - Venue phone calls remain the final confirmation path for stale or ambiguous admission policy.
+- [MOLIT CCTV](https://www.data.go.kr/data/15040466/openapi.do) supplies real-time road CCTV video streams and coordinates.
+- [UTIC](http://www.utic.go.kr/guide/cctvOpenData.do) may supply additional CCTV streams subject to separate registration.
+- [Korea Expressway Corporation real-time congestion](https://www.data.go.kr/data/15076685/openapi.do) supplies congested/sluggish section counts and directional speeds.
+- [KMA road weather](https://www.data.go.kr/data/15057966/openapi.do) supplies CCTV-based rain, surface condition, and flooding data.
+- [Korea Expressway Corporation road control](https://www.data.go.kr/data/15076686/openapi.do) supplies full closures and lane restrictions.
 
 ## 14. Phase 2 — Multi-Provider Architecture
 
@@ -244,6 +279,9 @@ Each provider is isolated by:
 | Visitor volume | `VisitorVolumeProvider` (`DataLabService`) | `areaCd` | Statistical context only |
 | Photos | `PhotoProvider` (`PhotoGalleryService1`) | `galContentId` | Media enrichment only |
 | Multilingual | `TranslationProvider` (`EngService2` / `ChtService2`) | `contentId` | UI-layer only; pet-policy fields stay Korean |
+| CCTV catalog | `CctvProvider` (MOLIT / UTIC) | route corridor | Server-side proxy; credentials never reach client |
+| Traffic conditions | `TrafficProvider` (Expressway Corp / KMA) | route corridor | Real-time overlay only; never cached beyond response lifecycle |
+| Vehicle detection | Client-side COCO-SSD | N/A (in-browser) | Lazy-loaded; no server round-trip |
 
 ### Query-Time Join Strategy
 
@@ -255,6 +293,17 @@ Enrichment data is never merged into the normalized place record at ingestion ti
 
 This preserves the MVP invariant: pet-policy matching depends only on `places` + `place_amenities`, and enrichment cannot accidentally qualify or disqualify a result.
 
+Traffic context follows the same principle at the course level: congestion, weather, closure, and CCTV data attach to a generated course as a read-only overlay and never enter the match engine.
+
+### Client-Side Detection Boundary
+
+Vehicle detection is architecturally separated from all server-side data flow:
+
+- TensorFlow.js and the COCO-SSD model are loaded via `next/dynamic` only after the user explicitly enables detection on an open CCTV stream.
+- The detector reads from an in-browser `<video>` → `<canvas>` pipeline; no frame data is transmitted to any server.
+- Detection results (vehicle count, bounding boxes, ROI) exist only in client state for the duration of the open stream and are discarded on navigation.
+- The server has no knowledge of detection results, model state, or user interaction with the detection overlay.
+
 ### Schema Migration Sequence
 
 Each enrichment source adds a versioned migration:
@@ -265,5 +314,7 @@ Each enrichment source adds a versioned migration:
 | v5 | `camping_catalog` | `place_camping` | Design |
 | v6 | `congestion_forecast` | `place_congestion` | Design |
 | v7 | `festival_discovery` | `festivals` | Design |
+| v8 | `traffic_cctv_catalog` | `traffic_cctv` | Proposed |
+| v9 | `traffic_conditions` | `traffic_conditions` | Proposed |
 
-All migrations are additive — no existing column or constraint is altered.
+All migrations are additive — no existing column or constraint is altered. Traffic CCTV catalog and conditions tables are append-only and follow the same snapshot publication pattern as tourism data.

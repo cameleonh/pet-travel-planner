@@ -1,7 +1,7 @@
 # SQLite Database
 
-**Status:** Implemented and verified  
-**Last updated:** 2026-07-17
+**Status:** Implemented and verified; Phase 2E traffic tables proposed
+**Last updated:** 2026-08-08
 
 ## Purpose and boundary
 
@@ -25,13 +25,17 @@ The archived JSON is the validated logical provider snapshot, not a complete arc
 sync_runs 0..1 ── 1 source_snapshots
                          │
                          ├── places ── place_amenities
-                         └── auxiliary_places
+                         ├── auxiliary_places
+                         ├── traffic_cctv
+                         └── traffic_conditions
 ```
 
 - `sync_runs` is the operational ledger (`pending`, `success`, `failed`).
 - `source_snapshots` is append-only and contains provenance, source total count, checksum, and logical JSON.
 - `places` and `auxiliary_places` are relational read rows scoped to one snapshot. Each place records its upstream modification token and pet-detail fetch status.
 - `place_amenities` is a child set with a composite foreign key to its place.
+- `traffic_cctv` is a CCTV catalog scoped to one snapshot: camera ID, coordinates, route name, direction, and provider source. Refreshed on a daily or weekly cycle.
+- `traffic_conditions` is a real-time condition snapshot: congestion, speed, weather, and closure records. Appended per fetch and never served stale across sessions.
 - `schema_migrations` records applied versions.
 
 ## Internal schema and standards
@@ -44,6 +48,8 @@ sync_runs 0..1 ── 1 source_snapshots
 | `places` | `(snapshot_id, place_id)` | category and pet-detail-status domains, source modification token, coordinate ranges, snapshot index |
 | `place_amenities` | `(snapshot_id, place_id, amenity)` | composite cascading FK |
 | `auxiliary_places` | `(snapshot_id, place_id)` | category/status domains, coordinate ranges, snapshot index |
+| `traffic_cctv` | `(snapshot_id, cctv_id)` | provider domain, coordinate ranges, route name index, snapshot index |
+| `traffic_conditions` | `(snapshot_id, condition_id)` | condition type domain, route ref index, observation time index, snapshot index |
 
 Names are English `snake_case`; times are UTC ISO 8601 text; provider IDs remain stable strings; coordinates are WGS84 decimal degrees; unknown policy meaning stays in source text and is interpreted by the domain layer, not the database.
 
@@ -80,7 +86,49 @@ The stored fields are public tourism records. `.env.local`, database files, WAL/
 
 ## Migration and rollback
 
-Migrations `001_initial_snapshot_store` and `002_catalog_completeness_metadata` are applied transactionally and recorded once. Migration 2 adds source totals, upstream modification tokens, and explicit `fetched | not-fetched | failed` pet-detail status without rewriting migration 1. The application never runs destructive rollback automatically. Runtime rollback is `DATA_PROVIDER=fixture` or `tour-api`; retain the SQLite file until an operator deliberately archives or removes it.
+Migrations `001_initial_snapshot_store` and `002_catalog_completeness_metadata` are applied transactionally and recorded once. Migration 2 adds source totals, upstream modification tokens, and explicit `fetched | not-fetched | failed` pet-detail status without rewriting migration 1. Phase 2 enrichment migrations (v4–v7) and Phase 2E traffic migrations (v8–v9) are additive — no existing column or constraint is altered. The application never runs destructive rollback automatically. Runtime rollback is `DATA_PROVIDER=fixture` or `tour-api`; retain the SQLite file until an operator deliberately archives or removes it.
+
+### Phase 2E traffic tables (proposed)
+
+#### Migration 8 — `traffic_cctv_catalog`
+
+```sql
+CREATE TABLE traffic_cctv (
+  snapshot_id    INTEGER NOT NULL REFERENCES source_snapshots(id),
+  cctv_id        TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  latitude       REAL,
+  longitude      REAL,
+  route_name     TEXT,
+  direction      TEXT,
+  provider       TEXT NOT NULL CHECK (provider IN ('molit', 'utic')),
+  ingested_at    TEXT NOT NULL,
+  PRIMARY KEY (snapshot_id, cctv_id)
+);
+CREATE INDEX idx_traffic_cctv_coords ON traffic_cctv(latitude, longitude);
+CREATE INDEX idx_traffic_cctv_route ON traffic_cctv(route_name);
+```
+
+#### Migration 9 — `traffic_conditions`
+
+```sql
+CREATE TABLE traffic_conditions (
+  snapshot_id     INTEGER NOT NULL REFERENCES source_snapshots(id),
+  condition_id    TEXT NOT NULL,
+  condition_type  TEXT NOT NULL CHECK (condition_type IN ('congestion', 'speed', 'weather', 'closure')),
+  route_ref       TEXT NOT NULL,
+  direction       TEXT,
+  value           TEXT NOT NULL,
+  observation_time TEXT NOT NULL,
+  source_provider TEXT NOT NULL,
+  fetched_at      TEXT NOT NULL,
+  PRIMARY KEY (snapshot_id, condition_id)
+);
+CREATE INDEX idx_traffic_conditions_route ON traffic_conditions(route_ref);
+CREATE INDEX idx_traffic_conditions_time ON traffic_conditions(observation_time);
+```
+
+Both tables follow the same append-only snapshot publication pattern as tourism data. CCTV stream URLs are not persisted — they are resolved on demand through the server proxy with a short TTL. Real-time traffic conditions are fetched per course request and must not be served stale across sessions.
 
 ## Verified evidence
 

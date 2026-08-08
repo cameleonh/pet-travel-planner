@@ -1,8 +1,8 @@
 # Competition Strategy
 
-**Competition:** 2026 Tourism Data Utilization Competition — Web/App Implementation Division  
-**Selected topic:** Pet-friendly travel information  
-**Last updated:** 2026-07-16
+**Competition:** 2026 Tourism Data Utilization Competition — Web/App Implementation Division
+**Selected topic:** Pet-friendly travel information
+**Last updated:** 2026-08-08
 
 ## 1. Official Context
 
@@ -15,7 +15,7 @@ The supplied designated-task PDF records the working evaluation dimensions used 
 | Implementation | 30 | One complete mobile flow, strict matcher, proof ledger, error states, and reliable demo data |
 | Planning | 30 | Clear user problem, canonical terms, safe recovery, measurable acceptance criteria |
 | Data appropriateness | 20 | Official pet-tourism API is central; raw text is transformed into auditable decisions |
-| Growth potential | 20 | Constraint-safe courses, policy correction, routing, and partner expansion after core quality |
+| Growth potential | 20 | Constraint-safe courses, policy correction, routing, partner expansion, and real-time traffic context after core quality |
 
 Before submission, recheck the current official notice and attached PDF in case dates or evaluation wording change.
 
@@ -45,6 +45,7 @@ The project must not claim that a competitor lacks a feature unless a dated publ
 | Missing information blended into detail | Unknown separated from exact results |
 | Empty result | Safe preference-only minimal relaxation |
 | Generic itinerary | Course built only from already-qualified places |
+| No road condition awareness | Real-time traffic, CCTV, and AI vehicle detection as course context |
 
 ## 4. Demo Scenario
 
@@ -67,8 +68,10 @@ Use one short, repeatable story with prevalidated data.
 7. Show that the course reports proof counts and straight-line distance but no travel minutes.
 8. Compare confirmed nearby places with the separately labeled `반려동물 정책 확인 필요` group.
 9. Press location recalculation and explain the permission-free reference-place fallback and non-persistence rule.
+10. From the course result, open "이 길의 카메라 보기" to show route-ordered CCTV list; tap one camera to open the live stream.
+11. Toggle AI vehicle detection on the CCTV stream; show real-time bounding boxes and the "AI 추정" count badge; note that inference runs entirely in the browser with zero server cost.
 
-The demo dataset must be frozen and replayable. A live API refresh may be shown separately, but the judged flow must not depend on provider availability.
+The demo dataset must be frozen and replayable. A live API refresh may be shown separately, but the judged flow must not depend on provider availability. CCTV and AI detection steps may use a prepared test stream if live CCTV APIs are unavailable during the demo.
 
 ## 5. Data Story
 
@@ -114,7 +117,9 @@ Prepare these artifacts:
 - Exact-match scenario matrix including unknown and false values
 - Safe-relaxation scenario proving hard constraints remain locked
 - Course example in verified approximate mode; routed mode only if separately implemented
-- Mobile screenshots for search, proof, no-result, and course
+- Traffic context example with congestion summary, weather alert, and route-ordered CCTV list
+- AI vehicle detection screenshot showing bounding boxes and "AI 추정" count badge
+- Mobile screenshots for search, proof, no-result, course, CCTV stream, and AI detection
 - Live demo plus recorded fallback
 
 ## 8. Judge Questions and Answers
@@ -135,9 +140,17 @@ Repeated trip planning is faster and less ambiguous with selectable conditions. 
 
 The core output is not a map pin. It is a pet-specific, multi-condition qualification with one source-backed proof per requirement and safe handling of unknown data.
 
-### “Why add courses?”
+### "Why add courses?"
 
 Courses demonstrate growth without changing the trust model: every stop is drawn from the same exact-qualified result set. The course is optional and cannot weaken search conditions.
+
+### "Why add traffic and CCTV?"
+
+A pet-friendly destination is useless if the road is closed or unsafe. Traffic context — congestion, weather, closures, and live CCTV — answers "is the road safe right now?" without weakening the pet-policy core. It is context, not admission.
+
+### "Does AI vehicle detection send video to a server?"
+
+No. TensorFlow.js runs entirely in the browser. Video frames never leave the device. The model is lazy-loaded only when the user explicitly enables detection, so the initial PWA bundle is unaffected.
 
 ## 9. Scope Guard
 

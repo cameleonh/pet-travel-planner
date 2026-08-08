@@ -1,8 +1,8 @@
 # Competition Demo Script — 같이갈개
 
-**Duration:** 4–5 minutes  
-**Dataset:** deterministic sanitized fixture  
-**Rule:** never describe the deterministic fixture as a live venue guarantee; describe live API verification as integration evidence only
+**Duration:** 5–6 minutes
+**Dataset:** deterministic sanitized fixture
+**Rule:** never describe the deterministic fixture as a live venue guarantee; describe live API verification as integration evidence only; CCTV and AI detection steps may use a prepared test stream if live traffic APIs are unavailable
 
 ## Setup
 
@@ -33,7 +33,15 @@ Return to `소형견`; the carrier preference remains removed, producing two exa
 
 Show `동반·이용 확인됨` separately from `반려동물 정책 확인 필요`. Emphasize that proximity never implies pet compatibility. Press `내 위치로 다시 계산`; if permission is unavailable, show the named reference-place fallback. State that precise location is requested only on this action and is not persisted.
 
-### 6. Close with the data story — 30 seconds
+### 6. Show route cameras — 40 seconds
+
+From the course result, tap "이 길의 카메라 보기". Show the CCTV list ordered by route sequence — not by distance or catalog ID. Tap one camera to open the live stream view. Point out that the stream URL is resolved through a server proxy; no API keys reach the browser.
+
+### 7. Show AI vehicle detection — 40 seconds
+
+On the CCTV stream view, toggle "AI 차량 감지". During the first load (~2–5 seconds), explain: TensorFlow.js COCO-SSD model is lazy-loaded via dynamic import — zero impact on initial PWA bundle size. Once loaded, show real-time bounding boxes on moving vehicles and the count badge: "AI 추정 이동 N대 / 정지 M대". Emphasize: inference runs entirely in the browser, no video frames are sent to any server, and the count is labeled as an estimate — not official traffic volume.
+
+### 8. Close with the data story — 30 seconds
 
 Summarize: official provider boundary → validated raw snapshot → conservative tri-state normalization → strict AND result → source proof → safe optional course. Disclose that the judged flow uses sanitized deterministic evidence; issued-key integration is separately verified, while venue truth and freshness still require confirmation.
 
@@ -41,4 +49,6 @@ Summarize: official provider boundary → validated raw snapshot → conservativ
 
 - If the browser fails, use screenshots under `devlog/_fin/260716_mvp_implementation/evidence/` in numeric order.
 - If location permission behavior differs, explain both success and denial copy; the automated test proves the denial fallback.
+- If live CCTV APIs are unavailable, switch to a prepared test stream (MP4) loaded into the `<video>` element; the AI detection demo works identically on any video source.
+- If AI model download fails (network issue), show a recorded clip of detection running on a test stream; explain the model is ~1MB and loads from CDN or local fallback.
 - Never switch to an unvalidated live refresh during the judged core flow.

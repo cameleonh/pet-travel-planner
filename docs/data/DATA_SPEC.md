@@ -1,8 +1,8 @@
 # Data Specification
 
 **Owner:** Data ingestion and policy normalization  
-**Status:** Product contract; MVP list and pet-detail field mapping validated against an issued-key response  
-**Last updated:** 2026-07-17
+**Status:** Product contract; MVP list and pet-detail field mapping validated against an issued-key response
+**Last updated:** 2026-08-08
 
 ## 1. Purpose
 
@@ -114,6 +114,61 @@ Each Phase 2 source has an independent daily quota of 1,000 requests and does no
 
 **Phase 2 evidence date:** All official manuals were accessed on 2026-08-05 from the competition OT materials distributed in `자료/[2026 관광데이터 활용 공모전] 웹·앱구현 부문 OT자료_/`.
 
+### Phase 2E Sources — Real-Time Traffic Information (accessed 2026-08-08 from data.go.kr)
+
+These sources are not Korea Tourism Organization services. They are separate government APIs with independent daily quotas and credential budgets. Traffic data is context-only and never enters the tri-state pet-policy pipeline.
+
+#### MOLIT CCTV Service
+
+- Catalog: [국토교통부_CCTV 화상자료](https://www.data.go.kr/data/15040466/openapi.do)
+- Key data: real-time road CCTV video stream URLs, CCTV coordinates, location names, road route information
+- Cross-reference: route corridor (coordinates along a generated course); not contentId-compatible
+- Update cycle: real-time stream URL resolution on demand; catalog metadata cached server-side
+- Evidence class: `REALTIME_SENSOR` — live observation, not a policy constraint
+- Credential handling: API key and provider Referer header remain server-side; the client receives only a resolved stream URL
+
+#### UTIC CCTV Service
+
+- Catalog: [UTIC 교통 CCTV OpenData](http://www.utic.go.kr/guide/cctvOpenData.do)
+- Key data: additional real-time CCTV stream URLs (regional coverage may vary)
+- Cross-reference: route corridor; not contentId-compatible
+- Note: requires separate UTIC registration; the existing traffic-analysis fork uses `getGyeonggiCctvUrl.do` which is Gyeonggi-only — nationwide coverage requires additional endpoint verification
+- Evidence class: `REALTIME_SENSOR`
+
+#### Korea Expressway Corporation Real-Time Congestion
+
+- Catalog: [한국도로공사_실시간 고속도로 정체상황](https://www.data.go.kr/data/15076685/openapi.do)
+- Key data: congested and sluggish section counts, section names, directional congestion type
+- Cross-reference: route corridor (highway route names and node IDs)
+- Update cycle: real-time (minute-level refresh)
+- Evidence class: `REALTIME_SENSOR`
+
+#### Korea Expressway Corporation Real-Time Traffic Speed
+
+- Catalog: [한국도로공사_실시간 소통 데이터](https://www.data.go.kr/data/15076684/openapi.do)
+- Key data: directional traffic speed (km/h) per highway section
+- Cross-reference: route corridor (highway route names and node IDs)
+- Update cycle: real-time (minute-level refresh)
+- Evidence class: `REALTIME_SENSOR`
+
+#### Korea Meteorological Administration Road Weather
+
+- Catalog: [기상청_CCTV 기반 도로날씨정보](https://www.data.go.kr/data/15057966/openapi.do)
+- Key data: temperature, precipitation, road surface condition, flooding status at CCTV observation points
+- Cross-reference: CCTV coordinates (joins to CCTV catalog)
+- Update cycle: real-time (10-minute refresh); daily quota 10,000 requests
+- Evidence class: `REALTIME_SENSOR`
+
+#### Korea Expressway Corporation Road Control
+
+- Catalog: [한국도로공사_실시간 공사/통제 정보](https://www.data.go.kr/data/15076686/openapi.do)
+- Key data: full road closures, lane restrictions, construction zones with start/end times
+- Cross-reference: route corridor (highway route names)
+- Update cycle: real-time
+- Evidence class: `REALTIME_SENSOR`
+
+**Phase 2E evidence date:** All source catalog pages were accessed on 2026-08-08 from data.go.kr.
+
 ## 3. Evidence Classes
 
 | Class | Meaning | Can satisfy a hard constraint? |
@@ -122,6 +177,7 @@ Each Phase 2 source has an independent daily quota of 1,000 requests and does no
 | `RULE_DERIVED` | A deterministic rule maps explicit source wording to a normalized value | Yes when confidence threshold passes and source span is retained |
 | `MODEL_SUGGESTED` | A model proposes an interpretation for review | No; must be confirmed by a rule or human label |
 | `USER_REPORTED` | A user submits a policy observation | No in MVP; future corroborating evidence only |
+| `REALTIME_SENSOR` | Live government sensor or CCTV observation (traffic, weather, road control) | No; context-only overlay, never a pet-policy constraint |
 | `UNRESOLVED` | Missing, ambiguous, or contradictory evidence | No |
 
 ## 4. Tri-State Contract
@@ -303,6 +359,61 @@ It may not infer:
 - Record provider, request time, mode, and route duration.
 - Keep routing evidence separate from tourism-source evidence.
 
+## 11.1 Traffic and CCTV Data Contract
+
+Traffic data is real-time context attached to a course, not a persistent catalog of places. It follows different freshness and lifecycle rules than tourism data.
+
+### CCTV catalog record
+
+| Field | Type | Provenance |
+|---|---|---|
+| `cctv_id` | string | Provider (MOLIT or UTIC) |
+| `name` | string | Provider location name |
+| `latitude` / `longitude` | number | Provider coordinates |
+| `route_name` | string or null | Provider road route name |
+| `direction` | string or null | Provider camera direction label |
+| `provider` | enum (`molit` / `utic`) | Ingestion source |
+| `ingested_at` | datetime | Ingestion system |
+
+### CCTV stream resolution
+
+| Field | Type | Notes |
+|---|---|---|
+| `stream_url` | URL | Resolved on demand; short TTL; not persisted |
+| `resolved_at` | datetime | Resolution timestamp |
+| `cors_supported` | boolean | If true, client connects directly; if false, server proxies the stream |
+| `source_provider` | enum | Which provider resolved the URL |
+
+Stream URLs are ephemeral. They must not be cached beyond the active session or reused across page loads.
+
+### Traffic condition record
+
+| Field | Type | Provenance |
+|---|---|---|
+| `condition_type` | enum (`congestion`, `speed`, `weather`, `closure`) | Data source type |
+| `route_ref` | string | Highway or road section identifier |
+| `direction` | string or null | Travel direction |
+| `value` | varies by type | Speed in km/h, congestion level enum, weather descriptor, or closure type |
+| `observation_time` | datetime | Provider observation or publication timestamp |
+| `source_provider` | enum | Which provider supplied the record |
+| `fetched_at` | datetime | Local fetch timestamp |
+
+Traffic conditions are fetched on demand per course request. They are not appended to the SQLite store and must not be served stale across sessions.
+
+### Vehicle detection output (client-side)
+
+| Field | Type | Notes |
+|---|---|---|
+| `total_count` | integer | All detected vehicles in the current frame |
+| `moving_count` | integer | Vehicles classified as moving via inter-frame tracking |
+| `stopped_count` | integer | `total_count - moving_count` |
+| `by_class` | map | Breakdown: car, truck, bus, motorcycle, bicycle |
+| `inference_ms` | number | Single-frame inference duration |
+| `roi_label` | string or null | Active ROI filter label |
+| `model_version` | string | COCO-SSD base variant (`mobilenet_v2`) and threshold config |
+
+Detection output is transient client state. It is never transmitted to the server, persisted, or logged. The count must always be displayed with an "AI 추정" label.
+
 ## 12. Quality and Evaluation
 
 Maintain a versioned labeled dataset covering:
@@ -332,6 +443,10 @@ For the competition MVP, exact-result precision has priority over recall.
 | Parser exception | Preserve raw record; mark affected conditions unknown | Exclude from guaranteed results |
 | Conflicting claims | Mark condition unknown with both spans | Show “policy needs confirmation” |
 | Missing coordinates | Keep place searchable by region | Exclude from distance course until resolved |
+| CCTV stream URL resolution failure | Return error without fallback URL | Show "스트림 일시 중단" and offer next camera on route |
+| Traffic provider unavailable | Return course without traffic context | Show no traffic panel rather than stale data |
+| AI model load failure | Detection overlay stays disabled | Show "AI 분석을 사용할 수 없습니다" without blocking video playback |
+| AI inference error mid-stream | Discard current frame result, continue loop | Show last successful count with stale indicator or "분석 중" |
 
 ## 14. Data Boundaries
 
@@ -340,6 +455,12 @@ For the competition MVP, exact-result precision has priority over recall.
 - Do not log raw user location beyond the precision needed for the active query.
 - Preserve image-license metadata and follow source usage restrictions.
 - Keep official text, derived interpretation, and user reports in separate fields.
+- Do not expose CCTV or traffic API keys, Referer headers, or provider credentials to the web client.
+- Do not persist CCTV stream URLs beyond the active session; stream URLs are resolved on demand.
+- Do not cache real-time traffic condition data across sessions or serve it as stale context.
+- Do not transmit CCTV video frames or AI detection results from the client to any server.
+- Do not present AI vehicle counts without an "AI 추정" provenance label.
+- Do not treat traffic conditions as pet-policy evidence; traffic data is context-only.
 
 ## 15. Implemented Domain Binding
 

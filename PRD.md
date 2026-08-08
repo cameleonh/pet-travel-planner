@@ -3,7 +3,7 @@
 **Working title:** Pet Travel Planner  
 **Product name:** 같이갈개<br>
 **Status:** Competition MVP implemented and verified; Phase 2 multi-source data integration in progress
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-08
 **Primary audience:** Korean pet guardians planning local trips
 
 ## 1. Problem Statement
@@ -313,6 +313,24 @@ These APIs expand the catalog beyond pet-tourism-only listings or add auxiliary 
 
 **Note:** `detailPetTour2` exists only in Korean services; multilingual expansion covers general tourism fields, not pet-policy fields. Pet-policy display remains Korean-only until official translations are provided.
 
+### Phase 2E — Real-Time Traffic Information
+
+**Status:** Proposed; API credentials pending
+**Last updated:** 2026-08-08
+**Goal:** Answer "is the road to my pet-friendly destination safe right now?" by adding real-time traffic conditions, route-based CCTV, and AI-powered vehicle detection.
+
+Unlike Phases 2A–2D, these data sources are not Korea Tourism Organization services. They are separate government APIs operated by the Korea Expressway Corporation, Ministry of Land, Infrastructure and Transport, and Korea Meteorological Administration. Each has its own quota, ingestion schedule, and credential budget.
+
+| Source | Provider | Data added | Priority |
+|---|---|---|---|
+| Real-time highway congestion | Korea Expressway Corporation | Congested/sluggish section counts, directional traffic speed | P2E-3 |
+| Road weather (CCTV-based) | Korea Meteorological Administration | Rain, surface flooding, road surface condition at CCTV points | P2E-3 |
+| Road closure / control | Korea Expressway Corporation | Full closure, lane restriction, construction zones | P2E-3 |
+| CCTV video | MOLIT / UTIC | Real-time road CCTV video streams and coordinates | P2E-1 |
+| AI vehicle detection | Client-side TensorFlow.js (COCO-SSD) | On-screen vehicle count (moving/stopped), density estimate | P2E-2 |
+
+The priority order reflects dependency: CCTV infrastructure (P2E-1) must exist before AI detection (P2E-2) can overlay on it, and the traffic-condition layer (P2E-3) is the broadest integration.
+
 ### New Functional Requirements (Phase 2)
 
 #### FR-9 Accessibility Context
@@ -339,6 +357,29 @@ These APIs expand the catalog beyond pet-tourism-only listings or add auxiliary 
 - A festival is included only when its location overlaps with a region that has existing exact-match places or when the user has selected a region.
 - Festival dates are checked against the user's visit context when available.
 
+#### FR-13 Real-Time Traffic Context
+
+- Traffic condition data (congestion, speed, weather, closures) is displayed as contextual information alongside course results, never as a pet-admission criterion.
+- Congested and sluggish section counts reference a specific observation time, not a prediction.
+- Weather and road-surface conditions (rain, flooding, landslide warning) are labeled with their source and observation time.
+- Full road closures are displayed as alerts on affected course segments; a closure does not remove a qualified place from results but warns the user.
+- Missing traffic data does not block results; the context panel is simply absent.
+
+#### FR-14 Route-Based CCTV
+
+- CCTV cameras along a generated course are listed in travel order, not in catalog order.
+- Each CCTV entry shows its location name, route position, and a live video thumbnail or stream.
+- CCTV streams are served through a server-side proxy that hides provider credentials; the web client never receives API keys.
+- Cameras are discoverable only within an active course context; there is no standalone CCTV browser.
+
+#### FR-15 AI Vehicle Detection
+
+- When a CCTV stream is open, the user may enable AI vehicle detection as an overlay on the video.
+- Detection runs entirely in the browser via TensorFlow.js (COCO-SSD); no video frames are sent to a server.
+- The AI model and dependencies are lazy-loaded after user interaction so that the initial PWA bundle is not increased.
+- The detected vehicle count is labeled as an approximate estimate ("AI 추정"), never as an official traffic volume.
+- An ROI (region of interest) filter limits detection to a specific lane or direction selected by the user.
+
 ### New User Stories (Phase 2)
 
 16. As a guardian with mobility needs, I want to see wheelchair access and disabled restroom availability so that I can plan a trip that works for all companions.
@@ -347,3 +388,6 @@ These APIs expand the catalog beyond pet-tourism-only listings or add auxiliary 
 19. As a guardian, I want to see nearby festivals during my trip window so that I can add an event to my course.
 20. As a guardian, I want walking trails with difficulty levels so that I can choose a route suitable for my dog's size and stamina.
 21. As a guardian comparing regions, I want to see which areas are popular with families so that I can find a pet-friendly atmosphere.
+22. As a guardian planning a trip in heavy rain, I want to see real-time road conditions and flood warnings on my route so that I can decide whether it is safe to drive with my pet.
+23. As a guardian building a course, I want to see live CCTV cameras along my route in order so that I can visually check traffic before departing.
+24. As a competition judge, I want to see AI vehicle detection running in the browser so that the technical depth of client-side inference is demonstrated.

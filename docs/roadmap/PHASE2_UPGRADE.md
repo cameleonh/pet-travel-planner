@@ -1,14 +1,14 @@
 # Phase 2 Upgrade Roadmap — Multi-Source Data Integration
 
 **Status:** Design in progress
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-08
 **Source documents:** [PRD.md](../../PRD.md) §18, [DATA_SPEC.md](../data/DATA_SPEC.md), [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
 
 ## 1. Objective
 
 Transform 같이갈개 from a single-source pet-policy lookup into a multi-dimensional travel planning surface. The MVP answers "can I bring my pet here?" Phase 2 adds "should I go, and when?"
 
-The upgrade leverages 12 Korea Tourism Organization OpenAPI services analyzed from the official v4.x manuals distributed in the 2026 competition OT materials.
+The upgrade leverages 12 Korea Tourism Organization OpenAPI services analyzed from the official v4.x manuals distributed in the 2026 competition OT materials. Phase 2E extends this with 6 real-time traffic and CCTV data sources from separate government agencies.
 
 ## 2. Integration Tiers
 
@@ -43,6 +43,18 @@ The upgrade leverages 12 Korea Tourism Organization OpenAPI services analyzed fr
 | P2D-1 | English tourism | `EngService2` | `http://apis.data.go.kr/B551011/EngService2` | English translations for places sharing the same contentId |
 | P2D-2 | Traditional Chinese tourism | `ChtService2` | `http://apis.data.go.kr/B551011/ChtService2` | Chinese translations for the same contentId set |
 
+### Tier 5 — Real-Time Traffic Information (Phase 2E)
+
+These sources are not KTO services. They are separate government APIs with independent credentials and quotas. Traffic data is context-only and never enters the pet-policy tri-state pipeline.
+
+| ID | Source | Provider | Endpoint / Catalog | Value |
+|---|---|---|---|---|
+| P2E-1 | CCTV video | MOLIT / UTIC | [CCTV 화상자료](https://www.data.go.kr/data/15040466/openapi.do) / [UTIC OpenData](http://www.utic.go.kr/guide/cctvOpenData.do) | Real-time road CCTV streams and coordinates for route-based camera display |
+| P2E-2 | AI vehicle detection | Client-side TF.js | N/A (in-browser) | On-screen vehicle count (moving/stopped) using COCO-SSD; lazy-loaded |
+| P2E-3 | Real-time congestion | Korea Expressway Corp | [실시간 정체](https://www.data.go.kr/data/15076685/openapi.do) + [소통 데이터](https://www.data.go.kr/data/15076684/openapi.do) | Congested/sluggish section counts and directional speeds |
+| P2E-3 | Road weather | KMA | [도로날씨](https://www.data.go.kr/data/15057966/openapi.do) | Rain, surface flooding, road condition at CCTV points |
+| P2E-3 | Road control | Korea Expressway Corp | [공사/통제](https://www.data.go.kr/data/15076686/openapi.do) | Full closures, lane restrictions, construction zones |
+
 ## 3. Cross-Reference Matrix
 
 | Source | contentId join | areaCode/sigunguCode join | Proprietary ID | Shared quota |
@@ -59,6 +71,10 @@ The upgrade leverages 12 Korea Tourism Organization OpenAPI services analyzed fr
 | `AreaTarDemDsService` (demand) | ❌ | ✅ | — | Separate 1,000/day |
 | `EngService2` (English) | ✅ direct | ✅ | — | Separate 1,000/day |
 | `ChtService2` (Chinese) | ✅ direct | ✅ | — | Separate 1,000/day |
+| MOLIT/UTIC CCTV | ❌ | ❌ | route corridor (coordinates) | Separate quota per agency |
+| Expressway Corp congestion | ❌ | ❌ | route corridor (highway refs) | Separate quota |
+| KMA road weather | ❌ | ❌ | CCTV coordinates | 10,000/day |
+| Expressway Corp control | ❌ | ❌ | route corridor (highway refs) | Separate quota |
 
 ## 4. Schema Impact
 
@@ -175,6 +191,32 @@ All big-data APIs (`TatsCnctrRateService`, `DataLabService`, `AreaTarDivService`
 - [ ] Chinese translation sync via `ChtService2`
 - [ ] UI: language toggle (Korean pet-policy fields remain untranslated)
 
+### Step 7 — P2E-1: Route-based CCTV
+
+- [ ] `CctvProvider` adapter (MOLIT primary, UTIC supplementary) with Zod contracts
+- [ ] `traffic_cctv` schema migration (v8)
+- [ ] Sync script: ingest CCTV catalog (coordinates, route names, direction)
+- [ ] Server proxy: `app/api/cctv/stream/[id]` route handler resolving stream URLs with server-only credentials
+- [ ] Route corridor matching: resolve cameras along a course polyline, ordered by travel sequence
+- [ ] UI: camera list panel within course result + CCTV stream view
+
+### Step 8 — P2E-2: AI vehicle detection
+
+- [ ] Port `vehicleDetector.ts` / `yoloDetector.ts` from traffic-analysis fork (framework-agnostic TS)
+- [ ] Install `@tensorflow/tfjs` + `@tensorflow-models/coco-ssd` as dev dependencies (lazy-loaded)
+- [ ] React component: `<video>` + `<canvas>` overlay + detection loop
+- [ ] ROI filter UI: lane direction selector
+- [ ] "AI 추정" labeling on all count displays
+- [ ] Unit tests: ROI filtering, count classification, labeling contract with static test frame
+
+### Step 9 — P2E-3: Real-time traffic context
+
+- [ ] `TrafficProvider` adapter: congestion, speed, weather, closure (4 sub-providers, each with Zod)
+- [ ] `traffic_conditions` schema migration (v9)
+- [ ] On-demand fetch per course request (no persistence beyond response lifecycle)
+- [ ] UI: traffic context strip on course result
+- [ ] Graceful degradation: missing data produces no strip
+
 ## 6. Data Freshness Strategy
 
 | Source | Update cycle | Cache TTL | Ingestion trigger |
@@ -189,6 +231,11 @@ All big-data APIs (`TatsCnctrRateService`, `DataLabService`, `AreaTarDivService`
 | Trails | Daily | 24h | Full catalog refresh |
 | Photos | Daily | 24h | On-demand per place |
 | Multilingual | Daily | 24h | Per-place on-demand |
+| CCTV catalog | Daily/weekly | 24h | Scheduled catalog refresh |
+| CCTV stream URLs | On demand | Session-only | Per user request; not persisted |
+| Traffic conditions | Real-time | No cross-session cache | Per course request |
+| Road weather | Real-time (10-min) | Response lifecycle | Per course request |
+| Road closures | Real-time | Response lifecycle | Per course request |
 
 ## 7. Quota Budget
 
@@ -202,6 +249,17 @@ All services share the same development-key structure with 1,000 requests/day ea
 | General tourism | varies | Festival search, nearby lookup |
 | Visitor volume | ~50 | Regional, not per-place |
 | Total additional | ~1,200/day spread across separate quotas | No impact on existing Pet Tour quota |
+
+Phase 2E traffic sources use separate government agency quotas, not the KTO 1,000/day budget:
+
+| Phase 2E source | Estimated daily requests | Notes |
+|---|---|---|
+| CCTV catalog sync | ~100 | Full catalog refresh; small dataset |
+| CCTV stream URL resolution | On demand | One request per user camera open; session-scoped |
+| Congestion + speed | ~50 | Per course request; not cached |
+| Road weather (KMA) | ~50 | 10,000/day quota; per course request |
+| Road closures | ~20 | Per course request |
+| AI vehicle detection | 0 | Client-side only; no server requests |
 
 ## 8. Manual Errata (verified from v4.x manuals)
 
