@@ -15,18 +15,20 @@ export type PublicClosureStatus = {
 const categoryLabel = { attraction: "관광지", restaurant: "식당", cafe: "카페", accommodation: "숙소", shopping: "쇼핑" } as const;
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
-function PlaceThumbnail({ name }: { name: string }) {
+function PlaceThumbnail({ name, address }: { name: string; address: string }) {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setThumbUrl(null);
     setLoaded(false);
-    fetch(`/api/place-image?q=${encodeURIComponent(name)}`).then((r) => r.json()).then((d) => {
+    const region = address.split(" ").slice(0, 2).join(" ");
+    const query = region ? `${name} ${region}` : name;
+    fetch(`/api/place-image?q=${encodeURIComponent(query)}`).then((r) => r.json()).then((d) => {
       if (!cancelled && d.success && d.data?.thumbnailUrl) setThumbUrl(d.data.thumbnailUrl);
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [name]);
+  }, [name, address]);
   if (!thumbUrl) return null;
   return (
     <div className="place-thumbnail" aria-hidden="true">
@@ -42,7 +44,7 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
   const preparations = result.place.requiredPreparations.filter((item) => item.scope !== "dangerous-dog" || dangerousDog);
   return (
     <article className={`place-card ${isCatalogResult ? "catalog-card" : "exact-card"}`}>
-      <PlaceThumbnail name={result.place.name} />
+      <PlaceThumbnail name={result.place.name} address={result.place.address} />
       <div className="place-top"><span>{categoryLabel[result.place.category]}</span><strong>{isCatalogResult ? "조건 선택 전" : "선택한 조건 모두 확인"}</strong></div>
       <h3>{result.place.name}</h3>
       <p className="address">{result.place.address}</p>
