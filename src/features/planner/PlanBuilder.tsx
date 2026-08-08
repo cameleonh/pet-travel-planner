@@ -38,7 +38,7 @@ export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
         const to = selectedPlaces[i + 1]!;
         const origin = `${from.coordinates.longitude},${from.coordinates.latitude}`;
         const destination = `${to.coordinates.longitude},${to.coordinates.latitude}`;
-        const res = await fetch(`/api/directions?origin=${origin}&destination=${destination}`);
+        const res = await fetch(`/api/directions?origin=${origin}&destination=${destination}&originName=${encodeURIComponent(from.name)}&destName=${encodeURIComponent(to.name)}`);
         const json: RouteApiResponse = await res.json();
         if (json.success && json.data) {
           segments.push({

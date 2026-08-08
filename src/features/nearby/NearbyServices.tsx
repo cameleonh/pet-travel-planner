@@ -89,7 +89,7 @@ export function NearbyServices({ origin, referenceName }: Props) {
         </div>
         <div>
           <h3><span aria-hidden="true">🛒</span> 펫샵</h3>
-          {shopLoading ? <p className="empty-line">불러오는 중…</p> : shopError ? <p className="empty-line">펫샵 정보를 불러오지 못했어요.</p> : shops.length === 0 ? <p className="empty-line">근처 펫샵이 없어요.</p> : <ul>{shops.slice(0, 5).map((s) => <li key={s.id}><div><strong>{s.name}</strong>{s.phone ? <a href={`tel:${s.phone}`} className="tel-link">📞 {s.phone}</a> : null}<small>{s.distance ? `${(s.distance / 1000).toFixed(1)}km · ` : ""}{s.address}</small></div></li>)}</ul>}
+          {shopLoading ? <p className="empty-line">불러오는 중…</p> : shopError ? <p className="empty-line">펫샵 정보를 불러오지 못했어요.</p> : shops.length === 0 ? <p className="empty-line">근처 펫샵이 없어요.</p> : <ul>{shops.slice(0, 5).map((s) => <li key={s.id}><div><strong>{s.name}</strong>{s.phone ? <a href={`tel:${s.phone}`} className="tel-link">📞 {s.phone}</a> : null}<small>{s.distance ? `${(s.distance / 1000).toFixed(1)}km · ` : ""}{s.address}</small>{s.placeUrl ? <a href={s.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">카카오맵에서 보기</a> : null}</div></li>)}</ul>}
         </div>
       </div>
     </section>

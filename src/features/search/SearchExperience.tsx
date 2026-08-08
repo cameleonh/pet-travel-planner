@@ -77,6 +77,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}`;
   const catalogIsCurrent = catalogRequestKey === requestKey;
   const exactPageResults = catalogIsCurrent ? catalog.results.filter((result) => result.exact) : [];
+  const allPagePlaces = catalogIsCurrent ? catalog.results.map((r) => r.place) : [];
+  const centroid = allPagePlaces.length > 0 ? {
+    latitude: allPagePlaces.reduce((sum, p) => sum + p.coordinates.latitude, 0) / allPagePlaces.length,
+    longitude: allPagePlaces.reduce((sum, p) => sum + p.coordinates.longitude, 0) / allPagePlaces.length,
+  } : null;
   const referencePlace = exactPageResults[0]?.place ?? (catalogIsCurrent ? catalog.results[0]?.place : undefined);
 
   useEffect(() => {
@@ -244,10 +249,19 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
             {!isBrowsing && exactPageResults.length > 0 ? (
               <CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace?.coordinates ?? exactPageResults[0]!.place.coordinates} />
             ) : null}
-            {referencePlace ? (
+            {(referencePlace || centroid) ? (
               <div className="extensions">
-                {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}
-                <NearbyServices origin={referencePlace.coordinates} referenceName={referencePlace.name} />
+                {region.trim() ? (
+                  <>
+                    {auxiliaryPlaces.length > 0 && referencePlace ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={referencePlace.coordinates} referenceName={referencePlace.name} /> : null}
+                    <NearbyServices origin={centroid ?? referencePlace!.coordinates} referenceName={region.trim()} />
+                  </>
+                ) : (
+                  <div className="nearby-hint">
+                    <p>📍 지역을 입력하면 그 지역의 동물병원·펫샵·동반 식당을 보여드려요.</p>
+                    <p className="hint-example">예: 속초, 제주, 부산 해운대</p>
+                  </div>
+                )}
               </div>
             ) : null}
           </>

@@ -6,6 +6,8 @@ const querySchema = z.object({
   origin: z.string().regex(/^-?\d+\.\d+,-?\d+\.\d+$/),
   destination: z.string().regex(/^-?\d+\.\d+,-?\d+\.\d+$/),
   waypoints: z.string().optional(),
+  originName: z.string().optional(),
+  destName: z.string().optional(),
 });
 
 const roadSchema = z.object({
@@ -61,10 +63,12 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const { origin, destination, waypoints } = querySchema.parse({
+    const { origin, destination, waypoints, originName, destName } = querySchema.parse({
       origin: url.searchParams.get("origin") ?? undefined,
       destination: url.searchParams.get("destination") ?? undefined,
       waypoints: url.searchParams.get("waypoints") ?? undefined,
+      originName: url.searchParams.get("originName") ?? undefined,
+      destName: url.searchParams.get("destName") ?? undefined,
     });
 
     const apiUrl = new URL(API_BASE);
@@ -128,6 +132,8 @@ export async function GET(request: Request) {
 
     const [originLng, originLat] = origin.split(",").map(Number);
     const [destLng, destLat] = destination.split(",").map(Number);
+    const oName = encodeURIComponent(originName ?? "출발지");
+    const dName = encodeURIComponent(destName ?? "도착지");
 
     return NextResponse.json({
       success: true,
@@ -150,8 +156,8 @@ export async function GET(request: Request) {
         },
         congestedRoads: congestedRoads.slice(0, 10),
         guides: guides.slice(0, 15),
-        mapLink: `https://map.kakao.com/link/from/출발지/${originLat},${originLng}/to/도착지/${destLat},${destLng}`,
-        naviLink: `https://map.kakao.com/link/to/도착지,${destLat},${destLng}`,
+        mapLink: `https://map.kakao.com/link/from/${oName},${originLat},${originLng}/to/${dName},${destLat},${destLng}`,
+        naviLink: `https://map.kakao.com/?sName=${oName}&eName=${dName}`,
       },
       error: null,
       meta: { requestId },
