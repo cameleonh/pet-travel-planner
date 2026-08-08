@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
 import { preparationFilterLabels, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
@@ -9,6 +9,8 @@ import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
 import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultCard";
 import type { AccessibilityData } from "@/features/results/AccessibilitySection";
+import type { PlanPlace } from "@/domain/plan";
+import { PlanBuilder } from "@/features/planner/PlanBuilder";
 import type { CampingData } from "@/features/results/CampingSection";
 import type { CongestionData } from "@/features/results/CongestionSection";
 import type { TranslationData } from "@/features/results/TranslationSection";
@@ -53,6 +55,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [congestionByPlaceId, setCongestionByPlaceId] = useState<Record<string, CongestionData>>({});
   const [translationByPlaceId, setTranslationByPlaceId] = useState<Record<string, TranslationData>>({});
   const [lang, setLang] = useState<string>("ko");
+  const [planPlaces, setPlanPlaces] = useState<PlanPlace[]>([]);
   const [trails, setTrails] = useState<TrailData[]>([]);
   const [festivals, setFestivals] = useState<FestivalData[]>([]);
   const constraints = useMemo(() => {
@@ -171,6 +174,23 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   };
   const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
 
+  const togglePlanPlace = useCallback((result: typeof catalog.results[number]) => {
+    const place = result.place;
+    const planPlace: PlanPlace = {
+      id: place.id,
+      name: place.name,
+      address: place.address,
+      category: place.category,
+      coordinates: place.coordinates,
+      policySourceText: place.policySource.sourceText,
+      exact: result.exact,
+    };
+    setPlanPlaces((current) => current.some((p) => p.id === place.id) ? current.filter((p) => p.id !== place.id) : [...current, planPlace]);
+  }, []);
+
+  const removePlanPlace = useCallback((id: string) => setPlanPlaces((current) => current.filter((p) => p.id !== id)), []);
+  const clearPlanPlaces = useCallback(() => setPlanPlaces([]), []);
+
   return (
     <section className="search-workspace" id="search" aria-label="반려견 동반 장소 조건 검색">
       <div className="control-panel">
@@ -211,13 +231,16 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
                 <FestivalSection festivals={festivals} />
               </div>
             ) : null}
-            {catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} key={result.place.id} />)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
+            {catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <div className="place-row" key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${planPlaces.some((p) => p.id === result.place.id) ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-label={planPlaces.some((p) => p.id === result.place.id) ? "계획서에서 제거" : "계획서에 추가"}>{planPlaces.some((p) => p.id === result.place.id) ? "✓ 추가됨" : "+ 계획서"}</button></div>)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
             {!isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
             <nav className="catalog-pagination" aria-label="장소 결과 페이지">
               <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
               <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
               <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
             </nav>
+            {planPlaces.length > 0 ? (
+              <PlanBuilder selectedPlaces={planPlaces} onRemove={removePlanPlace} onClear={clearPlanPlaces} />
+            ) : null}
             {!isBrowsing && exactPageResults.length > 0 ? (
               <CourseBuilder key={constraints.map((item) => `${item.key}:${item.kind}`).join("|")} matches={exactPageResults} origin={referencePlace?.coordinates ?? exactPageResults[0]!.place.coordinates} />
             ) : null}

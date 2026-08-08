@@ -696,3 +696,67 @@ footer p { margin: 0; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* ===== Plan Builder ===== */
+.place-row { position: relative; }
+.place-row .place-card { padding-right: 100px; }
+.plan-add-button {
+  position: absolute; top: 20px; right: 0;
+  padding: 6px 12px; border: 1px solid var(--brand); border-radius: 8px;
+  background: var(--surface); color: var(--brand-strong);
+  font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  transition: background 150ms ease;
+}
+.plan-add-button:hover { background: var(--brand-soft); }
+.plan-add-button.added { background: var(--brand); color: white; border-color: var(--brand); }
+
+.plan-builder-card { border: 2px solid var(--brand); }
+.plan-place-list { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 8px; }
+.plan-place-list li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.plan-order { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: white; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.plan-place-info { flex: 1; min-width: 0; }
+.plan-place-info strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.plan-place-info small { display: block; font-size: 11px; color: var(--muted); }
+.plan-policy { font-size: 10px !important; color: var(--ink-subtle); margin-top: 2px; }
+.remove-button { flex: 0 0 auto; padding: 4px 8px; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px; border-radius: 4px; }
+.remove-button:hover { color: #8d3826; background: var(--accent-soft); }
+.clear-button { padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); font-size: 11px; font-weight: 700; cursor: pointer; color: var(--muted); }
+
+.plan-generate-button {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: var(--brand); color: white; font-size: 14px; font-weight: 800; cursor: pointer;
+  transition: opacity 150ms ease;
+}
+.plan-generate-button:hover:not(:disabled) { opacity: .9; }
+.plan-generate-button:disabled { opacity: .5; cursor: not-allowed; }
+
+.plan-routes { margin-top: 18px; }
+.plan-routes h3 { font-size: 15px; font-weight: 800; margin: 0 0 12px; }
+.plan-route-segment { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); margin-bottom: 12px; }
+.route-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.route-header strong { font-size: 13px; }
+.route-header span { font-size: 12px; color: var(--muted); }
+.congestion-warning { font-size: 12px; color: #8d3826; font-weight: 700; margin: 0 0 6px; }
+.congestion-ok { font-size: 12px; color: #2d7a4f; font-weight: 700; margin: 0; }
+.congested-roads { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.congested-roads li { display: flex; gap: 8px; font-size: 11px; align-items: center; }
+.road-name { flex: 1; color: var(--ink-subtle); }
+.road-speed { color: var(--muted); }
+.route-links { display: flex; gap: 10px; margin-top: 8px; }
+.route-links a { font-size: 11px; color: var(--brand); text-decoration: none; }
+.plan-actions { margin-top: 16px; text-align: center; }
+.print-button { padding: 12px 24px; border: 2px solid var(--brand); border-radius: 10px; background: var(--surface); color: var(--brand-strong); font-size: 13px; font-weight: 800; cursor: pointer; }
+.print-button:hover { background: var(--brand-soft); }
+
+/* ===== Print ===== */
+@media print {
+  body { background: white !important; }
+  .topbar, .control-panel, .skip-link, .catalog-pagination, .plan-add-button,
+  .remove-button, .clear-button, .plan-generate-button, .match-bar,
+  .filter-panel, .lang-toggle, .intro, .pwa-registration { display: none !important; }
+  .results-panel { padding: 0 !important; border: none !important; }
+  .place-card { page-break-inside: avoid; }
+  .plan-builder-card { border: 1px solid #ccc !important; page-break-inside: avoid; }
+  .plan-route-segment { page-break-inside: avoid; }
+  .extension-card { page-break-inside: avoid; }
+}
