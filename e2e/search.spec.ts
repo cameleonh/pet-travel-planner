@@ -11,28 +11,28 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
   await expect(page.getByText("왜 맞는지 확인", { exact: false })).toHaveCount(0);
   await page.getByLabel("소형견").check();
   await page.getByRole("button", { name: "목줄 착용" }).click();
-  await page.getByRole("button", { name: "이동가방 사용" }).click();
+  await page.getByRole("button", { name: "이동가방 가능" }).click();
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
   await expect(page.getByLabel("조건 판정 현황")).toContainText("가능 명시 확인1");
-  await expect(page.getByLabel("조건 판정 현황")).toContainText("정보 미확인1");
+  await expect(page.getByLabel("조건 판정 현황")).toContainText("정보 미확인0");
   await expect(page.locator(".result-count")).toHaveText("1곳");
   await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
 
-  await page.getByText("왜 맞는지 확인 · 근거 3개").click();
-  await expect(page.locator(".proof-details li")).toHaveCount(3);
+  await page.getByText("동반 조건 자세히 보기").click();
+  await expect(page.locator(".proof-details li")).toHaveCount(1);
 
   await page.getByLabel("중형견").check();
   await expect(page.locator(".result-count")).toHaveText("0곳");
-  await expect(page.getByRole("heading", { name: "아직 가능이 확인된 곳은 없어요" })).toBeVisible();
-  await expect(page.getByText(/정보 미확인 장소 2곳은 정책을 확인하면 조건에 맞을 수도 있어요/)).toBeVisible();
-  await expect(page.getByText(/‘이동가방’만 빼면 1곳/)).toBeVisible();
-  await page.getByRole("button", { name: "이동가방 빼고 1곳 보기" }).click();
+  await expect(page.getByRole("heading", { name: "가능이 확인된 장소가 아직 없어요" })).toBeVisible();
+  await expect(page.getByText(/정보 미확인 장소 1곳은 정책을 확인하면 조건에 맞을 수도 있어요/)).toBeVisible();
+  await expect(page.getByText(/꼭 필요한 조건은 그대로 두었어요/)).toBeVisible();
+  await page.getByRole("button", { name: "이동가방 가능" }).click();
   await expect(page.locator(".result-count")).toHaveText("1곳");
   await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
 
   await page.getByLabel("대형견").check();
-  await expect(page.locator(".result-count")).toHaveText("0곳");
-  await expect(page.getByText(/꼭 필요한 조건은 그대로 두었어요/)).toBeVisible();
+  await expect(page.locator(".result-count")).toHaveText("1곳");
+  await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
 });
 
 test("critical controls are keyboard reachable and expose state", async ({ page }) => {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { buildCatalogPage, CATALOG_PAGE_SIZE } from "@/data/catalog";
+import { beforeEach, describe, expect, it } from "vitest";
+import { buildCatalogPage, CATALOG_PAGE_SIZE, clearCatalogCache, getCatalogCacheStats } from "@/data/catalog";
 import { FixturePlaceProvider } from "@/data/providers/fixture-provider";
 import type { ProviderSnapshot } from "@/data/contracts";
 import type { SelectedConstraint } from "@/domain/types";
@@ -26,6 +26,8 @@ async function largeSnapshot(): Promise<ProviderSnapshot> {
 }
 
 describe("catalog pagination", () => {
+  beforeEach(() => clearCatalogCache());
+
   it("reports the global total while returning only one 50-row page", async () => {
     const page = buildCatalogPage(await largeSnapshot(), { hard: [], preferences: [], page: 1 });
     expect(page).toMatchObject({
@@ -132,5 +134,28 @@ describe("catalog pagination", () => {
 
     expect(page.searchableCount).toBe(1);
     expect(page.results.map((result) => result.place.id)).toEqual(["busan-haeundae"]);
+  });
+
+  it("prepares and evaluates an unchanged snapshot only once", async () => {
+    const snapshot = await largeSnapshot();
+    const query = { hard: [hard("mediumDog")], preferences: [], page: 1 };
+
+    const first = buildCatalogPage(snapshot, query);
+    const second = buildCatalogPage(snapshot, query);
+
+    expect(second).toEqual(first);
+    expect(second.results[0]).toBe(first.results[0]);
+    expect(getCatalogCacheStats()).toEqual({ preparations: 1, evaluationBuilds: 1 });
+  });
+
+  it("invalidates prepared data when the provider publishes a new snapshot object", async () => {
+    const snapshot = await largeSnapshot();
+    const query = { hard: [hard("mediumDog")], preferences: [], page: 1 };
+    const first = buildCatalogPage(snapshot, query);
+    const replacement = { ...snapshot, places: snapshot.places.map((place) => ({ ...place })) };
+    const second = buildCatalogPage(replacement, query);
+
+    expect(second.results[0]).not.toBe(first.results[0]);
+    expect(getCatalogCacheStats()).toEqual({ preparations: 2, evaluationBuilds: 2 });
   });
 });

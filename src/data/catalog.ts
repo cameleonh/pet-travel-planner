@@ -2,7 +2,7 @@ import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
 import { findMinimalRelaxation } from "@/domain/relax";
-import type { MatchEvaluation, PreparationFilterKey, SelectedConstraint } from "@/domain/types";
+import type { MatchEvaluation, NormalizedPlace, PreparationFilterKey, SelectedConstraint } from "@/domain/types";
 
 export const CATALOG_PAGE_SIZE = 50;
 
@@ -82,9 +82,81 @@ const noiseNamePatterns = [
   /힐튼종합/,
 ];
 
+const MAX_EVALUATION_CACHE_ENTRIES = 32;
+
+type PreparedCatalog = {
+  places: NormalizedPlace[];
+  searchTextById: Map<string, string>;
+  noisePlaceIds: Set<string>;
+  detailCoverage: number;
+  pendingDetailCount: number;
+  failedDetailCount: number;
+  evaluations: Map<string, MatchEvaluation[]>;
+};
+
+let preparedCatalogCache = new WeakMap<ProviderSnapshot, PreparedCatalog>();
+let cacheStats = { preparations: 0, evaluationBuilds: 0 };
+
+export function clearCatalogCache(): void {
+  preparedCatalogCache = new WeakMap<ProviderSnapshot, PreparedCatalog>();
+  cacheStats = { preparations: 0, evaluationBuilds: 0 };
+}
+
+export function getCatalogCacheStats(): Readonly<typeof cacheStats> {
+  return { ...cacheStats };
+}
+
 function isNoisePlace(place: { name: string; category: string }): boolean {
   if (place.category !== "shopping") return false;
   return noiseNamePatterns.some((p) => p.test(place.name));
+}
+
+function prepareCatalog(snapshot: ProviderSnapshot): PreparedCatalog {
+  const cached = preparedCatalogCache.get(snapshot);
+  if (cached) return cached;
+
+  const detailPlaces: RawPlace[] = [];
+  let pendingDetailCount = 0;
+  let failedDetailCount = 0;
+  for (const place of snapshot.places) {
+    const status = place.petDetailStatus ?? "fetched";
+    if (status === "fetched") detailPlaces.push(place);
+    else if (status === "not-fetched") pendingDetailCount += 1;
+    else if (status === "failed") failedDetailCount += 1;
+  }
+
+  const places = normalizePlaces(detailPlaces);
+  const prepared: PreparedCatalog = {
+    places,
+    searchTextById: new Map(places.map((place) => [place.id, `${place.address} ${place.name}`.toLocaleLowerCase("ko-KR")])),
+    noisePlaceIds: new Set(places.filter(isNoisePlace).map((place) => place.id)),
+    detailCoverage: detailPlaces.length,
+    pendingDetailCount,
+    failedDetailCount,
+    evaluations: new Map(),
+  };
+  preparedCatalogCache.set(snapshot, prepared);
+  cacheStats.preparations += 1;
+  return prepared;
+}
+
+function constraintCacheKey(constraints: SelectedConstraint[]): string {
+  return JSON.stringify(constraints.map(({ key, label, kind, protectedCategory }) => [key, label, kind, protectedCategory]));
+}
+
+function evaluatePreparedCatalog(prepared: PreparedCatalog, constraints: SelectedConstraint[]): MatchEvaluation[] {
+  const key = constraintCacheKey(constraints);
+  const cached = prepared.evaluations.get(key);
+  if (cached) return cached;
+
+  const evaluations = prepared.places.map((place) => evaluatePlace(place, constraints));
+  if (prepared.evaluations.size >= MAX_EVALUATION_CACHE_ENTRIES) {
+    const oldestKey = prepared.evaluations.keys().next().value as string | undefined;
+    if (oldestKey !== undefined) prepared.evaluations.delete(oldestKey);
+  }
+  prepared.evaluations.set(key, evaluations);
+  cacheStats.evaluationBuilds += 1;
+  return evaluations;
 }
 
 function matchesPreparationFilter(evaluation: MatchEvaluation, filters: PreparationFilterKey[]): boolean {
@@ -101,31 +173,23 @@ function matchesPreparationFilter(evaluation: MatchEvaluation, filters: Preparat
 }
 
 export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery): CatalogPage {
-  const detailPlaces: RawPlace[] = [];
-  let pendingDetailCount = 0;
-  let failedDetailCount = 0;
-  for (const place of snapshot.places) {
-    const status = place.petDetailStatus ?? "fetched";
-    if (status === "fetched") detailPlaces.push(place);
-    else if (status === "not-fetched") pendingDetailCount += 1;
-    else if (status === "failed") failedDetailCount += 1;
-  }
+  const prepared = prepareCatalog(snapshot);
   const regionTerms = query.region?.trim().toLocaleLowerCase("ko-KR").split(/\s+/).filter(Boolean) ?? [];
   const categories = new Set(query.categories ?? []);
-  const filteredPlaces = detailPlaces.filter((place) => {
-    const searchText = `${place.address} ${place.name}`.toLocaleLowerCase("ko-KR");
+  const constraints = [...query.hard, ...query.preferences];
+  const allEvaluations = evaluatePreparedCatalog(prepared, constraints);
+  const evaluations = allEvaluations.filter(({ place }) => {
+    const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
     const categoryMatches = categories.size === 0 || categories.has(place.category);
     if (!regionMatches || !categoryMatches) return false;
     const userPickedShopping = categories.has("shopping");
-    if (userPickedShopping && isNoisePlace(place)) return false;
+    if (userPickedShopping && prepared.noisePlaceIds.has(place.id)) return false;
     return true;
   });
-  const places = normalizePlaces(filteredPlaces);
-  const constraints = [...query.hard, ...query.preferences];
+  const places = evaluations.map((evaluation) => evaluation.place);
   const browsing = constraints.length === 0;
   const prepFilters = query.preparationFilters ?? [];
-  const evaluations = places.map((place) => evaluatePlace(place, constraints));
   const exactMatches = browsing ? [] : evaluations.filter((evaluation) => evaluation.exact);
   const prepFilteredExact = exactMatches.filter((evaluation) => matchesPreparationFilter(evaluation, prepFilters));
   const candidates = browsing ? evaluations.filter((evaluation) => matchesPreparationFilter(evaluation, prepFilters)) : prepFilteredExact;
@@ -150,9 +214,9 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   return {
     sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
     searchableCount: places.length,
-    detailCoverage: detailPlaces.length,
-    pendingDetailCount,
-    failedDetailCount,
+    detailCoverage: prepared.detailCoverage,
+    pendingDetailCount: prepared.pendingDetailCount,
+    failedDetailCount: prepared.failedDetailCount,
     filteredCount: candidates.length,
     confirmedMatchCount,
     confirmedNonMatchCount,

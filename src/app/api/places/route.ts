@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ProviderConfigurationError } from "@/data/providers/provider";
 import { loadPlaceSnapshot } from "@/data/providers";
 import { buildCatalogPage } from "@/data/catalog";
+import { compactCatalogForTransport } from "@/data/catalog-transport";
 import { rawPlaceSchema } from "@/data/contracts";
 import { conditionKeys, preparationFilterKeys, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { SqlitePlaceRepository, resolveDatabasePath } from "@/data/database/repository";
@@ -69,8 +70,7 @@ export async function GET(request: Request) {
       data: {
         provider: snapshot.provider,
         fetchedAt: snapshot.fetchedAt,
-        auxiliaryPlaces: snapshot.auxiliaryPlaces,
-        catalog,
+        catalog: compactCatalogForTransport(catalog),
         accessibility: accessibilityMap,
         camping: campingMap,
         congestion: congestionMap,

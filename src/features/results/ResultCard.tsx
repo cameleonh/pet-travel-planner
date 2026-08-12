@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { MatchEvaluation } from "@/domain/types";
 import { resolveDisplayCategory, displayCategoryLabel, displayCategoryIcon } from "@/domain/categories";
 import { MatchProof } from "@/features/results/MatchProof";
@@ -16,22 +16,39 @@ export type PublicClosureStatus = {
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
 function PlaceThumbnail({ name, address }: { name: string; address: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
   const region = address.split(" ").slice(0, 2).join(" ");
   const query = region ? `${name} ${region}` : name;
   const [thumbnail, setThumbnail] = useState<{ query: string; url: string } | null>(null);
   const thumbUrl = thumbnail?.query === query ? thumbnail.url : null;
   useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    if (typeof IntersectionObserver === "undefined") {
+      const fallback = globalThis.setTimeout(() => setShouldLoad(true), 0);
+      return () => globalThis.clearTimeout(fallback);
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      setShouldLoad(true);
+      observer.disconnect();
+    }, { rootMargin: "240px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!shouldLoad) return;
     let cancelled = false;
     fetch(`/api/place-image?q=${encodeURIComponent(query)}`).then((r) => r.json()).then((d) => {
       if (!cancelled && d.success && d.data?.thumbnailUrl) setThumbnail({ query, url: d.data.thumbnailUrl });
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [query]);
-  if (!thumbUrl) return null;
+  }, [query, shouldLoad]);
   return (
-    <div className="place-thumbnail" aria-hidden="true">
+    <div ref={containerRef} className="place-thumbnail" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={thumbUrl} alt="" loading="lazy" onError={() => setThumbnail(null)} />
+      {thumbUrl ? <img src={thumbUrl} alt="" loading="lazy" onError={() => setThumbnail(null)} /> : null}
     </div>
   );
 }

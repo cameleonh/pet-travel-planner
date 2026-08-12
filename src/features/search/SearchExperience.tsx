@@ -107,6 +107,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         setCampingByPlaceId(body.data.camping ?? {});
         setCongestionByPlaceId(body.data.congestion ?? {});
         setTranslationByPlaceId(body.data.translations ?? {});
+        setClosureByPlaceId({});
+        setCatalogRequestKey(requestKey);
         const placeIds = body.data.catalog.results.map((result) => result.place.id);
 
         const closureTask = placeIds.length === 0 ? Promise.resolve() : (async () => {
@@ -133,7 +135,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         })().catch(() => { if (!controller.signal.aborted) setFestivals([]); });
 
         await Promise.all([closureTask, trailTask, festivalTask]);
-        setCatalogRequestKey(requestKey);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;

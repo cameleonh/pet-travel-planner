@@ -197,4 +197,64 @@ describe("SQLite place repository", () => {
     expect(repository.getCounts()).toMatchObject({ successfulRuns: 1, snapshots: 1 });
     repository.close();
   });
+
+  it("round-trips Phase 2 enrichment records through single and batch reads", async () => {
+    const { path } = temporaryDatabase();
+    const repository = new SqlitePlaceRepository(path);
+    await syncProviderSnapshot(new FixturePlaceProvider(), repository);
+    const snapshotId = repository.getLatestSnapshotId();
+    expect(snapshotId).not.toBeNull();
+    const placeId = "fixture:place-1";
+    const fetchedAt = "2026-08-13T00:00:00.000Z";
+
+    repository.saveAccessibility(snapshotId!, placeId, fetchedAt, { parking: "장애인 주차장", wheelchair: "대여 가능" });
+    expect(repository.loadAccessibility(placeId)).toEqual(expect.objectContaining({ parking: "장애인 주차장", wheelchair: "대여 가능" }));
+    expect(repository.loadAccessibility("missing")).toBeNull();
+    expect(repository.loadAccessibilityBatch([])).toEqual({});
+    expect(repository.loadAccessibilityBatch([placeId])).toEqual({ [placeId]: expect.objectContaining({ parking: "장애인 주차장" }) });
+    expect(repository.getAccessibilityCount()).toBe(1);
+
+    repository.saveCamping(snapshotId!, placeId, fetchedAt, {
+      animal_cmg_cl: "가능", induty: "일반야영장", sbrs_cl: "전기", glamp_site_co: 1,
+      carav_site_co: 2, gnrl_site_co: 3, oper_pd_cl: "봄,여름", oper_de_cl: "평일+주말",
+      resve_url: "https://example.com/reserve", first_image_url: "https://example.com/camp.jpg",
+    });
+    expect(repository.loadCamping(placeId)).toEqual(expect.objectContaining({ animal_cmg_cl: "가능", gnrl_site_co: 3 }));
+    expect(repository.loadCamping("missing")).toBeNull();
+    expect(repository.loadCampingBatch([])).toEqual({});
+    expect(repository.loadCampingBatch([placeId])[placeId]).toEqual(expect.objectContaining({ induty: "일반야영장" }));
+    expect(repository.getCampingCount()).toBe(1);
+
+    repository.saveTrail({
+      crs_idx: "course-1", route_idx: "route-1", crs_kor_nm: "해변길", theme_nm: "바다", linemsg: "걷기 좋은 길",
+      crs_dstnc: 3.5, crs_totl_rqrm_hour: 90, crs_level: 1, crs_cycle: "비순환", sigun: "속초시", brd_div: "걷기",
+      gpxpath: "https://example.com/course.gpx", crs_summary: "요약", crs_tour_info: "관광 정보", travelerinfo: "준비물",
+    }, fetchedAt);
+    expect(repository.loadTrailsByRegion("속초")).toEqual([expect.objectContaining({ crs_idx: "course-1" })]);
+    expect(repository.getTrailCount()).toBe(1);
+
+    for (const [base_ymd, cnctr_rate] of [["20260813", 42], ["20260814", 55]] as const) {
+      repository.saveCongestion(snapshotId!, placeId, fetchedAt, {
+        t_ats_nm: "테스트 관광지", area_cd: "32", area_nm: "강원", signgu_cd: "5", signgu_nm: "속초",
+        base_ymd, cnctr_rate,
+      });
+    }
+    expect(repository.loadCongestion("missing")).toBeNull();
+    expect(repository.loadCongestion(placeId)).toEqual({
+      t_ats_nm: "테스트 관광지",
+      forecasts: [{ base_ymd: "20260813", cnctr_rate: 42 }, { base_ymd: "20260814", cnctr_rate: 55 }],
+    });
+    expect(repository.loadCongestionBatch([])).toEqual({});
+    expect(repository.loadCongestionBatch([placeId])[placeId]?.forecasts).toHaveLength(2);
+    expect(repository.getCongestionCount()).toBe(2);
+
+    repository.saveTranslation(snapshotId!, placeId, "en", fetchedAt, { title: "Test place", address: "Sokcho", overview: "Overview" });
+    expect(repository.loadTranslation(placeId, "en")).toEqual({ title: "Test place", address: "Sokcho", overview: "Overview" });
+    expect(repository.loadTranslation(placeId, "zh")).toBeNull();
+    expect(repository.loadTranslationBatch([], "en")).toEqual({});
+    expect(repository.loadTranslationBatch([placeId], "en")).toEqual({ [placeId]: { title: "Test place", address: "Sokcho", overview: "Overview" } });
+    expect(repository.getTranslationCount("en")).toBe(1);
+    expect(repository.getTranslationCount()).toBe(1);
+    repository.close();
+  });
 });

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("nearby catalog separates status and location denial falls back", async ({ page }) => {
   await page.goto("/");
+  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("속초");
   const nearby = page.locator("section", {
     has: page.getByRole("heading", { name: "근처에 같이 들를 곳" }),
   });
@@ -16,7 +17,7 @@ test("nearby catalog separates status and location denial falls back", async ({ 
 
 test("course uses current exact results and discloses approximate distance only", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "먼저 맞는 장소를 찾아주세요" })).toBeDisabled();
+  await expect(page.getByRole("region", { name: "찾은 장소를 한 번에 정리해요" })).toHaveCount(0);
   await page.getByLabel("소형견").check();
   await page.getByRole("button", { name: "목줄 착용" }).click();
   await expect(page.locator(".result-count")).toHaveText("2곳");
