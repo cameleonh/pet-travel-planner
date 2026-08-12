@@ -16,22 +16,22 @@ export type PublicClosureStatus = {
 const preparationLabel = { leash: "목줄", carrier: "이동가방", muzzle: "입마개", wasteBag: "배변봉투", stroller: "유모차", mannerBelt: "매너벨트" } as const;
 
 function PlaceThumbnail({ name, address }: { name: string; address: string }) {
-  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const region = address.split(" ").slice(0, 2).join(" ");
+  const query = region ? `${name} ${region}` : name;
+  const [thumbnail, setThumbnail] = useState<{ query: string; url: string } | null>(null);
+  const thumbUrl = thumbnail?.query === query ? thumbnail.url : null;
   useEffect(() => {
     let cancelled = false;
-    setThumbUrl(null);
-    const region = address.split(" ").slice(0, 2).join(" ");
-    const query = region ? `${name} ${region}` : name;
     fetch(`/api/place-image?q=${encodeURIComponent(query)}`).then((r) => r.json()).then((d) => {
-      if (!cancelled && d.success && d.data?.thumbnailUrl) setThumbUrl(d.data.thumbnailUrl);
+      if (!cancelled && d.success && d.data?.thumbnailUrl) setThumbnail({ query, url: d.data.thumbnailUrl });
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [name, address]);
+  }, [query]);
   if (!thumbUrl) return null;
   return (
     <div className="place-thumbnail" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={thumbUrl} alt="" loading="lazy" onError={() => setThumbUrl(null)} />
+      <img src={thumbUrl} alt="" loading="lazy" onError={() => setThumbnail(null)} />
     </div>
   );
 }

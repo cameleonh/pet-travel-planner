@@ -43,7 +43,7 @@ const routeSchema = z.object({
 }).passthrough();
 
 const naviResponseSchema = z.object({
-  routes: z.array(z.unknown()),
+  routes: z.array(routeSchema),
 }).passthrough();
 
 const STATE_LABELS: Record<number, string> = { 0: "정보없음", 1: "원활", 2: "서행", 3: "지정체", 4: "정체" };
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const route = parsed.data.routes[0] as z.infer<typeof routeSchema>;
+    const route = parsed.data.routes[0]!;
     const summary = route.summary;
     const allRoads = (route.sections ?? []).flatMap((s) => s.roads ?? []);
 

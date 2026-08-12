@@ -63,7 +63,7 @@ describe("catalog pagination", () => {
 
   it("partitions filtered places without counting false-and-unknown rows twice", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
-    const [outdoorOnly, indoorPlace] = fixture.places;
+    const [outdoorOnly] = fixture.places;
     const snapshot: ProviderSnapshot = {
       ...fixture,
       sourceTotalCount: 3,

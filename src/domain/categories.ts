@@ -1,5 +1,3 @@
-import type { RawPlace } from "@/data/contracts";
-
 export type DisplayCategory =
   | "park" | "beach" | "mountain" | "nature" | "culture"
   | "market" | "outlet" | "department" | "dutyfree"

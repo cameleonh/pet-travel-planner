@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
-import { preparationFilterLabels, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
+import { preparationFilterLabels, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
@@ -179,7 +179,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   };
   const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
 
-  const togglePlanPlace = useCallback((result: typeof catalog.results[number]) => {
+  const togglePlanPlace = useCallback((result: MatchEvaluation) => {
     const place = result.place;
     const planPlace: PlanPlace = {
       id: place.id,
