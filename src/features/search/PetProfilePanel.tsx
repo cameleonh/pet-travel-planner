@@ -1,11 +1,7 @@
-import type { ConditionKey } from "@/domain/types";
+"use client";
 
-const sizes: { key: ConditionKey | null; label: string; note: string }[] = [
-  { key: null, label: "전체", note: "크기 조건 없음" },
-  { key: "smallDog", label: "소형견", note: "10kg 미만" },
-  { key: "mediumDog", label: "중형견", note: "10–25kg" },
-  { key: "largeDog", label: "대형견", note: "25kg 이상" }
-];
+import type { ConditionKey } from "@/domain/types";
+import { useLang } from "@/i18n/LangContext";
 
 type Props = {
   selected: ConditionKey | null;
@@ -17,12 +13,19 @@ type Props = {
 };
 
 export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWeightChange, onDangerousDogChange }: Props) {
+  const { dict } = useLang();
+  const sizes: { key: ConditionKey | null; label: string; note: string }[] = [
+    { key: null, label: dict.allSizes, note: dict.allSizesNote },
+    { key: "smallDog", label: dict.smallDog, note: dict.smallDogNote },
+    { key: "mediumDog", label: dict.mediumDog, note: dict.mediumDogNote },
+    { key: "largeDog", label: dict.largeDog, note: dict.largeDogNote }
+  ];
   return (
     <fieldset className="filter-fieldset">
-      <legend>반려견 프로필</legend>
+      <legend>{dict.petProfile}</legend>
       <div className="pet-profile-inputs">
-        <label className="weight-input"><span>몸무게</span><span><input type="number" inputMode="decimal" min="0.1" max="150" step="0.1" value={weight} placeholder="예: 8.5" onChange={(event) => onWeightChange(event.target.value)} /> kg</span></label>
-        <label className="dangerous-dog-input"><input type="checkbox" checked={dangerousDog} onChange={(event) => onDangerousDogChange(event.target.checked)} /><span>맹견 안전준비 안내 적용</span></label>
+        <label className="weight-input"><span>{dict.weight}</span><span><input type="number" inputMode="decimal" min="0.1" max="150" step="0.1" value={weight} placeholder={dict.weightPlaceholder} onChange={(event) => onWeightChange(event.target.value)} /> kg</span></label>
+        <label className="dangerous-dog-input"><input type="checkbox" checked={dangerousDog} onChange={(event) => onDangerousDogChange(event.target.checked)} /><span>{dict.dangerousDog}</span></label>
       </div>
       <div className="size-grid">
         {sizes.map((size) => (
@@ -41,7 +44,7 @@ export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWe
           </label>
         ))}
       </div>
-      <p className="field-help">몸무게를 입력하면 크기 조건을 자동으로 고르고, 직접 다시 바꿀 수도 있어요.</p>
+      <p className="field-help">{dict.weightHelp}</p>
     </fieldset>
   );
 }

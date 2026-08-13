@@ -20,7 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="ko">
       <body suppressHydrationWarning>
-        <a className="skip-link" href="#search">검색으로 바로가기</a>
+        <a className="skip-link" href="#search">검색으로 바로가기 / Skip to search</a>
         <PwaRegistration />
         {children}
       </body>

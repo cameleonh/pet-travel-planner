@@ -1,12 +1,7 @@
-import type { RawPlace } from "@/data/contracts";
+"use client";
 
-const categories: { key: RawPlace["category"]; label: string; icon: string; desc: string }[] = [
-  { key: "attraction", label: "관광지", icon: "🏞️", desc: "공원·산·해변·문화" },
-  { key: "restaurant", label: "식당", icon: "🍽️", desc: "반려동물 동반 식당" },
-  { key: "cafe", label: "카페", icon: "☕", desc: "반려동물 동반 카페" },
-  { key: "accommodation", label: "숙소", icon: "🏨", desc: "펫프렌들리 숙박" },
-  { key: "shopping", label: "쇼핑", icon: "🛍️", desc: "아울렛·시장·백화점" },
-];
+import type { RawPlace } from "@/data/contracts";
+import { useLang } from "@/i18n/LangContext";
 
 type Props = {
   region: string;
@@ -16,14 +11,22 @@ type Props = {
 };
 
 export function DestinationPanel({ region, selectedCategories, onRegionChange, onToggleCategory }: Props) {
+  const { dict } = useLang();
+  const categories: { key: RawPlace["category"]; label: string; icon: string; desc: string }[] = [
+    { key: "attraction", label: dict.catAttraction, icon: "🏞️", desc: dict.catAttractionDesc },
+    { key: "restaurant", label: dict.catRestaurant, icon: "🍽️", desc: dict.catRestaurantDesc },
+    { key: "cafe", label: dict.catCafe, icon: "☕", desc: dict.catCafeDesc },
+    { key: "accommodation", label: dict.catAccommodation, icon: "🏨", desc: dict.catAccommodationDesc },
+    { key: "shopping", label: dict.catShopping, icon: "🛍️", desc: dict.catShoppingDesc },
+  ];
   return (
     <fieldset className="filter-fieldset destination-fieldset">
-      <legend>여행지와 장소 유형</legend>
+      <legend>{dict.destination}</legend>
       <label className="region-input">
-        <span>지역</span>
-        <input value={region} maxLength={40} placeholder="예: 속초, 제주, 부산 해운대" onChange={(event) => onRegionChange(event.target.value)} />
+        <span>{dict.region}</span>
+        <input value={region} maxLength={40} placeholder={dict.regionPlaceholder} onChange={(event) => onRegionChange(event.target.value)} />
       </label>
-      <div className="category-grid" aria-label="장소 유형">
+      <div className="category-grid" aria-label={dict.destination}>
         {categories.map((category) => (
           <button
             type="button"
@@ -38,7 +41,7 @@ export function DestinationPanel({ region, selectedCategories, onRegionChange, o
           </button>
         ))}
       </div>
-      <p className="field-help">지역명은 주소와 장소명에서 찾고, 여러 유형을 함께 선택할 수 있어요.</p>
+      <p className="field-help">{dict.regionHelp}</p>
     </fieldset>
   );
 }

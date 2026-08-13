@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
-import { preparationFilterLabels, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
+import { type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
 import { ResultCard, type PublicClosureStatus } from "@/features/results/ResultCard";
+import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
 import type { AccessibilityData } from "@/features/results/AccessibilitySection";
 import type { PlanPlace } from "@/domain/plan";
 import { PlanBuilder } from "@/features/planner/PlanBuilder";
@@ -21,10 +23,11 @@ import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 
-const labels: Record<ConditionKey, string> = { smallDog: "소형견", mediumDog: "중형견", largeDog: "대형견" };
+const condLabelKeys: Record<ConditionKey, "smallDog" | "mediumDog" | "largeDog"> = { smallDog: "smallDog", mediumDog: "mediumDog", largeDog: "largeDog" };
+const prepFilterKeys: Record<PreparationFilterKey, "leash" | "carrier" | "indoor" | "outdoor"> = { leash: "leash", carrier: "carrier", indoor: "indoor", outdoor: "outdoor" };
 
-function selected(key: ConditionKey, kind: SelectedConstraint["kind"]): SelectedConstraint {
-  return { key, label: labels[key], kind, protectedCategory: kind === "hard" ? "admission" : null };
+function selected(key: ConditionKey, kind: SelectedConstraint["kind"], lang: ReturnType<typeof useLang>["lang"]): SelectedConstraint {
+  return { key, label: t(lang, condLabelKeys[key]), kind, protectedCategory: kind === "hard" ? "admission" : null };
 }
 
 type CatalogApiResponse = {
@@ -36,6 +39,7 @@ type CatalogApiResponse = {
 type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
 
 export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[] }) {
+  const { lang, dict } = useLang();
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
   const [dangerousDog, setDangerousDog] = useState(false);
@@ -54,7 +58,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
   const [congestionByPlaceId, setCongestionByPlaceId] = useState<Record<string, CongestionData>>({});
   const [translationByPlaceId, setTranslationByPlaceId] = useState<Record<string, TranslationData>>({});
-  const [lang, setLang] = useState<string>("ko");
   const [planPlaces, setPlanPlaces] = useState<PlanPlace[]>([]);
   const [trails, setTrails] = useState<TrailData[]>([]);
   const [festivals, setFestivals] = useState<FestivalData[]>([]);
@@ -63,14 +66,14 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
     const result: SelectedConstraint[] = [];
     for (const key of hard) {
       const id = `${key}-hard`;
-      if (!seen.has(id)) { seen.add(id); result.push(selected(key, "hard")); }
+      if (!seen.has(id)) { seen.add(id); result.push(selected(key, "hard", lang)); }
     }
     for (const key of preferences) {
       const id = `${key}-preference`;
-      if (!seen.has(id)) { seen.add(id); result.push(selected(key, "preference")); }
+      if (!seen.has(id)) { seen.add(id); result.push(selected(key, "preference", lang)); }
     }
     return result;
-  }, [hard, preferences]);
+  }, [hard, preferences, lang]);
   const isBrowsing = constraints.length === 0;
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
@@ -101,7 +104,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
     fetch(`/api/places?${parameters}`, { signal: controller.signal })
       .then(async (response) => {
         const body = await response.json() as CatalogApiResponse;
-        if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "장소를 불러오지 못했어요.");
+        if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "Error");
         setCatalog(body.data.catalog);
         setAccessibilityByPlaceId(body.data.accessibility ?? {});
         setCampingByPlaceId(body.data.camping ?? {});
@@ -138,13 +141,13 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setErrorMessage("조건 결과를 새로 불러오지 못했어요. 잠시 후 조건을 다시 눌러주세요.");
+        setErrorMessage(dict.errorMessage);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, requestKey]);
+  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, requestKey, dict]);
 
   const toggle = (items: ConditionKey[], key: ConditionKey, update: (next: ConditionKey[]) => void) => {
     setPage(1);
@@ -198,16 +201,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
   const clearPlanPlaces = useCallback(() => setPlanPlaces([]), []);
 
   return (
-    <section className="search-workspace" id="search" aria-label="반려견 동반 장소 조건 검색">
-      <div className="lang-toggle" role="group" aria-label="언어 선택">
-        <button type="button" className={lang === "ko" ? "active" : ""} onClick={() => setLang("ko")}>한국어</button>
-        <button type="button" className={lang === "en" ? "active" : ""} onClick={() => setLang("en")}>English</button>
-        <button type="button" className={lang === "zh" ? "active" : ""} onClick={() => setLang("zh")}>中文</button>
-      </div>
+    <section className="search-workspace" id="search" aria-label={dict.findPlace}>
       <div className="control-panel">
         <header className="control-heading">
-          <div><p className="section-kicker">장소 찾기</p><h2>어떤 곳을 찾고 있나요?</h2></div>
-          <p>크기와 조건을 고르면 <span className="keep-together">전체 저장 데이터에서</span> <span className="keep-together">바로 다시 찾아요.</span></p>
+          <div><p className="section-kicker">{dict.findPlace}</p><h2>{dict.searchHeading}</h2></div>
+          <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
@@ -217,17 +215,17 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
       </div>
       <div className="results-panel interactive-results" aria-busy={loading}>
         <div className="result-heading">
-          <div><p className="section-kicker">{isBrowsing ? "전국 등록 장소" : "확인된 결과"}</p><h2>{!catalogIsCurrent ? "조건을 확인하고 있어요" : isBrowsing ? `${resultCount.toLocaleString("ko-KR")}곳을 둘러보세요` : resultCount > 0 ? `현재 ${resultCount.toLocaleString("ko-KR")}곳에서 가능을 확인했어요` : "아직 가능이 확인된 곳은 없어요"}</h2></div>
-          {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>곳</span></p> : null}
+          <div><p className="section-kicker">{isBrowsing ? dict.nationwidePlaces : dict.confirmedResults}</p><h2>{!catalogIsCurrent ? dict.checkingConditions : isBrowsing ? `${resultCount.toLocaleString("ko-KR")}${dict.browseAll}` : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
+          {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>{dict.places}</span></p> : null}
         </div>
-        <p className="catalog-coverage">현재 상세정보 확인 가능 {catalog.searchableCount.toLocaleString("ko-KR")}곳 · 전국 원천 {catalog.sourceTotalCount.toLocaleString("ko-KR")}곳 · 상세 수집률 {catalog.sourceTotalCount > 0 ? ((catalog.detailCoverage / catalog.sourceTotalCount) * 100).toFixed(1) : "0.0"}% · 미수집 {catalog.pendingDetailCount.toLocaleString("ko-KR")}곳 · 실패 {catalog.failedDetailCount.toLocaleString("ko-KR")}곳</p>
-        {!isBrowsing && catalogIsCurrent ? <dl className="decision-summary" aria-label="조건 판정 현황">
-          <div><dt>가능 명시 확인</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
-          <div><dt>확인 불가</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
-          <div><dt>정보 미확인</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
+        <p className="catalog-coverage">{dict.coverageDetail} {catalog.searchableCount.toLocaleString("ko-KR")}{dict.places} · {dict.coverageSource} {catalog.sourceTotalCount.toLocaleString("ko-KR")}{dict.places} · {dict.coverageRate} {catalog.sourceTotalCount > 0 ? ((catalog.detailCoverage / catalog.sourceTotalCount) * 100).toFixed(1) : "0.0"}% · {dict.coverageNotFetched} {catalog.pendingDetailCount.toLocaleString("ko-KR")}{dict.places} · {dict.coverageFailed} {catalog.failedDetailCount.toLocaleString("ko-KR")}{dict.places}</p>
+        {!isBrowsing && catalogIsCurrent ? <dl className="decision-summary" aria-label={dict.confirmedMatch}>
+          <div><dt>{dict.confirmedMatch}</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
+          <div><dt>{dict.confirmedNonMatch}</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
+          <div><dt>{dict.unverified}</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
         </dl> : null}
-        <div className="match-bar"><strong>{isBrowsing ? "탐색 필터" : "모두 적용"}</strong><div className="active-query" aria-label="현재 적용 조건">{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">전체 장소</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>선호</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{preparationFilterLabels[key]}</span>)}</div></div>
-        {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">전체 저장 데이터에서 조건에 맞는 곳을 확인하고 있어요.</p> : null}
+        <div className="match-bar"><strong>{isBrowsing ? dict.browsingFilter : dict.allApplied}</strong><div className="active-query" aria-label={dict.currentConditions}>{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">{dict.allPlaces}</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>{dict.preference}</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{t(lang, prepFilterKeys[key])}</span>)}</div></div>
+        {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">{dict.loadingMessage}</p> : null}
         {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
         {catalogIsCurrent ? (
           <>
@@ -237,12 +235,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
                 <FestivalSection festivals={festivals} />
               </div>
             ) : null}
-            {catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <div className="place-row" key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${planPlaces.some((p) => p.id === result.place.id) ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-label={planPlaces.some((p) => p.id === result.place.id) ? "계획서에서 제거" : "계획서에 추가"}>{planPlaces.some((p) => p.id === result.place.id) ? "✓ 추가됨" : "+ 계획서"}</button></div>)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
-            {!isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>정보 미확인 {catalog.unverifiedCount.toLocaleString("ko-KR")}곳은 불가능하다고 판정한 곳이 아니에요.</strong> 정책을 확인하면 조건에 맞을 수도 있어요.</p> : null}
-            <nav className="catalog-pagination" aria-label="장소 결과 페이지">
-              <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>이전 50곳</button>
-              <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}페이지</span>
-              <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>다음 50곳</button>
+            {catalog.results.length > 0 ? <div className="place-list">{catalog.results.map((result) => <div className="place-row" key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${planPlaces.some((p) => p.id === result.place.id) ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-label={planPlaces.some((p) => p.id === result.place.id) ? dict.planRemove : dict.planAdd}>{planPlaces.some((p) => p.id === result.place.id) ? dict.planAdded : dict.planAdd}</button></div>)}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
+            {!isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>{t(lang, "unknownNote", { n: catalog.unverifiedCount.toLocaleString("ko-KR") })}</strong></p> : null}
+            <nav className="catalog-pagination" aria-label={dict.confirmedResults}>
+              <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>{dict.prevPage}</button>
+              <span><strong>{catalog.page.toLocaleString("ko-KR")}</strong> / {catalog.totalPages.toLocaleString("ko-KR")}{dict.pageOf}</span>
+              <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>{dict.nextPage}</button>
             </nav>
             {planPlaces.length > 0 ? (
               <PlanBuilder selectedPlaces={planPlaces} onRemove={removePlanPlace} onClear={clearPlanPlaces} />
@@ -259,8 +257,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
                   </>
                 ) : (
                   <div className="nearby-hint">
-                    <p>📍 지역을 입력하면 그 지역의 동물병원·펫샵·동반 식당을 보여드려요.</p>
-                    <p className="hint-example">예: 속초, 제주, 부산 해운대</p>
+                    <p>{dict.nearbyHintTitle}</p>
+                    <p className="hint-example">{dict.nearbyHintExample}</p>
                   </div>
                 )}
               </div>

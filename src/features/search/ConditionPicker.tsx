@@ -1,10 +1,8 @@
-import { preparationFilterKeys, preparationFilterLabels, type ConditionKey, type PreparationFilterKey } from "@/domain/types";
+"use client";
 
-const hardOptions: { key: ConditionKey; label: string }[] = [
-  { key: "smallDog", label: "소형견 가능" },
-  { key: "mediumDog", label: "중형견 가능" },
-  { key: "largeDog", label: "대형견 가능" }
-];
+import { preparationFilterKeys, type ConditionKey, type PreparationFilterKey } from "@/domain/types";
+import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
 
 type Props = {
   hard: ConditionKey[];
@@ -16,9 +14,15 @@ type Props = {
 };
 
 export function ConditionPicker({ hard, onToggleHard, prepFilters, onTogglePrepFilter }: Props) {
+  const { lang, dict } = useLang();
+  const hardOptions: { key: ConditionKey; label: string }[] = [
+    { key: "smallDog", label: dict.smallDogOk },
+    { key: "mediumDog", label: dict.mediumDogOk },
+    { key: "largeDog", label: dict.largeDogOk }
+  ];
   return (
     <fieldset className="filter-fieldset">
-      <legend>꼭 필요한 조건</legend>
+      <legend>{dict.hardConditions}</legend>
       <div className="condition-grid">
         {hardOptions.map((option) => (
           <button type="button" className={`condition-button ${hard.includes(option.key) ? "active" : ""}`} aria-pressed={hard.includes(option.key)} onClick={() => onToggleHard(option.key)} key={option.key}>
@@ -26,8 +30,8 @@ export function ConditionPicker({ hard, onToggleHard, prepFilters, onTogglePrepF
           </button>
         ))}
       </div>
-      <div className="prep-filter-group" role="group" aria-label="방문 조건">
-        <p className="prep-filter-label">방문 조건</p>
+      <div className="prep-filter-group" role="group" aria-label={dict.visitConditions}>
+        <p className="prep-filter-label">{dict.visitConditions}</p>
         <div className="condition-grid">
           {preparationFilterKeys.map((key) => (
             <button
@@ -37,7 +41,7 @@ export function ConditionPicker({ hard, onToggleHard, prepFilters, onTogglePrepF
               onClick={() => onTogglePrepFilter(key)}
               key={key}
             >
-              <span className="condition-indicator" aria-hidden="true">{prepFilters.includes(key) ? "✓" : ""}</span>{preparationFilterLabels[key]}
+              <span className="condition-indicator" aria-hidden="true">{prepFilters.includes(key) ? "✓" : ""}</span>{t(lang, key)}
             </button>
           ))}
         </div>

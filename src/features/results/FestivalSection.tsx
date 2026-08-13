@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
 
 export type FestivalData = {
   contentId: string;
@@ -18,6 +20,7 @@ export type FestivalData = {
 };
 
 export function FestivalSection({ festivals }: { festivals: FestivalData[] }) {
+  const { lang, dict } = useLang();
   const [expanded, setExpanded] = useState(false);
   if (festivals.length === 0) return null;
 
@@ -28,14 +31,14 @@ export function FestivalSection({ festivals }: { festivals: FestivalData[] }) {
 
   return (
     <div className="festival-section">
-      <h3 className="festival-section-title">🎪 이번 달 축제 · 행사 <span className="festival-count">{festivals.length}개</span></h3>
-      <p className="festival-section-desc">한국관광공사 관광정보 서비스 · 반려동물 동반 가능 여부는 축제 홈페이지에서 확인해 주세요</p>
+      <h3 className="festival-section-title">{dict.festivalTitle} <span className="festival-count">{festivals.length}개</span></h3>
+      <p className="festival-section-desc">{dict.festivalSource}</p>
       <ul className="festival-list">
         {visible.map((festival) => (
           <li key={festival.contentId} className={`festival-item ${festival.ongoing ? "festival-ongoing" : "festival-upcoming"}`}>
             <div className="festival-header">
               <strong className="festival-name">{festival.title}</strong>
-              {festival.ongoing ? <span className="festival-badge festival-badge-live">진행 중</span> : <span className="festival-badge festival-badge-soon">예정</span>}
+              {festival.ongoing ? <span className="festival-badge festival-badge-live">{dict.festivalOngoing}</span> : <span className="festival-badge festival-badge-soon">예정</span>}
             </div>
             <div className="festival-meta">
               <span>📅 {festival.startDateFormatted} ~ {festival.endDateFormatted}</span>
@@ -48,7 +51,7 @@ export function FestivalSection({ festivals }: { festivals: FestivalData[] }) {
       </ul>
       {sorted.length > 8 ? (
         <button type="button" className="festival-toggle" onClick={() => setExpanded(!expanded)}>
-          {expanded ? "접기" : `외 ${sorted.length - 8}개 축제 더 보기`}
+          {expanded ? "접기" : t(lang, "festivalMore", { n: sorted.length - 8 })}
         </button>
       ) : null}
     </div>

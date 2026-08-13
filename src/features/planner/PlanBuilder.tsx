@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import type { PlanPlace, RouteSegment } from "@/domain/plan";
+import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
 
 type RouteApiResponse = {
   success: boolean;
@@ -22,6 +24,7 @@ type Props = {
 };
 
 export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
+  const { lang, dict } = useLang();
   const [routes, setRoutes] = useState<RouteSegment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,11 +64,11 @@ export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
       }
       setRoutes(segments);
     } catch {
-      setError("경로 정보를 불러오지 못했어요.");
+      setError(dict.planError);
     } finally {
       setLoading(false);
     }
-  }, [selectedPlaces]);
+  }, [selectedPlaces, dict]);
 
   if (selectedPlaces.length === 0) return null;
 
@@ -73,10 +76,10 @@ export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
     <section className="extension-card plan-builder-card" aria-labelledby="plan-builder-title">
       <div className="extension-heading">
         <div>
-          <p className="section-kicker">여행 계획서</p>
-          <h2 id="plan-builder-title">선택한 {selectedPlaces.length}곳으로 계획서 만들기</h2>
+          <p className="section-kicker">{dict.planTitle}</p>
+          <h2 id="plan-builder-title">{t(lang, "planHeading", { n: selectedPlaces.length })}</h2>
         </div>
-        <button type="button" className="clear-button" onClick={onClear}>전체 취소</button>
+        <button type="button" className="clear-button" onClick={onClear}>{dict.planClear}</button>
       </div>
 
       <ol className="plan-place-list">
@@ -94,14 +97,14 @@ export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
       </ol>
 
       <button type="button" className="plan-generate-button" disabled={selectedPlaces.length < 2 || loading} onClick={generatePlan}>
-        {loading ? "경로 계산 중…" : selectedPlaces.length < 2 ? "2곳 이상 선택해 주세요" : `${selectedPlaces.length}곳 경로 및 혼잡도 분석하기`}
+        {loading ? dict.planLoading : selectedPlaces.length < 2 ? dict.planNeedMore : t(lang, "planGenerate", { n: selectedPlaces.length })}
       </button>
 
       {error ? <p className="plan-error" role="alert">{error}</p> : null}
 
       {routes.length > 0 ? (
         <div className="plan-routes">
-          <h3>🛣️ 구간별 경로 및 실시간 혼잡도</h3>
+          <h3>{dict.planRoutes}</h3>
           {routes.map((route, i) => (
             <div key={i} className="plan-route-segment">
               <div className="route-header">
@@ -110,7 +113,7 @@ export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
               </div>
               {route.hasCongestion ? (
                 <div className="route-congestion">
-                  <p className="congestion-warning">⚠️ 혼잡 구간 {route.congestedSegments + route.jammedSegments}개</p>
+                  <p className="congestion-warning">{t(lang, "planCongestionWarn", { n: route.congestedSegments + route.jammedSegments })}</p>
                   <ul className="congested-roads">
                     {route.congestedRoads.slice(0, 3).map((road, j) => (
                       <li key={j}>
@@ -122,16 +125,16 @@ export function PlanBuilder({ selectedPlaces, onRemove, onClear }: Props) {
                   </ul>
                 </div>
               ) : (
-                <p className="congestion-ok">✅ 전 구간 원활</p>
+                <p className="congestion-ok">{dict.planCongestionOk}</p>
               )}
               <div className="route-links">
-                <a href={route.mapLink} target="_blank" rel="noreferrer">카카오맵에서 보기 ↗</a>
-                <a href={route.naviLink} target="_blank" rel="noreferrer">내비게이션 시작 ↗</a>
+                <a href={route.mapLink} target="_blank" rel="noreferrer">{dict.planKakaoMap}</a>
+                <a href={route.naviLink} target="_blank" rel="noreferrer">{dict.planNavi}</a>
               </div>
             </div>
           ))}
           <div className="plan-actions">
-            <button type="button" onClick={() => window.print()} className="print-button">🖨️ 계획서 인쇄 / PDF 저장</button>
+            <button type="button" onClick={() => window.print()} className="print-button">{dict.planPrint}</button>
           </div>
         </div>
       ) : null}

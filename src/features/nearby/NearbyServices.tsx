@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Coordinates } from "@/domain/geo";
+import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
 
 type Service = {
   id: string;
@@ -21,6 +23,7 @@ type Props = {
 };
 
 export function NearbyServices({ origin, referenceName }: Props) {
+  const { lang, dict } = useLang();
   const [vets, setVets] = useState<Service[]>([]);
   const [shops, setShops] = useState<Service[]>([]);
   const [restaurants, setRestaurants] = useState<Service[]>([]);
@@ -73,23 +76,23 @@ export function NearbyServices({ origin, referenceName }: Props) {
     <section className="extension-card nearby-card" aria-labelledby="nearby-services-title">
       <div className="extension-heading">
         <div>
-          <p className="section-kicker">근처 반려동물 시설</p>
-          <h2 id="nearby-services-title">근처 펫프렌들리</h2>
+          <p className="section-kicker">{dict.nearbyServicesTitle}</p>
+          <h2 id="nearby-services-title">{dict.nearbyServicesHeading}</h2>
         </div>
       </div>
-      <p className="distance-note">{referenceName} 반경 5km 기준이에요. 직선거리라 실제 이동거리와는 달라요.</p>
+      <p className="distance-note">{t(lang, "nearbyServicesNote", { ref: referenceName })}</p>
       <div className="nearby-services-grid">
         <div>
-          <h3><span aria-hidden="true">🍽️</span> 동반 식당·카페</h3>
-          {restaurantLoading ? <p className="empty-line">불러오는 중…</p> : restaurantError ? <p className="empty-line">식당 정보를 불러오지 못했어요.</p> : restaurants.length === 0 ? <p className="empty-line">근처 반려동물 동반 식당이 없어요.</p> : <ul>{restaurants.slice(0, 5).map((r) => <li key={r.id}><div><strong>{r.name}</strong>{r.phone ? <a href={`tel:${r.phone}`} className="tel-link">📞 {r.phone}</a> : null}<small>{r.distance ? `${(r.distance / 1000).toFixed(1)}km · ` : ""}{r.address}</small>{r.placeUrl ? <a href={r.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">카카오맵에서 보기</a> : null}</div></li>)}</ul>}
+          <h3><span aria-hidden="true">🍽️</span> {dict.nearbyRestaurants}</h3>
+          {restaurantLoading ? <p className="empty-line">{dict.nearbyLoading}</p> : restaurantError ? <p className="empty-line">{dict.nearbyRestaurantError}</p> : restaurants.length === 0 ? <p className="empty-line">{dict.nearbyNoRestaurants}</p> : <ul>{restaurants.slice(0, 5).map((r) => <li key={r.id}><div><strong>{r.name}</strong>{r.phone ? <a href={`tel:${r.phone}`} className="tel-link">📞 {r.phone}</a> : null}<small>{r.distance ? `${(r.distance / 1000).toFixed(1)}km · ` : ""}{r.address}</small>{r.placeUrl ? <a href={r.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">{dict.nearbyKakaoMap}</a> : null}</div></li>)}</ul>}
         </div>
         <div>
-          <h3><span aria-hidden="true">🏥</span> 동물병원</h3>
-          {vetLoading ? <p className="empty-line">불러오는 중…</p> : vetError ? <p className="empty-line">동물병원 정보를 불러오지 못했어요.</p> : vets.length === 0 ? <p className="empty-line">근처 동물병원이 없어요.</p> : <ul>{vets.slice(0, 5).map((v) => <li key={v.id}><div><strong>{v.name}</strong>{v.phone ? <a href={`tel:${v.phone}`} className="tel-link">📞 {v.phone}</a> : null}<small>{v.distance ? `${(v.distance / 1000).toFixed(1)}km · ` : ""}{v.address}</small>{v.placeUrl ? <a href={v.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">카카오맵에서 보기</a> : null}</div></li>)}</ul>}
+          <h3><span aria-hidden="true">🏥</span> {dict.nearbyVets}</h3>
+          {vetLoading ? <p className="empty-line">{dict.nearbyLoading}</p> : vetError ? <p className="empty-line">{dict.nearbyVetError}</p> : vets.length === 0 ? <p className="empty-line">{dict.nearbyNoVets}</p> : <ul>{vets.slice(0, 5).map((v) => <li key={v.id}><div><strong>{v.name}</strong>{v.phone ? <a href={`tel:${v.phone}`} className="tel-link">📞 {v.phone}</a> : null}<small>{v.distance ? `${(v.distance / 1000).toFixed(1)}km · ` : ""}{v.address}</small>{v.placeUrl ? <a href={v.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">{dict.nearbyKakaoMap}</a> : null}</div></li>)}</ul>}
         </div>
         <div>
-          <h3><span aria-hidden="true">🛒</span> 펫샵</h3>
-          {shopLoading ? <p className="empty-line">불러오는 중…</p> : shopError ? <p className="empty-line">펫샵 정보를 불러오지 못했어요.</p> : shops.length === 0 ? <p className="empty-line">근처 펫샵이 없어요.</p> : <ul>{shops.slice(0, 5).map((s) => <li key={s.id}><div><strong>{s.name}</strong>{s.phone ? <a href={`tel:${s.phone}`} className="tel-link">📞 {s.phone}</a> : null}<small>{s.distance ? `${(s.distance / 1000).toFixed(1)}km · ` : ""}{s.address}</small>{s.placeUrl ? <a href={s.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">카카오맵에서 보기</a> : null}</div></li>)}</ul>}
+          <h3><span aria-hidden="true">🛒</span> {dict.nearbyShops}</h3>
+          {shopLoading ? <p className="empty-line">{dict.nearbyLoading}</p> : shopError ? <p className="empty-line">{dict.nearbyShopError}</p> : shops.length === 0 ? <p className="empty-line">{dict.nearbyNoShops}</p> : <ul>{shops.slice(0, 5).map((s) => <li key={s.id}><div><strong>{s.name}</strong>{s.phone ? <a href={`tel:${s.phone}`} className="tel-link">📞 {s.phone}</a> : null}<small>{s.distance ? `${(s.distance / 1000).toFixed(1)}km · ` : ""}{s.address}</small>{s.placeUrl ? <a href={s.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">{dict.nearbyKakaoMap}</a> : null}</div></li>)}</ul>}
         </div>
       </div>
     </section>

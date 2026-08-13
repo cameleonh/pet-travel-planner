@@ -13,8 +13,8 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
   await page.getByRole("button", { name: "목줄 착용" }).click();
   await page.getByRole("button", { name: "이동가방 가능" }).click();
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
-  await expect(page.getByLabel("조건 판정 현황")).toContainText("가능 명시 확인1");
-  await expect(page.getByLabel("조건 판정 현황")).toContainText("정보 미확인0");
+  await expect(page.getByLabel("가능 명시 확인")).toContainText("가능 명시 확인1");
+  await expect(page.getByLabel("가능 명시 확인")).toContainText("정보 미확인0");
   await expect(page.locator(".result-count")).toHaveText("1곳");
   await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
 
