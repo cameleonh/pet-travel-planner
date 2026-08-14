@@ -37,6 +37,7 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
 
 test("critical controls are keyboard reachable and expose state", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "소형견 가능" })).toHaveCount(0);
   const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
   expect(accessibility.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical")).toEqual([]);
   const medium = page.getByLabel("중형견");
@@ -50,6 +51,28 @@ test("critical controls are keyboard reachable and expose state", async ({ page 
   await expect(indoor).toHaveAttribute("aria-pressed", "true");
 });
 
+test("language selection updates the page and survives reload", async ({ page }) => {
+  await page.goto("/");
+  const languageToggle = page.getByRole("group", { name: "Language" });
+
+  await languageToggle.getByRole("button", { name: "English" }).click();
+  await expect(page.getByRole("heading", { name: "A more precious trip together — Gachi Galgae" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(languageToggle.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
+
+  await languageToggle.getByRole("button", { name: "中文" }).click();
+  await expect(page.getByRole("heading", { name: "更珍贵的同行之旅 — 一起走吧" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh");
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "更珍贵的同行之旅 — 一起走吧" })).toBeVisible();
+  await expect(languageToggle.getByRole("button", { name: "中文" })).toHaveAttribute("aria-pressed", "true");
+
+  const toggleBox = await languageToggle.boundingBox();
+  expect(toggleBox).not.toBeNull();
+  expect(toggleBox!.x + toggleBox!.width).toBeGreaterThan(360);
+});
+
 test("clicking the active pet size clears the condition and restores browsing", async ({ page }) => {
   await page.goto("/");
   const medium = page.getByLabel("중형견");
@@ -58,7 +81,7 @@ test("clicking the active pet size clears the condition and restores browsing", 
   await expect(medium).toBeChecked();
   await medium.click();
 
-  await expect(page.getByLabel("전체")).toBeChecked();
+  await expect(page.getByRole("radio", { name: "전체 크기 조건 없음" })).toBeChecked();
   await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
 });
 
@@ -80,7 +103,25 @@ test("a pending filter request never labels stale browsing rows as filtered resu
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
 });
 
-test("an empty destination result does not request closures without place IDs", async ({ page }) => {
+test("slow festival enrichment never keeps place results in a searching state", async ({ page }) => {
+  let releaseFestivals!: () => void;
+  const festivalGate = new Promise<void>((resolve) => { releaseFestivals = resolve; });
+  await page.route("**/api/festivals?*", async (route) => {
+    await festivalGate;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { festivals: [] } }) });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("지역").selectOption("강원");
+  await page.getByRole("button", { name: /카페/ }).click();
+
+  await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
+  await expect(page.locator(".interactive-results")).toHaveAttribute("aria-busy", "false");
+  await expect(page.locator(".catalog-status")).toHaveCount(0);
+  releaseFestivals();
+});
+
+test("an empty category result does not request closures without place IDs", async ({ page }) => {
   const emptyClosureRequests: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -90,7 +131,7 @@ test("an empty destination result does not request closures without place IDs", 
   });
 
   await page.goto("/");
-  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("없는 지역");
+  await page.getByRole("button", { name: /숙소/ }).click();
   await expect(page.getByRole("heading", { name: "0곳을 둘러보세요" })).toBeVisible();
 
   expect(emptyClosureRequests).toEqual([]);

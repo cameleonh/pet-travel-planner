@@ -292,9 +292,12 @@ h1 {
 .weight-input input { width: 82px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 7px; font: inherit; }
 .dangerous-dog-input { justify-content: flex-start; cursor: pointer; }
 .dangerous-dog-input input { width: 17px; height: 17px; accent-color: var(--brand); }
-.region-input { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
-.region-input input { min-height: 42px; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; }
+.region-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.region-input { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.region-input select { width: 100%; min-height: 42px; padding: 9px 32px 9px 11px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; }
+.region-input select:disabled { background: var(--surface-subtle); color: var(--muted); cursor: not-allowed; }
 .category-grid { display: grid; margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.destination-fieldset .category-grid { margin-top: 0; }
 .category-grid button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer; text-align: center; transition: border-color 150ms ease, background 150ms ease; }
 .category-grid button:hover { border-color: var(--brand); }
 .category-grid button.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-strong); }
@@ -486,7 +489,9 @@ h1 {
 .lang-toggle { display: flex; gap: 4px; }
 .lang-toggle button { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
 .lang-toggle button.active { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar > .data-badge { margin-left: auto; }
+.lang-toggle-topbar { flex: 0 0 auto; margin-left: auto; justify-content: flex-end; }
+.topbar > .data-badge + .lang-toggle-topbar { margin-left: 0; }
 .lang-toggle-topbar button { min-height: 32px; padding: 5px 10px; font-size: 11px; }
 
 .translation-details { border-top: 1px solid var(--line); padding-top: 11px; }
@@ -541,7 +546,7 @@ h1 {
 .festival-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .festival-name { font-size: 13px; font-weight: 700; }
 .festival-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
-.festival-badge-live { background: rgba(74,222,128,0.15); color: #4ade80; }
+.festival-badge-live { background: #e4faec; color: #176b3a; }
 .festival-badge-soon { background: rgba(139,143,153,0.15); color: var(--muted); }
 .festival-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 4px; }
 .festival-tel { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -666,6 +671,7 @@ footer p { margin: 0; }
 
 @media (max-width: 767px) {
   .topbar { min-height: 58px; padding: 10px 16px; }
+  .topbar > .data-badge { display: none; }
   .intro { padding: 28px 18px 14px; grid-template-columns: 1fr; gap: 16px; }
   .mascot-gallery { width: 100%; justify-self: stretch; }
   h1 { max-width: 16ch; font-size: clamp(28px, 8vw, 34px); line-height: 1.3; }

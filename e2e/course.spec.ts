@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test("nearby catalog separates status and location denial falls back", async ({ page }) => {
   await page.goto("/");
-  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("속초");
+  await page.getByLabel("지역").selectOption("강원");
+  await page.getByLabel("시·군·구").selectOption("강원 속초시");
   const nearby = page.locator("section", {
     has: page.getByRole("heading", { name: "근처에 같이 들를 곳" }),
   });

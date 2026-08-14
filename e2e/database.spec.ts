@@ -12,7 +12,8 @@ test("official database snapshot supports mobile destination, profile, proof, an
   );
   await expect(page.getByRole("heading", { name: "근처에 같이 들를 곳" })).toHaveCount(0);
 
-  await page.getByPlaceholder("예: 속초, 제주, 부산 해운대").fill("부산 해운대");
+  await page.getByLabel("지역").selectOption("부산");
+  await page.getByLabel("시·군·구").selectOption("부산 해운대구");
   const firstResult = page.locator(".place-card").first();
   await expect(firstResult).toContainText("부산");
   await expect(firstResult).toContainText("해운대");

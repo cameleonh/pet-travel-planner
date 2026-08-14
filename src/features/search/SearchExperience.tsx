@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
+import type { RegionOption } from "@/domain/regions";
 import { type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
@@ -36,9 +37,39 @@ type CatalogApiResponse = {
   error: { message: string } | null;
 };
 
+type CatalogApiData = NonNullable<CatalogApiResponse["data"]>;
+
+const MAX_CLIENT_CATALOG_CACHE_ENTRIES = 32;
+const catalogResponseCache = new Map<string, CatalogApiData>();
+
+function getCachedCatalog(url: string): CatalogApiData | undefined {
+  const cached = catalogResponseCache.get(url);
+  if (!cached) return undefined;
+  catalogResponseCache.delete(url);
+  catalogResponseCache.set(url, cached);
+  return cached;
+}
+
+function cacheCatalog(url: string, data: CatalogApiData): void {
+  catalogResponseCache.set(url, data);
+  if (catalogResponseCache.size <= MAX_CLIENT_CATALOG_CACHE_ENTRIES) return;
+  const oldest = catalogResponseCache.keys().next().value as string | undefined;
+  if (oldest) catalogResponseCache.delete(oldest);
+}
+
+async function fetchCatalog(url: string, signal?: AbortSignal): Promise<CatalogApiData> {
+  const cached = getCachedCatalog(url);
+  if (cached) return cached;
+  const response = await fetch(url, { signal });
+  const body = await response.json() as CatalogApiResponse;
+  if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "Error");
+  cacheCatalog(url, body.data);
+  return body.data;
+}
+
 type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
 
-export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[] }) {
+export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[] }) {
   const { lang, dict } = useLang();
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
@@ -96,23 +127,24 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
     if (categories.length > 0) parameters.set("categories", categories.join(","));
     if (prepFilters.length > 0) parameters.set("prep", prepFilters.join(","));
     if (lang !== "ko") parameters.set("lang", lang);
+    const catalogUrl = `/api/places?${parameters}`;
+    const cachedCatalog = getCachedCatalog(catalogUrl);
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
-      setLoading(true);
+      setLoading(!cachedCatalog);
       setErrorMessage(null);
     });
-    fetch(`/api/places?${parameters}`, { signal: controller.signal })
-      .then(async (response) => {
-        const body = await response.json() as CatalogApiResponse;
-        if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "Error");
-        setCatalog(body.data.catalog);
-        setAccessibilityByPlaceId(body.data.accessibility ?? {});
-        setCampingByPlaceId(body.data.camping ?? {});
-        setCongestionByPlaceId(body.data.congestion ?? {});
-        setTranslationByPlaceId(body.data.translations ?? {});
+    (cachedCatalog ? Promise.resolve(cachedCatalog) : fetchCatalog(catalogUrl, controller.signal))
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setCatalog(data.catalog);
+        setAccessibilityByPlaceId(data.accessibility ?? {});
+        setCampingByPlaceId(data.camping ?? {});
+        setCongestionByPlaceId(data.congestion ?? {});
+        setTranslationByPlaceId(data.translations ?? {});
         setClosureByPlaceId({});
         setCatalogRequestKey(requestKey);
-        const placeIds = body.data.catalog.results.map((result) => result.place.id);
+        const placeIds = data.catalog.results.map((result) => result.place.id);
 
         const closureTask = placeIds.length === 0 ? Promise.resolve() : (async () => {
           const closureParameters = new URLSearchParams({ ids: placeIds.join(",") });
@@ -137,7 +169,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
           else setFestivals([]);
         })().catch(() => { if (!controller.signal.aborted) setFestivals([]); });
 
-        await Promise.all([closureTask, trailTask, festivalTask]);
+        void Promise.all([closureTask, trailTask, festivalTask]);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -149,10 +181,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
     return () => controller.abort();
   }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, requestKey, dict]);
 
-  const toggle = (items: ConditionKey[], key: ConditionKey, update: (next: ConditionKey[]) => void) => {
-    setPage(1);
-    update(items.includes(key) ? items.filter((item) => item !== key) : [...new Set([...items, key])]);
-  };
   const togglePrepFilter = (key: PreparationFilterKey) => {
     setPage(1);
     setPrepFilters((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
@@ -209,8 +237,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces }: { initialC
         </header>
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
-          <DestinationPanel region={region} selectedCategories={categories} onRegionChange={(value) => { setPage(1); setRegion(value); }} onToggleCategory={toggleCategory} />
-          <ConditionPicker hard={hard} preferences={preferences} prepFilters={prepFilters} onToggleHard={(key) => toggle(hard, key, setHard)} onTogglePreference={(key) => toggle(preferences, key, setPreferences)} onTogglePrepFilter={togglePrepFilter} />
+          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); }} onTogglePrepFilter={togglePrepFilter} />
+          <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
       </div>
       <div className="results-panel interactive-results" aria-busy={loading}>

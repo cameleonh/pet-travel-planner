@@ -1,4 +1,5 @@
 import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
+import { getRegionSearchTerm } from "@/domain/regions";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
 import { findMinimalRelaxation } from "@/domain/relax";
@@ -128,7 +129,10 @@ function prepareCatalog(snapshot: ProviderSnapshot): PreparedCatalog {
   const places = normalizePlaces(detailPlaces);
   const prepared: PreparedCatalog = {
     places,
-    searchTextById: new Map(places.map((place) => [place.id, `${place.address} ${place.name}`.toLocaleLowerCase("ko-KR")])),
+    searchTextById: new Map(places.map((place) => {
+      const area = place.address.trim().split(/\s+/)[0] ?? "";
+      return [place.id, `${place.address} ${place.name} ${getRegionSearchTerm(area)}`.toLocaleLowerCase("ko-KR")];
+    })),
     noisePlaceIds: new Set(places.filter(isNoisePlace).map((place) => place.id)),
     detailCoverage: detailPlaces.length,
     pendingDetailCount,

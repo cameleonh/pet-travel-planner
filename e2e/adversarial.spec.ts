@@ -27,6 +27,7 @@ test("application responses expose the locked security headers", async ({ reques
 test("catalog API returns global metadata with a bounded result page", async ({ request }) => {
   const response = await request.get("/api/places?page=1");
   expect(response.status()).toBe(200);
+  expect(response.headers()["cache-control"]).toBe("private, max-age=60, stale-while-revalidate=300");
   const body = await response.json();
   expect(body.data.catalog).toMatchObject({ sourceTotalCount: 2, searchableCount: 2, filteredCount: 2, confirmedMatchCount: 0, confirmedNonMatchCount: 0, unverifiedCount: 0, page: 1, pageSize: 50, totalPages: 1 });
   expect(body.data.catalog.results).toHaveLength(2);

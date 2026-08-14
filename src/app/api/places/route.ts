@@ -79,7 +79,7 @@ export async function GET(request: Request) {
       },
       error: null,
       meta: { requestId, provider: snapshot.provider, dataSource, notice: notice ?? null },
-    }, { headers: { "Content-Language": lang, "X-Request-Id": requestId } });
+    }, { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300", "Content-Language": lang, "X-Request-Id": requestId } });
   } catch (error) {
     const configurationError = error instanceof ProviderConfigurationError;
     const validationError = error instanceof z.ZodError;

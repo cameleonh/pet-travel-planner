@@ -79,7 +79,10 @@ export async function GET(request: Request) {
     apiUrl.searchParams.set("_type", "json");
     apiUrl.searchParams.set("arrange", "C");
 
-    const response = await fetch(apiUrl.toString());
+    const response = await fetch(apiUrl.toString(), {
+      next: { revalidate: 60 * 60 },
+      signal: AbortSignal.timeout(3_000),
+    });
     const json = await response.json();
 
     if (typeof json === "object" && json !== null && "OpenAPI_ServiceResponse" in json) {
@@ -122,7 +125,7 @@ export async function GET(request: Request) {
       data: { festivals, count: festivals.length, searchRange: { startDate, endDate } },
       error: null,
       meta: { requestId },
-    }, { headers: { "Content-Language": "ko", "X-Request-Id": requestId } });
+    }, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400", "Content-Language": "ko", "X-Request-Id": requestId } });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ success: false, data: null, error: { code: "INVALID_QUERY", message: "검색 조건을 확인해 주세요." }, meta: { requestId } }, { status: 400 });

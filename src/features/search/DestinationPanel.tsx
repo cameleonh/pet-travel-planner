@@ -4,13 +4,11 @@ import type { RawPlace } from "@/data/contracts";
 import { useLang } from "@/i18n/LangContext";
 
 type Props = {
-  region: string;
   selectedCategories: RawPlace["category"][];
-  onRegionChange: (region: string) => void;
   onToggleCategory: (category: RawPlace["category"]) => void;
 };
 
-export function DestinationPanel({ region, selectedCategories, onRegionChange, onToggleCategory }: Props) {
+export function DestinationPanel({ selectedCategories, onToggleCategory }: Props) {
   const { dict } = useLang();
   const categories: { key: RawPlace["category"]; label: string; icon: string; desc: string }[] = [
     { key: "attraction", label: dict.catAttraction, icon: "🏞️", desc: dict.catAttractionDesc },
@@ -21,11 +19,7 @@ export function DestinationPanel({ region, selectedCategories, onRegionChange, o
   ];
   return (
     <fieldset className="filter-fieldset destination-fieldset">
-      <legend>{dict.destination}</legend>
-      <label className="region-input">
-        <span>{dict.region}</span>
-        <input value={region} maxLength={40} placeholder={dict.regionPlaceholder} onChange={(event) => onRegionChange(event.target.value)} />
-      </label>
+      <legend>{dict.placeTypes}</legend>
       <div className="category-grid" aria-label={dict.destination}>
         {categories.map((category) => (
           <button
@@ -41,7 +35,6 @@ export function DestinationPanel({ region, selectedCategories, onRegionChange, o
           </button>
         ))}
       </div>
-      <p className="field-help">{dict.regionHelp}</p>
     </fieldset>
   );
 }
