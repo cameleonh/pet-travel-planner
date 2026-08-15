@@ -41,11 +41,11 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
   }, []);
   useEffect(() => {
     if (!shouldLoad) return;
-    let cancelled = false;
-    fetch(`/api/place-image?q=${encodeURIComponent(query)}`).then((r) => r.json()).then((d) => {
-      if (!cancelled && d.success && d.data?.thumbnailUrl) setThumbnail({ query, url: d.data.thumbnailUrl });
+    const controller = new AbortController();
+    fetch(`/api/place-image?q=${encodeURIComponent(query)}`, { signal: controller.signal }).then((r) => r.json()).then((d) => {
+      if (!controller.signal.aborted && d.success && d.data?.thumbnailUrl) setThumbnail({ query, url: d.data.thumbnailUrl });
     }).catch(() => {});
-    return () => { cancelled = true; };
+    return () => controller.abort();
   }, [query, shouldLoad]);
   return (
     <div ref={containerRef} className="place-thumbnail" aria-hidden="true">
@@ -65,16 +65,18 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
   return (
     <article className={`place-card ${isCatalogResult ? "catalog-card" : "exact-card"}`}>
       <PlaceThumbnail name={result.place.name} address={result.place.address} />
-      <div className="place-top"><span>{displayCategoryIcon[displayCat]} {displayCategoryLabel[displayCat]}</span><strong>{isCatalogResult ? dict.beforeSelection : dict.allConditionsMet}</strong></div>
-      <h3>{displayName}</h3>
-      <p className="address">{displayAddress}</p>
-      {closureStatus ? <div className="closure-status" aria-label={dict.ownerClosure}><strong>{closureStatus.closures.length > 0 ? dict.ownerClosure : dict.noClosure}</strong>{closureStatus.closures.length > 0 ? <span>{closureStatus.closures.slice(0, 2).map((closure) => closure.closureKind === "weekly" && closure.weekday !== null ? `매주 ${["일", "월", "화", "수", "목", "금", "토"][closure.weekday]}요일 · ${closure.reason}` : `${closure.closureDate ?? "—"} · ${closure.reason}`).join(" / ")}</span> : <span>{dict.noClosureNote}</span>}</div> : null}
-      {preparations.length > 0 ? <div className="preparation-list" aria-label={dict.visitPrep}><strong>{dict.visitPrep}</strong><ul>{preparations.map((item) => <li key={`${item.key}-${item.scope}`}>✓ {t(lang as "ko" | "en" | "zh", prepLabelKeys[item.key])}{item.scope === "indoor" ? ` ${dict.prepIndoor}` : item.scope === "dangerous-dog" ? ` ${dict.prepDangerousDog}` : ""}</li>)}</ul></div> : null}
-      {isCatalogResult ? <p className="catalog-hint">{dict.catalogHint}</p> : <><div className="proof-preview">{result.proof.slice(0, 3).map((item) => <span key={item.constraint.key}>✓ {item.constraint.label}{item.fact.requirements.length > 0 ? ` ${dict.proofConditional}` : ""}</span>)}</div><MatchProof proof={result.proof} /></>}
-      <AccessibilitySection data={accessibility} />
-      <CampingSection data={camping} />
-      <CongestionSection data={congestion} />
-      <TranslationSection data={translation} lang={lang} />
+      <div className="place-card-body">
+        <div className="place-top"><span>{displayCategoryIcon[displayCat]} {displayCategoryLabel[displayCat]}</span><strong>{isCatalogResult ? dict.beforeSelection : dict.allConditionsMet}</strong></div>
+        <h3>{displayName}</h3>
+        <p className="address">{displayAddress}</p>
+        {closureStatus ? <div className="closure-status" aria-label={dict.ownerClosure}><strong>{closureStatus.closures.length > 0 ? dict.ownerClosure : dict.noClosure}</strong>{closureStatus.closures.length > 0 ? <span>{closureStatus.closures.slice(0, 2).map((closure) => closure.closureKind === "weekly" && closure.weekday !== null ? `매주 ${["일", "월", "화", "수", "목", "금", "토"][closure.weekday]}요일 · ${closure.reason}` : `${closure.closureDate ?? "—"} · ${closure.reason}`).join(" / ")}</span> : <span>{dict.noClosureNote}</span>}</div> : null}
+        {preparations.length > 0 ? <div className="preparation-list" aria-label={dict.visitPrep}><strong>{dict.visitPrep}</strong><ul>{preparations.map((item) => <li key={`${item.key}-${item.scope}`}>✓ {t(lang as "ko" | "en" | "zh", prepLabelKeys[item.key])}{item.scope === "indoor" ? ` ${dict.prepIndoor}` : item.scope === "dangerous-dog" ? ` ${dict.prepDangerousDog}` : ""}</li>)}</ul></div> : null}
+        {isCatalogResult ? <p className="catalog-hint">{dict.catalogHint}</p> : <><div className="proof-preview">{result.proof.slice(0, 3).map((item) => <span key={item.constraint.key}>✓ {item.constraint.label}{item.fact.requirements.length > 0 ? ` ${dict.proofConditional}` : ""}</span>)}</div><MatchProof proof={result.proof} /></>}
+        <AccessibilitySection data={accessibility} />
+        <CampingSection data={camping} />
+        <CongestionSection data={congestion} />
+        <TranslationSection data={translation} lang={lang} />
+      </div>
     </article>
   );
 }

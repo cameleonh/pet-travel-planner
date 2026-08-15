@@ -24,11 +24,20 @@ test("official database snapshot supports mobile destination, profile, proof, an
   await expect(page.getByLabel("소형견")).toBeChecked();
   await expect(page.getByRole("heading", { name: /현재 \d+곳에서 가능을 확인했어요/ })).toBeVisible();
 
-  const courseButton = page.getByRole("button", { name: /\d+곳 코스 만들기/ });
+  await page.locator(".plan-add-button").nth(0).click();
+  await page.locator(".plan-add-button").nth(1).click();
+  const regionalReview = page.locator(".supplemental-choices .context-disclosure").first();
+  await regionalReview.locator("summary").click();
+  await regionalReview.locator(".supplemental-review-button").click();
+  const nearbyReview = page.locator(".nearby-disclosure");
+  await nearbyReview.locator("summary").click();
+  await nearbyReview.locator(".supplemental-review-button").click();
+  const courseButton = page.getByRole("button", { name: /선택한 \d+곳으로 코스 확정/ });
   await expect(courseButton).toBeEnabled();
   await courseButton.click();
-  await expect(page.locator(".course-result")).toContainText("실제 이동 시간이나 길 안내가 아닙니다");
-  await expect(page.locator(".course-result a").first()).toHaveAttribute("href", /map\.kakao\.com\/link\/to\//);
+  await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toBeVisible();
+  await expect(page.locator(".plan-route-segment")).toHaveCount(1);
+  await expect(page.locator(".route-links a").first()).toHaveAttribute("href", /map\.kakao\.com/);
 
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/icon.svg");
 });

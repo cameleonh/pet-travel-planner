@@ -1,3 +1,8 @@
+"use client";
+
+import type { PlanActivity } from "@/domain/plan";
+import { useLang } from "@/i18n/LangContext";
+
 const LEVEL_LABELS: Record<number, string> = { 1: "하", 2: "중", 3: "상" };
 
 export type TrailData = {
@@ -14,7 +19,15 @@ export type TrailData = {
   crs_summary: string | null;
 };
 
-export function TrailSection({ trails, region }: { trails: TrailData[]; region: string }) {
+type Props = {
+  trails: TrailData[];
+  region: string;
+  selectedActivityIds?: string[];
+  onToggleActivity?: (activity: PlanActivity) => void;
+};
+
+export function TrailSection({ trails, region, selectedActivityIds = [], onToggleActivity }: Props) {
+  const { dict } = useLang();
   if (trails.length === 0) return null;
 
   return (
@@ -22,8 +35,11 @@ export function TrailSection({ trails, region }: { trails: TrailData[]; region: 
       <h3 className="trail-section-title">🏞️ {region} 반려견 산책 코스 <span className="trail-count">{trails.length}개</span></h3>
       <p className="trail-section-desc">한국관광공사 두루누비 걷기 길 · 반려동물과 함께 걷기 좋은 코스예요</p>
       <ul className="trail-list">
-        {trails.slice(0, 5).map((trail) => (
-          <li key={trail.crs_idx} className="trail-item">
+        {trails.slice(0, 5).map((trail) => {
+          const activityId = `trail:${trail.crs_idx}`;
+          const activityUrl = trail.gpxpath ? `/api/gpx?url=${encodeURIComponent(trail.gpxpath)}&name=${encodeURIComponent(trail.crs_kor_nm)}` : null;
+          const selected = selectedActivityIds.includes(activityId);
+          return <li key={trail.crs_idx} className="trail-item">
             <div className="trail-header">
               <strong className="trail-name">{trail.crs_kor_nm}</strong>
               {trail.crs_level ? <span className={`trail-level trail-level-${trail.crs_level}`}>난이도 {LEVEL_LABELS[trail.crs_level] ?? "?"}</span> : null}
@@ -36,8 +52,9 @@ export function TrailSection({ trails, region }: { trails: TrailData[]; region: 
             </div>
             {trail.crs_summary ? <details className="trail-details"><summary>코스 설명</summary><p>{trail.crs_summary.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "")}</p></details> : null}
             {trail.gpxpath ? <a href={`/api/gpx?url=${encodeURIComponent(trail.gpxpath)}&name=${encodeURIComponent(trail.crs_kor_nm)}`} className="trail-gpx" download>GPX 경로 받기 <span aria-hidden="true">↗</span></a> : null}
-          </li>
-        ))}
+            {onToggleActivity ? <button type="button" className={`activity-add-button ${selected ? "added" : ""}`} aria-pressed={selected} onClick={() => onToggleActivity({ id: activityId, title: trail.crs_kor_nm, type: "trail", detail: `${region}${trail.crs_dstnc ? ` · ${trail.crs_dstnc}km` : ""}${trail.theme_nm ? ` · ${trail.theme_nm}` : ""}`, url: activityUrl })}>{selected ? dict.activityAdded : dict.activityAdd}</button> : null}
+          </li>;
+        })}
       </ul>
       {trails.length > 5 ? <p className="trail-more">외 {trails.length - 5}개 코스 더 있어요</p> : null}
     </div>

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { fetchKakaoLocal } from "@/app/api/_shared/kakao-local";
 
 const querySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -34,8 +35,11 @@ const kakaoResponseSchema = z
 type KakaoDocument = z.infer<typeof kakaoDocumentSchema>;
 
 const API_BASE = "https://dapi.kakao.com/v2/local/search/keyword.json";
-const SEARCH_KEYWORDS = ["반려동물동반 식당", "강아지동반 식당", "반려동물동반 카페", "강아지동반 카페"];
+const PRIMARY_SEARCH_KEYWORDS = ["반려동물동반 식당", "반려동물동반 카페"];
+const FALLBACK_SEARCH_KEYWORDS = ["강아지동반 식당", "강아지동반 카페"];
 const PAGE_SIZE = 15;
+const PRIMARY_TIMEOUT_MS = 2_200;
+const FALLBACK_TIMEOUT_MS = 1_200;
 
 function toNumberOrNull(value: string | null | undefined): number | null {
   if (value == null || value === "") return null;
@@ -76,8 +80,8 @@ export async function GET(request: Request) {
       radius: url.searchParams.get("radius") ?? undefined,
     });
 
-    const results = await Promise.all(
-      SEARCH_KEYWORDS.map(async (keyword) => {
+    const searchKeywords = async (keywords: string[], timeoutMs: number) => {
+      const results = await Promise.allSettled(keywords.map(async (keyword) => {
         const apiUrl = new URL(API_BASE);
         apiUrl.searchParams.set("query", keyword);
         apiUrl.searchParams.set("y", String(lat));
@@ -85,19 +89,34 @@ export async function GET(request: Request) {
         apiUrl.searchParams.set("radius", String(radius));
         apiUrl.searchParams.set("size", String(PAGE_SIZE));
         apiUrl.searchParams.set("sort", "distance");
-        const response = await fetch(apiUrl.toString(), {
-          headers: { Authorization: `KakaoAK ${apiKey}` },
-        });
-        if (!response.ok) return [];
+        const response = await fetchKakaoLocal(apiUrl, apiKey, request.signal, { timeoutMs, maxAttempts: 1 });
+        if (!response.ok) return { success: false, documents: [] as KakaoDocument[] };
         const json: unknown = await response.json();
         const parsed = kakaoResponseSchema.safeParse(json);
-        return parsed.success ? parsed.data.documents : [];
-      }),
-    );
+        return parsed.success
+          ? { success: true, documents: parsed.data.documents }
+          : { success: false, documents: [] as KakaoDocument[] };
+      }));
+      return results
+        .filter((result): result is PromiseFulfilledResult<{ success: boolean; documents: KakaoDocument[] }> => result.status === "fulfilled")
+        .map((result) => result.value)
+        .filter((result) => result.success);
+    };
+
+    const primaryResults = await searchKeywords(PRIMARY_SEARCH_KEYWORDS, PRIMARY_TIMEOUT_MS);
+    const primaryDocumentCount = primaryResults.reduce((count, result) => count + result.documents.length, 0);
+    // If both primary searches timed out or failed, don't queue another pair
+    // of provider calls. Return the partial failure quickly so the UI can show
+    // its retry action instead of keeping this section in a long loading state.
+    const needsFallbackSearch = primaryResults.length > 0 && primaryDocumentCount > 0 && primaryDocumentCount < 5;
+    const fallbackResults = needsFallbackSearch ? await searchKeywords(FALLBACK_SEARCH_KEYWORDS, FALLBACK_TIMEOUT_MS) : [];
+    const successfulResults = [...primaryResults, ...fallbackResults];
+    const attemptedSearchCount = PRIMARY_SEARCH_KEYWORDS.length + (needsFallbackSearch ? FALLBACK_SEARCH_KEYWORDS.length : 0);
+    if (successfulResults.length === 0) throw new Error("All Kakao Local restaurant searches failed");
 
     const seen = new Map<string, KakaoDocument>();
-    for (const docs of results) {
-      for (const doc of docs) {
+    for (const result of successfulResults) {
+      for (const doc of result.documents) {
         if (!seen.has(doc.id)) seen.set(doc.id, doc);
       }
     }
@@ -115,9 +134,9 @@ export async function GET(request: Request) {
         success: true,
         data: { restaurants, count: restaurants.length, searchRange: { lat, lng, radius } },
         error: null,
-        meta: { requestId },
+        meta: { requestId, partial: successfulResults.length < attemptedSearchCount },
       },
-      { headers: { "Content-Language": "ko", "X-Request-Id": requestId } },
+      { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=600", "Content-Language": "ko", "X-Request-Id": requestId } },
     );
   } catch (error) {
     if (error instanceof z.ZodError) {

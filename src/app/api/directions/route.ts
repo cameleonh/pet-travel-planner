@@ -8,6 +8,7 @@ const querySchema = z.object({
   waypoints: z.string().optional(),
   originName: z.string().optional(),
   destName: z.string().optional(),
+  departureTime: z.string().regex(/^\d{12}$/).optional(),
 });
 
 const roadSchema = z.object({
@@ -16,7 +17,8 @@ const roadSchema = z.object({
   duration: z.number().default(0),
   traffic_speed: z.number().nullable().default(0),
   traffic_state: z.number().nullable().default(0),
-  vertexes: z.string().default(""),
+  // Kakao returns an alternating longitude/latitude number array here.
+  vertexes: z.array(z.number()).default([]),
 }).passthrough();
 
 const sectionSchema = z.object({
@@ -29,7 +31,8 @@ const guideSchema = z.object({
   name: z.string().default(""),
   distance: z.number().default(0),
   duration: z.number().default(0),
-  type: z.string().optional(),
+  // Guidance type is an integer code (the label itself is not used by this UI).
+  type: z.number().optional(),
 }).passthrough();
 
 const routeSchema = z.object({
@@ -50,6 +53,7 @@ const STATE_LABELS: Record<number, string> = { 0: "정보없음", 1: "원활", 2
 const STATE_COLORS: Record<number, string> = { 0: "#999", 1: "#4ade80", 2: "#facc15", 3: "#fb923c", 4: "#f87171" };
 
 const API_BASE = "https://apis-navi.kakaomobility.com/v1/directions";
+const FUTURE_API_BASE = "https://apis-navi.kakaomobility.com/v1/future/directions";
 
 export async function GET(request: Request) {
   const requestId = randomUUID();
@@ -63,24 +67,27 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const { origin, destination, waypoints, originName, destName } = querySchema.parse({
+    const { origin, destination, waypoints, originName, destName, departureTime } = querySchema.parse({
       origin: url.searchParams.get("origin") ?? undefined,
       destination: url.searchParams.get("destination") ?? undefined,
       waypoints: url.searchParams.get("waypoints") ?? undefined,
       originName: url.searchParams.get("originName") ?? undefined,
       destName: url.searchParams.get("destName") ?? undefined,
+      departureTime: url.searchParams.get("departureTime") ?? undefined,
     });
 
-    const apiUrl = new URL(API_BASE);
+    const apiUrl = new URL(departureTime ? FUTURE_API_BASE : API_BASE);
     apiUrl.searchParams.set("origin", origin);
     apiUrl.searchParams.set("destination", destination);
     if (waypoints) apiUrl.searchParams.set("waypoints", waypoints);
+    if (departureTime) apiUrl.searchParams.set("departure_time", departureTime);
     apiUrl.searchParams.set("priority", "RECOMMEND");
     apiUrl.searchParams.set("vehicle", "car");
-    apiUrl.searchParams.set("summary", "false");
+    apiUrl.searchParams.set("summary", departureTime ? "true" : "false");
 
     const response = await fetch(apiUrl.toString(), {
       headers: { Authorization: `KakaoAK ${apiKey}`, "Content-Type": "application/json" },
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(5_000)]),
     });
 
     if (!response.ok) {
@@ -156,6 +163,8 @@ export async function GET(request: Request) {
         },
         congestedRoads: congestedRoads.slice(0, 10),
         guides: guides.slice(0, 15),
+        trafficBasis: departureTime ? "forecast" : "live",
+        departureTime: departureTime ?? null,
         mapLink: `https://map.kakao.com/link/from/${oName},${originLat},${originLng}/to/${dName},${destLat},${destLng}`,
         naviLink: `https://map.kakao.com/?sName=${oName}&eName=${dName}`,
       },

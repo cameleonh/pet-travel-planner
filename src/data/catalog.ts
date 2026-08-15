@@ -6,6 +6,7 @@ import { findMinimalRelaxation } from "@/domain/relax";
 import type { MatchEvaluation, NormalizedPlace, PreparationFilterKey, SelectedConstraint } from "@/domain/types";
 
 export const CATALOG_PAGE_SIZE = 50;
+const PLACE_CATEGORY_COUNT = 5;
 
 export type CatalogRelaxation = {
   removedPreferences: SelectedConstraint[];
@@ -83,7 +84,10 @@ const noiseNamePatterns = [
   /힐튼종합/,
 ];
 
-const MAX_EVALUATION_CACHE_ENTRIES = 32;
+// A full evaluation entry can reference every place in the catalog. Keep this
+// deliberately small so a 1 GB production instance retains useful hot paths
+// without pinning dozens of 9k-place result arrays in memory.
+const MAX_EVALUATION_CACHE_ENTRIES = 8;
 
 type PreparedCatalog = {
   places: NormalizedPlace[];
@@ -180,14 +184,15 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const prepared = prepareCatalog(snapshot);
   const regionTerms = query.region?.trim().toLocaleLowerCase("ko-KR").split(/\s+/).filter(Boolean) ?? [];
   const categories = new Set(query.categories ?? []);
+  const allCategoriesSelected = categories.size === PLACE_CATEGORY_COUNT;
   const constraints = [...query.hard, ...query.preferences];
   const allEvaluations = evaluatePreparedCatalog(prepared, constraints);
   const evaluations = allEvaluations.filter(({ place }) => {
     const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
-    const categoryMatches = categories.size === 0 || categories.has(place.category);
+    const categoryMatches = categories.size === 0 || allCategoriesSelected || categories.has(place.category);
     if (!regionMatches || !categoryMatches) return false;
-    const userPickedShopping = categories.has("shopping");
+    const userPickedShopping = !allCategoriesSelected && categories.has("shopping");
     if (userPickedShopping && prepared.noisePlaceIds.has(place.id)) return false;
     return true;
   });

@@ -51,12 +51,18 @@ test("critical controls are keyboard reachable and expose state", async ({ page 
   await expect(indoor).toHaveAttribute("aria-pressed", "true");
 });
 
-test("language selection updates the page and survives reload", async ({ page }) => {
+test("Korean is the default and language selection updates the current page", async ({ page }) => {
   await page.goto("/");
   const languageToggle = page.getByRole("group", { name: "Language" });
 
+  await expect(page.getByRole("heading", { name: "함께라서 더 가치 있는 여행, 같이갈개" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+
   await languageToggle.getByRole("button", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: "A more precious trip together — Gachi Galgae" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2 places to explore" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Region", exact: true }).locator('option[value="강원"]')).toHaveText("Gangwon State");
+  await expect(page.locator(".brand")).toHaveAccessibleName("Gachi Galgae home");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(languageToggle.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
 
@@ -65,8 +71,8 @@ test("language selection updates the page and survives reload", async ({ page })
   await expect(page.locator("html")).toHaveAttribute("lang", "zh");
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "更珍贵的同行之旅 — 一起走吧" })).toBeVisible();
-  await expect(languageToggle.getByRole("button", { name: "中文" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "함께라서 더 가치 있는 여행, 같이갈개" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ko");
 
   const toggleBox = await languageToggle.boundingBox();
   expect(toggleBox).not.toBeNull();
@@ -81,6 +87,20 @@ test("clicking the active pet size clears the condition and restores browsing", 
   await expect(medium).toBeChecked();
   await medium.click();
 
+  await expect(page.getByRole("radio", { name: "전체 크기 조건 없음" })).toBeChecked();
+  await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
+});
+
+test("manual size selection replaces the size inferred from weight", async ({ page }) => {
+  await page.goto("/");
+  await page.getByPlaceholder("예: 8.5").fill("8.5");
+  await expect(page.getByLabel("소형견")).toBeChecked();
+  await page.getByLabel("대형견").click();
+  await expect(page.getByLabel("대형견")).toBeChecked();
+  await expect(page.locator(".active-query")).toContainText("대형견");
+  await expect(page.locator(".active-query")).not.toContainText("소형견");
+
+  await page.getByPlaceholder("예: 8.5").fill("");
   await expect(page.getByRole("radio", { name: "전체 크기 조건 없음" })).toBeChecked();
   await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
 });
@@ -103,12 +123,14 @@ test("a pending filter request never labels stale browsing rows as filtered resu
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
 });
 
-test("slow festival enrichment never keeps place results in a searching state", async ({ page }) => {
-  let releaseFestivals!: () => void;
-  const festivalGate = new Promise<void>((resolve) => { releaseFestivals = resolve; });
+test("regional discovery is lazy, expands inline, and can be added to the itinerary", async ({ page }) => {
+  let festivalRequests = 0;
+  await page.route("**/api/directions?*", async (route) => {
+    await route.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ success: false, data: null, error: { code: "PROVIDER_UNAVAILABLE", message: "경로 제공자 지연" } }) });
+  });
   await page.route("**/api/festivals?*", async (route) => {
-    await festivalGate;
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { festivals: [] } }) });
+    festivalRequests += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { festivals: [{ contentId: "festival-1", title: "반려견 숲 축제", startDate: "20260801", endDate: "20260831", startDateFormatted: "2026.08.01", endDateFormatted: "2026.08.31", ongoing: true, address: "강원특별자치도 속초시", tel: null, imageUrl: null, mapx: "128.5", mapy: "38.2" }] } }) });
   });
 
   await page.goto("/");
@@ -118,7 +140,69 @@ test("slow festival enrichment never keeps place results in a searching state", 
   await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
   await expect(page.locator(".interactive-results")).toHaveAttribute("aria-busy", "false");
   await expect(page.locator(".catalog-status")).toHaveCount(0);
-  releaseFestivals();
+  expect(festivalRequests).toBe(0);
+
+  const discovery = page.locator(".context-disclosure").first();
+  const followingPanel = page.locator(".nearby-locked");
+  const beforeOpen = await followingPanel.evaluate((element) => (element as HTMLElement).offsetTop);
+  const discoverySummary = discovery.locator(":scope > summary");
+  await discoverySummary.click();
+  await expect(discovery.locator("summary + .context-disclosure-body")).toBeVisible();
+  const afterOpen = await followingPanel.evaluate((element) => (element as HTMLElement).offsetTop);
+  expect(afterOpen).toBeGreaterThan(beforeOpen);
+  await expect.poll(() => festivalRequests).toBe(1);
+  const addActivity = page.getByRole("button", { name: "코스 경유지로 담기" }).last();
+  await addActivity.click();
+  await expect(page.getByRole("button", { name: "코스 경유지에 담았어요" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "내 여행 보드 열기" })).toBeVisible();
+  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
+  await expect(courseBuilder.getByRole("checkbox", { name: /반려견 숲 축제/ })).toBeChecked();
+  await discoverySummary.click();
+  await discoverySummary.click();
+  await page.waitForTimeout(100);
+  expect(festivalRequests).toBe(1);
+  await discovery.locator(".supplemental-review-button").click();
+  await expect(discovery.locator(":scope > summary")).toContainText("확인 완료");
+  const nearbyReview = page.locator(".nearby-disclosure");
+  await nearbyReview.locator("summary").click();
+  await nearbyReview.locator(".supplemental-review-button").click();
+  await page.locator(".plan-add-button").first().click();
+  await expect(courseBuilder.getByRole("checkbox")).toHaveCount(2);
+  await courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  const dialog = page.getByRole("dialog", { name: "03 · 내 여행 보드" });
+  await expect(dialog.locator(".plan-route-segment")).toHaveCount(1);
+  await expect(dialog.locator(".plan-route-segment")).toContainText("반려견 숲 축제");
+});
+
+test("selection completion moves to supplemental choices and only course confirmation builds the plan", async ({ page }) => {
+  await page.route("**/api/directions?*", async (route) => {
+    await route.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ success: false, data: null, error: { code: "PROVIDER_UNAVAILABLE", message: "경로 제공자 지연" } }) });
+  });
+  await page.goto("/");
+  await page.locator(".plan-add-button").first().click();
+  await page.locator(".plan-add-button").nth(1).click();
+  const complete = page.getByRole("button", { name: /장소 선택 완료/ });
+  await complete.click();
+  const supplemental = page.getByRole("region", { name: "축제·산책과 주변 장소도 살펴보세요" });
+  await expect(supplemental).toBeInViewport();
+  await expect(supplemental).toBeFocused();
+  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
+  expect(await supplemental.evaluate((element) => element.nextElementSibling?.classList.contains("course-card"))).toBe(true);
+  expect(await courseBuilder.evaluate((element) => element.nextElementSibling?.classList.contains("trip-board-plan"))).toBe(true);
+  await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toHaveCount(0);
+  const reviewGuide = courseBuilder.getByRole("button", { name: "위의 추가 선택을 먼저 확인해 주세요" });
+  await expect(reviewGuide).toBeEnabled();
+  await reviewGuide.click();
+  const nearbyReview = page.locator(".nearby-disclosure");
+  await expect(nearbyReview).toHaveAttribute("open", "");
+  await expect(nearbyReview.locator("summary")).toBeFocused();
+  await nearbyReview.locator(".supplemental-review-button").click();
+  const confirmCourse = courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" });
+  await confirmCourse.click();
+  await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toBeVisible();
+  await expect(page.locator(".plan-route-segment")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(confirmCourse).toBeFocused();
 });
 
 test("an empty category result does not request closures without place IDs", async ({ page }) => {

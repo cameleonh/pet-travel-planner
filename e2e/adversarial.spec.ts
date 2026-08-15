@@ -34,15 +34,22 @@ test("catalog API returns global metadata with a bounded result page", async ({ 
   expect(body.data.places).toBeUndefined();
 });
 
-test("desktop filter row does not overlap the full-width nearby and course row", async ({ page }) => {
+test("directions API rejects malformed future departure times", async ({ request }) => {
+  const response = await request.get("/api/directions?origin=127.0,37.0&destination=127.1,37.1&departureTime=tomorrow");
+  expect(response.status()).toBe(400);
+  const body = await response.json();
+  expect(body).toMatchObject({ success: false, data: null, error: { code: "INVALID_QUERY" } });
+});
+
+test("desktop filter row does not overlap the contextual trip rail", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   const filter = page.locator(".filter-panel");
-  const extensions = page.locator(".extensions");
-  await extensions.scrollIntoViewIfNeeded();
+  const contextRail = page.locator(".context-rail");
+  await contextRail.scrollIntoViewIfNeeded();
   const filterBox = await filter.boundingBox();
-  const extensionBox = await extensions.boundingBox();
+  const contextRailBox = await contextRail.boundingBox();
   expect(filterBox).not.toBeNull();
-  expect(extensionBox).not.toBeNull();
-  expect((filterBox?.y ?? 0) + (filterBox?.height ?? 0)).toBeLessThanOrEqual(extensionBox?.y ?? 0);
+  expect(contextRailBox).not.toBeNull();
+  expect((filterBox?.y ?? 0) + (filterBox?.height ?? 0)).toBeLessThanOrEqual(contextRailBox?.y ?? 0);
 });

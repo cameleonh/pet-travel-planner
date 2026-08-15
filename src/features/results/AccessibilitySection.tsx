@@ -1,3 +1,8 @@
+"use client";
+
+import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
+
 const GROUP_LABELS: Record<string, string> = {
   parking: "주차", publictransport: "대중교통", route: "접근로", ticketoffice: "매표소",
   promotion: "홍보물", wheelchair: "휠체어", exit: "출입통로", elevator: "엘리베이터",
@@ -38,6 +43,7 @@ export function hasAccessibilityData(data: AccessibilityData | undefined | null)
 }
 
 export function AccessibilitySection({ data }: { data: AccessibilityData | undefined }) {
+  const { lang, dict } = useLang();
   if (!hasAccessibilityData(data)) return null;
 
   const safeData: AccessibilityData = data ?? {};
@@ -52,7 +58,7 @@ export function AccessibilitySection({ data }: { data: AccessibilityData | undef
 
   return (
     <details className="accessibility-details">
-      <summary>무장애 여행 정보 <span className="accessibility-count">{groups.reduce((sum, g) => sum + g.items.length, 0)}개 항목</span></summary>
+      <summary>{dict.accessibilityLabel} <span className="accessibility-count">{t(lang, "accessibilityCount", { n: groups.reduce((sum, g) => sum + g.items.length, 0) })}</span></summary>
       <div className="accessibility-groups">
         {groups.map((group) => (
           <div key={group.groupKey} className="accessibility-group">
@@ -68,7 +74,7 @@ export function AccessibilitySection({ data }: { data: AccessibilityData | undef
           </div>
         ))}
       </div>
-      <p className="accessibility-source">한국관광공사 무장애여행 서비스</p>
+      <p className="accessibility-source">{dict.accessibilitySource}</p>
     </details>
   );
 }

@@ -41,6 +41,8 @@ export async function GET(request: Request) {
 
     const response = await fetch(apiUrl.toString(), {
       headers: { Authorization: `KakaoAK ${apiKey}` },
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(3_000)]),
+      next: { revalidate: 86_400 },
     });
 
     if (!response.ok) {
@@ -55,13 +57,14 @@ export async function GET(request: Request) {
     if (!parsed.success || parsed.data.documents.length === 0) {
       return NextResponse.json(
         { success: true, data: { thumbnailUrl: null }, error: null, meta: { requestId } },
+        { headers: { "Cache-Control": "private, max-age=86400, stale-while-revalidate=604800", "Content-Language": "ko", "X-Request-Id": requestId } },
       );
     }
 
     const doc = parsed.data.documents[0]!;
     return NextResponse.json(
       { success: true, data: { thumbnailUrl: doc.thumbnail_url, imageUrl: doc.image_url ?? doc.thumbnail_url }, error: null, meta: { requestId } },
-      { headers: { "Content-Language": "ko", "X-Request-Id": requestId } },
+      { headers: { "Cache-Control": "private, max-age=86400, stale-while-revalidate=604800", "Content-Language": "ko", "X-Request-Id": requestId } },
     );
   } catch {
     return NextResponse.json(

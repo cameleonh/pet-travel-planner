@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
-import { buildApproximateCourse } from "@/domain/course";
+import { buildApproximateCourse, buildApproximateCourseFromPlaces } from "@/domain/course";
 import { distanceKm, orderNearbyPlaces, splitNearbyByPetStatus } from "@/domain/geo";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlace } from "@/domain/normalize";
@@ -57,5 +57,29 @@ describe("constraint-safe course", () => {
 
   it("explains when no exact result exists", () => {
     expect(buildApproximateCourse([], origin)).toEqual(expect.objectContaining({ success: false, code: "NO_EXACT_RESULTS" }));
+  });
+
+  it("builds a course from places the user explicitly saved while browsing", () => {
+    const saved = [
+      { id: "saved-far", name: "saved-far", address: "예시 주소", category: "attraction", coordinates: { latitude: 37.7, longitude: 127 }, policySourceText: "", exact: false },
+      { id: "saved-near", name: "saved-near", address: "예시 주소", category: "cafe", coordinates: { latitude: 37.51, longitude: 127 }, policySourceText: "", exact: false },
+    ];
+    const result = buildApproximateCourseFromPlaces(saved, origin);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.stops.map((stop) => stop.placeId)).toEqual(["saved-near", "saved-far"]);
+  });
+
+  it("starts at the chosen place and can preserve the saved order", () => {
+    const saved = [
+      { id: "saved-far", name: "saved-far", address: "예시 주소", category: "attraction", coordinates: { latitude: 37.7, longitude: 127 }, policySourceText: "", exact: false },
+      { id: "saved-near", name: "saved-near", address: "예시 주소", category: "cafe", coordinates: { latitude: 37.51, longitude: 127 }, policySourceText: "", exact: false },
+      { id: "saved-last", name: "saved-last", address: "예시 주소", category: "cafe", coordinates: { latitude: 37.6, longitude: 127 }, policySourceText: "", exact: false },
+    ];
+    const result = buildApproximateCourseFromPlaces(saved, saved[1]!.coordinates, "saved");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.orderMode).toBe("saved");
+      expect(result.stops.map((stop) => stop.placeId)).toEqual(["saved-near", "saved-far", "saved-last"]);
+    }
   });
 });

@@ -111,6 +111,32 @@ describe("catalog pagination", () => {
     expect(page.pendingDetailCount).toBe(1);
   });
 
+  it("treats selecting every place type as the unfiltered catalog", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const categories = ["attraction", "restaurant", "cafe", "accommodation", "shopping"] as const;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: categories.length,
+      places: categories.map((category, index) => ({
+        ...source,
+        id: `all-category-${category}`,
+        name: category === "shopping" ? "다비치안경 테스트점" : `장소 ${index + 1}`,
+        category,
+      })),
+      auxiliaryPlaces: [],
+    };
+
+    const unfiltered = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1 });
+    const everyType = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, categories: [...categories] });
+    const shoppingOnly = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, categories: ["shopping"] });
+
+    expect(everyType.searchableCount).toBe(unfiltered.searchableCount);
+    expect(everyType.filteredCount).toBe(unfiltered.filteredCount);
+    expect(everyType.results.map((result) => result.place.id)).toEqual(unfiltered.results.map((result) => result.place.id));
+    expect(shoppingOnly.filteredCount).toBe(0);
+  });
+
   it("matches every whitespace-separated destination term across the address and place name", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
     const source = fixture.places[0]!;

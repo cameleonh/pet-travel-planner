@@ -10,13 +10,24 @@ export type PlanPlace = {
   exact: boolean;
 };
 
+export type PlanActivity = {
+  id: string;
+  title: string;
+  type: "festival" | "trail";
+  detail: string;
+  url: string | null;
+  address?: string;
+  coordinates?: Coordinates;
+};
+
 export type RouteSegment = {
   fromPlaceId: string;
   toPlaceId: string;
   fromName: string;
   toName: string;
   distanceKm: number;
-  durationMinutes: number;
+  durationMinutes: number | null;
+  routeMode: "road" | "approximate";
   hasCongestion: boolean;
   congestedRoads: { name: string; distance: number; speed: number; stateLabel: string; stateColor: string }[];
   smoothSegments: number;

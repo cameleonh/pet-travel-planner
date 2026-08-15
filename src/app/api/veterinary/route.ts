@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { fetchKakaoLocal } from "@/app/api/_shared/kakao-local";
 
 const querySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -84,9 +85,9 @@ export async function GET(request: Request) {
     apiUrl.searchParams.set("size", String(PAGE_SIZE));
     apiUrl.searchParams.set("sort", "distance");
 
-    const response = await fetch(apiUrl.toString(), {
-      headers: { Authorization: `KakaoAK ${apiKey}` },
-    });
+    // Nearby panels should resolve quickly. A failed lookup is surfaced with
+    // the existing per-section retry button instead of holding the whole panel.
+    const response = await fetchKakaoLocal(apiUrl, apiKey, request.signal, { timeoutMs: 2_500, maxAttempts: 1 });
 
     if (!response.ok) {
       return NextResponse.json(
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
         error: null,
         meta: { requestId },
       },
-      { headers: { "Content-Language": "ko", "X-Request-Id": requestId } },
+      { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=600", "Content-Language": "ko", "X-Request-Id": requestId } },
     );
   } catch (error) {
     if (error instanceof z.ZodError) {
