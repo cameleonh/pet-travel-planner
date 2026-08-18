@@ -332,6 +332,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
   const togglePlanPlace = useCallback((result: MatchEvaluation) => {
     const place = result.place;
+    const isSaved = planPlaces.some((p) => p.id === place.id);
     const isRemovingLastPlace = planPlaces.length === 1 && planPlaces[0]?.id === place.id;
     const isRemovingNearbyAnchor = planPlaces[0]?.id === place.id;
     const planPlace: PlanPlace = {
@@ -350,6 +351,18 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setSelectionCompleted(false);
     setCourseConfirmed(false);
     setPlanPlaces((current) => current.some((p) => p.id === place.id) ? current.filter((p) => p.id !== place.id) : [...current, planPlace]);
+    // 담기(추가) 직후: 다음 미담기 카드로 스크롤·포커스 — 목록을 따라가며 연속으로 담는 흐름 지원
+    if (!isSaved) {
+      globalThis.setTimeout(() => {
+        const row = document.querySelector<HTMLElement>(`.place-row[data-place-id="${place.id}"]`);
+        let next: HTMLElement | null = row?.nextElementSibling as HTMLElement | null ?? null;
+        while (next && next.querySelector?.(".plan-add-button.added")) next = next.nextElementSibling as HTMLElement | null;
+        const target = next ?? row;
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        const button = (next ?? row)?.querySelector?.<HTMLElement>(".plan-add-button:not(.added)");
+        button?.focus({ preventScroll: true });
+      }, 0);
+    }
   }, [planPlaces, planActivities.length, closePlanner]);
 
   const removePlanPlace = useCallback((id: string) => {
@@ -462,7 +475,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                 {catalog.results.length > 0 ? <div className="place-list">{visibleResults.map((result) => {
                   const isSaved = planPlaces.some((place) => place.id === result.place.id);
                   const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
-                  return <div className="place-row" key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
+                  return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
                 })}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
                 {catalog.results.length > 0 ? <div className="result-actions">
                   <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasPlanItems && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasPlanItems} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{hasPlanItems ? t(lang, "selectionDoneCount", { n: planItemCount }) : dict.selectionDoneNeed}</small></button>

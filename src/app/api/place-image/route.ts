@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
     const apiUrl = new URL(API_BASE);
     apiUrl.searchParams.set("query", q);
-    apiUrl.searchParams.set("size", "1");
+    apiUrl.searchParams.set("size", "10");
     apiUrl.searchParams.set("sort", "accuracy");
 
     const response = await fetch(apiUrl.toString(), {
@@ -61,7 +61,12 @@ export async function GET(request: Request) {
       );
     }
 
-    const doc = parsed.data.documents[0]!;
+    // 카드 표시 폭(~400px 레티나)에 맞는 후보 선택: 폭을 알 수 있으면 400 이상에서
+    // 가장 작은(=불필요하게 거대하지 않은) 것, 폭 미상이면 첫 번째.
+    const candidates = parsed.data.documents;
+    const withWidth = candidates.filter((d) => typeof d.width === "number" && d.width >= 400);
+    const sized = withWidth.slice().sort((a, b) => (a.width ?? 0) - (b.width ?? 0));
+    const doc = sized[0] ?? candidates[0]!;
     return NextResponse.json(
       { success: true, data: { thumbnailUrl: doc.thumbnail_url, imageUrl: doc.image_url ?? doc.thumbnail_url }, error: null, meta: { requestId } },
       { headers: { "Cache-Control": "private, max-age=86400, stale-while-revalidate=604800", "Content-Language": "ko", "X-Request-Id": requestId } },

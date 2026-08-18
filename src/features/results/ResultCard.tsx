@@ -22,8 +22,11 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
   const [shouldLoad, setShouldLoad] = useState(false);
   const region = address.split(" ").slice(0, 2).join(" ");
   const query = region ? `${name} ${region}` : name;
-  const [thumbnail, setThumbnail] = useState<{ query: string; url: string } | null>(null);
-  const thumbUrl = thumbnail?.query === query ? thumbnail.url : null;
+  // 고해상도 우선, 로드 실패 시 썸네일 폴백 (카카오 image_url=원본, thumbnail_url≈110px)
+  const [sources, setSources] = useState<{ query: string; urls: string[] } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const urls = sources?.query === query ? sources.urls : [];
+  const thumbUrl = urls[attempt] ?? null;
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
@@ -43,14 +46,18 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
     if (!shouldLoad) return;
     const controller = new AbortController();
     fetch(`/api/place-image?q=${encodeURIComponent(query)}`, { signal: controller.signal }).then((r) => r.json()).then((d) => {
-      if (!controller.signal.aborted && d.success && d.data?.thumbnailUrl) setThumbnail({ query, url: d.data.thumbnailUrl });
+      if (controller.signal.aborted || !d.success || !d.data?.thumbnailUrl) return;
+      const full = typeof d.data.imageUrl === "string" && d.data.imageUrl !== d.data.thumbnailUrl ? d.data.imageUrl : null;
+      const next = full ? [full, d.data.thumbnailUrl] : [d.data.thumbnailUrl];
+      setSources({ query, urls: next });
+      setAttempt(0);
     }).catch(() => {});
     return () => controller.abort();
   }, [query, shouldLoad]);
   return (
     <div ref={containerRef} className="place-thumbnail" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {thumbUrl ? <img src={thumbUrl} alt="" loading="lazy" onError={() => setThumbnail(null)} /> : null}
+      {thumbUrl ? <img src={thumbUrl} alt="" loading="lazy" decoding="async" onError={() => setAttempt((n) => n + 1)} /> : null}
     </div>
   );
 }
