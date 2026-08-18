@@ -17,11 +17,13 @@ export type PublicClosureStatus = {
 
 const prepLabelKeys = { leash: "prepLeash", carrier: "prepCarrier", muzzle: "prepMuzzle", wasteBag: "prepWasteBag", stroller: "prepStroller", mannerBelt: "prepMannerBelt" } as const;
 
-function PlaceThumbnail({ name, address }: { name: string; address: string }) {
+function PlaceThumbnail({ name, address, placeId }: { name: string; address: string; placeId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const region = address.split(" ").slice(0, 2).join(" ");
   const query = region ? `${name} ${region}` : name;
+  // 원천 contentid(tour-api:NNN) — 관광공사 공식 이미지 우선 조회용
+  const contentId = placeId.startsWith("tour-api:") ? placeId.slice("tour-api:".length) : null;
   // 고해상도 우선, 로드 실패 시 썸네일 폴백 (카카오 image_url=원본, thumbnail_url≈110px)
   const [sources, setSources] = useState<{ query: string; urls: string[] } | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -45,7 +47,9 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
   useEffect(() => {
     if (!shouldLoad) return;
     const controller = new AbortController();
-    fetch(`/api/place-image?q=${encodeURIComponent(query)}`, { signal: controller.signal }).then((r) => r.json()).then((d) => {
+    const params = new URLSearchParams({ q: query });
+    if (contentId) params.set("cid", contentId);
+    fetch(`/api/place-image?${params}`, { signal: controller.signal }).then((r) => r.json()).then((d) => {
       if (controller.signal.aborted || !d.success || !d.data?.thumbnailUrl) return;
       const full = typeof d.data.imageUrl === "string" && d.data.imageUrl !== d.data.thumbnailUrl ? d.data.imageUrl : null;
       const next = full ? [full, d.data.thumbnailUrl] : [d.data.thumbnailUrl];
@@ -53,7 +57,7 @@ function PlaceThumbnail({ name, address }: { name: string; address: string }) {
       setAttempt(0);
     }).catch(() => {});
     return () => controller.abort();
-  }, [query, shouldLoad]);
+  }, [query, contentId, shouldLoad]);
   return (
     <div ref={containerRef} className="place-thumbnail" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -71,7 +75,7 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
   const displayAddress = (lang !== "ko" && translation?.address) ? translation.address : result.place.address;
   return (
     <article className={`place-card ${isCatalogResult ? "catalog-card" : "exact-card"}`}>
-      <PlaceThumbnail name={result.place.name} address={result.place.address} />
+      <PlaceThumbnail name={result.place.name} address={result.place.address} placeId={result.place.id} />
       <div className="place-card-body">
         <div className="place-top"><span>{displayCategoryIcon[displayCat]} {displayCategoryLabel[displayCat]}</span><strong>{isCatalogResult ? dict.beforeSelection : dict.allConditionsMet}</strong></div>
         <h3>{displayName}</h3>
