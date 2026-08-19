@@ -19,6 +19,7 @@ import type { CongestionData } from "@/features/results/CongestionSection";
 import type { TranslationData } from "@/features/results/TranslationSection";
 import { TrailSection, type TrailData } from "@/features/results/TrailSection";
 import { RuralSection, type VillageData, type FarmstayData } from "@/features/results/RuralSection";
+import { PetCafeSection, type PetCafeData } from "@/features/results/PetCafeSection";
 import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
@@ -97,6 +98,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [trails, setTrails] = useState<TrailData[]>([]);
   const [ruralVillages, setRuralVillages] = useState<VillageData[]>([]);
   const [ruralFarmstays, setRuralFarmstays] = useState<FarmstayData[]>([]);
+  const [petCafes, setPetCafes] = useState<PetCafeData[]>([]);
   const [festivals, setFestivals] = useState<FestivalData[]>([]);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
@@ -226,14 +228,21 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       .catch(() => {
         if (!controller.signal.aborted) { setRuralVillages([]); setRuralFarmstays([]); }
       });
-    void Promise.all([trailTask, festivalTask, ruralTask]).finally(() => {
+    const cafeSelected = categories.includes("cafe");
+    const petCafeTask = cafeSelected
+      ? fetch(`/api/pet-cafes?region=${encodeURIComponent(region.trim())}`, { signal: controller.signal })
+        .then((response) => response.json() as Promise<{ success: boolean; data?: { cafes: PetCafeData[] } }>)
+        .then((body) => { if (!controller.signal.aborted) setPetCafes(body.success && body.data ? body.data.cafes : []); })
+        .catch(() => { if (!controller.signal.aborted) setPetCafes([]); })
+      : Promise.resolve();
+    void Promise.all([trailTask, festivalTask, ruralTask, petCafeTask]).finally(() => {
       if (!controller.signal.aborted) {
         setDiscoveryLoadedRegion(region.trim());
         setDiscoveryLoading(false);
       }
     });
     return () => controller.abort();
-  }, [discoveryOpen, discoveryLoadedRegion, region]);
+  }, [discoveryOpen, discoveryLoadedRegion, region, categories]);
 
   useEffect(() => {
     if (!plannerOpen) return;
@@ -461,7 +470,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         </header>
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
-          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
+          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
       </div>
@@ -531,6 +540,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                       {!discoveryLoading && trails.length === 0 && festivals.length === 0 && ruralVillages.length === 0 && ruralFarmstays.length === 0 ? <p className="context-empty">{dict.noRegionalDiscovery}</p> : null}
                       {trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} selectedActivityIds={selectedActivityIds} onToggleActivity={togglePlanActivity} /> : null}
                       {ruralVillages.length > 0 || ruralFarmstays.length > 0 ? <RuralSection villages={ruralVillages} farmstays={ruralFarmstays} region={region.trim()} /> : null}
+                      {categories.includes("cafe") && petCafes.length > 0 ? <PetCafeSection cafes={petCafes} region={region.trim()} /> : null}
                       {festivals.length > 0 ? <FestivalSection festivals={festivals} selectedActivityIds={selectedActivityIds} onToggleActivity={togglePlanActivity} /> : null}
                       <button type="button" className={`supplemental-review-button ${selectionCompleted && !regionalReviewComplete ? "next-action-cue" : ""}`} disabled={discoveryLoading} onClick={() => { setRegionalReviewedFor(region.trim()); setDiscoveryOpen(false); }}>{regionalSelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: regionalSelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div>

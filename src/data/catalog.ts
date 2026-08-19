@@ -1,4 +1,5 @@
 import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
+import { CAFE_NAME_PATTERN } from "@/domain/categories";
 import { getRegionSearchTerm } from "@/domain/regions";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
@@ -190,7 +191,12 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const evaluations = allEvaluations.filter(({ place }) => {
     const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
-    const categoryMatches = categories.size === 0 || allCategoriesSelected || categories.has(place.category);
+    // "cafe" filter spans both source categories: the KTO pet-travel catalog files
+    // most cafés under "restaurant" (32 cafe rows vs ~40 café-named restaurant rows).
+    const wantsCafe = categories.has("cafe");
+    const categoryMatches = categories.size === 0 || allCategoriesSelected
+      || categories.has(place.category)
+      || (wantsCafe && place.category === "restaurant" && CAFE_NAME_PATTERN.test(place.name));
     if (!regionMatches || !categoryMatches) return false;
     const userPickedShopping = !allCategoriesSelected && categories.has("shopping");
     if (userPickedShopping && prepared.noisePlaceIds.has(place.id)) return false;

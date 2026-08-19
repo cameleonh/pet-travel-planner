@@ -47,6 +47,11 @@ export const displayCategoryIcon: Record<DisplayCategory, string> = {
   place: "📍",
 };
 
+// A place is displayed/searched as a "cafe" when its name says so, even if the
+// KTO pet-travel catalog filed it under "restaurant" (the catalog's café rows are
+// sparse; many cafés are categorized as restaurants).
+export const CAFE_NAME_PATTERN = /카페|커피|cafe|coffee|다방|커피숍|커피하우스/i;
+
 export function resolveDisplayCategory(place: { name: string; category: string }): DisplayCategory {
   const n = place.name;
   switch (place.category) {
@@ -64,6 +69,7 @@ export function resolveDisplayCategory(place: { name: string; category: string }
       if (/시장|5일장|장$/i.test(n)) return "market";
       return "shopping";
     case "restaurant":
+      if (CAFE_NAME_PATTERN.test(n)) return "cafe";
       return "restaurant";
     case "cafe":
       return "cafe";

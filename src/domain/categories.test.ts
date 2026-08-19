@@ -15,6 +15,8 @@ describe("display category resolution", () => {
     ["속초중앙시장", "shopping", "market"],
     ["반려용품점", "shopping", "shopping"],
     ["맛있는 식당", "restaurant", "restaurant"],
+    ["카페 플랜비", "restaurant", "cafe"],
+    ["커피하우스 그린", "restaurant", "cafe"],
     ["멍멍 카페", "cafe", "cafe"],
     ["바다 호텔", "accommodation", "accommodation"],
     ["기타", "unknown", "place"],

@@ -81,6 +81,28 @@ describe("catalog pagination", () => {
     expect(page.confirmedMatchCount + page.confirmedNonMatchCount + page.unverifiedCount).toBe(3);
   });
 
+  it("includes café-named restaurants when the cafe category is selected", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      places: [
+        { ...source, id: "gn-cafe-named-restaurant", name: "카페 플랜비", address: "경상남도 창원시 진해구 진희로 146", category: "restaurant" },
+        { ...source, id: "gn-plain-restaurant", name: "바다식당", address: "경상남도 창원시 웅동로 5", category: "restaurant" },
+        { ...source, id: "gn-cafe", name: "어느카페", address: "경상남도 창원시 법원로 7", category: "cafe" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, region: "경남", categories: ["cafe"] });
+    expect(page.results.map((result) => result.place.id).sort()).toEqual(["gn-cafe", "gn-cafe-named-restaurant"]);
+
+    // restaurant-only selection keeps café-named restaurants too (their source
+    // category IS restaurant) — the café filter widens, it never steals rows.
+    const restaurantPage = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, region: "경남", categories: ["restaurant"] });
+    expect(restaurantPage.results.map((result) => result.place.id).sort()).toEqual(["gn-cafe-named-restaurant", "gn-plain-restaurant"]);
+  });
+
   it("filters fetched places by destination text and category before matching", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
     const source = fixture.places[0]!;
