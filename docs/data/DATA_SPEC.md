@@ -99,6 +99,36 @@ Each Phase 2 source has an independent daily quota of 1,000 requests and does no
 - Key operation: `galleryDetailList1`
 - Cross-reference: `galContentId` with `galContentTypeId=17` (separate type)
 
+#### Rural Experience Villages (Standard Data) — added 2026-08-19
+
+- Catalog: [전국농어촌체험휴양마을 표준데이터](https://www.data.go.kr/data/15013113/standard.do)
+- Type: file data (JSON/CSV download); refreshed semiannually by the portal
+- Providers: 한국농어촌공사 (farm villages), 한국어촌어항공단 (fishing villages)
+- Fields: village name, sido/sigungu, program class/name (`+`-separated), facilities, road/jibun address, phone, designation date, homepage, WGS84 latitude/longitude, provider org, reference date
+- Ingestion: `scripts/sync-villages.ts` reads `자료/전국농어촌체험휴양마을표준데이터.json` into `experience_villages` + `village_programs` (replace-all per sync)
+- Classification: `village_kind` = `fishing` when the provider org contains `어촌어항` or the village name contains `어촌`; otherwise `farm`. The org name `한국농어촌공사` contains the substring `어촌` and must not be matched naively.
+- Evidence class: no pet-policy fields exist; rural catalog entries never enter tri-state pet matching. The UI states that pet admission must be confirmed with each village.
+- Current snapshot: 1,246 villages (1,087 farm / 159 fishing), 18,002 programs; 8 raw rows skipped (missing coordinates/address or duplicate names)
+
+#### Rural Farm-Stay Guesthouses (농어촌민박업) — added 2026-08-19
+
+- Catalog: [행정안전부_문화_농어촌민박업 조회서비스](https://www.data.go.kr/data/15155113/openapi.do)
+- Type: REST OpenAPI (JSON+XML), auto-approved, 10,000 calls/day dev quota
+- **Confirmed endpoint (extracted from the portal page's embedded operation spec):** `https://apis.data.go.kr/1741000/rural_homestays/info` — current-day data. A sibling `history` operation serves past snapshots by 기준일자. The portal's 상세기능 tab is login-gated; the operation names (`info`/`history`) live in the page's inline Swagger JSON.
+- **Pagination cap:** the service returns at most 100 items per page regardless of `numOfRows`; the full catalog is 554+ pages (55,325 rows as of 2026-08-19, refreshed daily with a 2-day lag).
+- Fields (live-confirmed): `MNG_NO` (management number, stable ID), `BPLC_NM` (business name), `ROAD_NM_ADDR`/`LOTNO_ADDR` (addresses), `LCPMT_YMD` (permit date), `SALS_STTS_CD`/`SALS_STTS_NM` (operation status), `CRD_INFO_X`/`CRD_INFO_Y` (EPSG:5174 TM easting/northing), `OPN_ATMY_GRP_CD` (sigungu code), `TELNO`, `DAT_UPDT_PNT`
+- Coordinate conversion: `farmstay-provider.ts` implements TM inverse + Bessel→WGS84 3-parameter Molodensky (dX -146.21, dY 507.89, dZ 680.87). Verified against ground truth: 아라별 (X 282715.13, Y 139959.70) → 34.7542, 127.9042 — matches 경남 남해군 남면. Latitude range across 51,229 converted rows: 33.11–38.55 (Korean territory). Out-of-bounds conversions are nulled.
+- Status policy: the catalog mixes 영업/정상 (36,604), 폐업 (18,629), 휴업 (92), and re-permits duplicate businesses under new `MNG_NO`. The region query (`loadFarmstaysByRegion`) filters to `영업/정상` only; history rows remain in the table for audit.
+- Ingestion: `npm run sync:farmstay` → `farmstays` table (replace-all per sync, ~554 requests, budget 10,000/day)
+- Evidence class: no pet-policy fields; same UNKNOWN treatment as villages
+
+#### Farmstay Pet-Policy Inheritance — added 2026-08-19
+
+- Matcher: `src/domain/farmstay-policy-match.ts` — a farmstay inherits a pet policy only when BOTH (a) it lies within 150m of a Pet Travel catalog `accommodation` place (haversine; TM conversion error is tens of meters) AND (b) normalized names are compatible (containment or shared token ≥ 2 chars after stripping parentheses/punctuation). Distance alone would conflate neighboring buildings; name alone would conflate chains.
+- Ingestion: `npm run sync:farmstay-pets` reads active farmstays with coordinates (33,500) + the latest tour-api snapshot (9,695 places, 117 accommodations) and writes `farmstay_pet_policies` (migration v10, replace-all per run).
+- Result (2026-08-19): 11 matches (e.g. 단양추억펜션민박 ↔ 단양추억펜션 @59m, 도그밀리(DOGMILY), 메리도그하우스). The match count is intentionally conservative — the accommodation catalog is small.
+- Disclosure: matched farmstays show a 🐾 동반 가능 badge with an expandable evidence panel (source text + link to the KTO Pet Travel page); matched rows sort first in the region query. **Inheritance never enters tri-state hard matching** — it is display-only provenance. Unmatched farmstays remain UNKNOWN with the confirm-directly disclosure.
+
 #### Regional Analytics Services
 
 - Diversity: `AreaTarDivService` — `https://apis.data.go.kr/B551011/AreaTarDivService`

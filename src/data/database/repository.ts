@@ -4,6 +4,21 @@ import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { providerSnapshotSchema, type ProviderSnapshot } from "@/data/contracts";
 import { migrations } from "@/data/database/schema";
+import type { VillageRecord } from "@/data/providers/village-provider";
+
+export type FarmstayRecord = {
+  farmstay_id: string;
+  business_name: string;
+  permit_date: string | null;
+  address: string | null;
+  status_code: string | null;
+  status_name: string | null;
+  sigungu_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  raw_coord_x: number | null;
+  raw_coord_y: number | null;
+};
 
 export function applyMigrations(db: Database.Database): void {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT");
@@ -466,6 +481,126 @@ export class SqlitePlaceRepository {
       return result.count;
     }
     const result = this.db.prepare("SELECT COUNT(*) as count FROM place_translations").get() as { count: number };
+    return result.count;
+  }
+
+  replaceVillages(villages: VillageRecord[], fetchedAt: string): { villages: number; programs: number } {
+    const insertVillage = this.db.prepare(
+      `INSERT OR REPLACE INTO experience_villages (village_id, name, sido, sigungu, village_kind, address_road, address_jibun, phone, homepage, designated_at, facility_info, photo_url, latitude, longitude, provider_org, data_reference_date, fetched_at)
+       VALUES (@village_id, @name, @sido, @sigungu, @village_kind, @address_road, @address_jibun, @phone, @homepage, @designated_at, @facility_info, @photo_url, @latitude, @longitude, @provider_org, @data_reference_date, @fetched_at)`,
+    );
+    const insertProgram = this.db.prepare(
+      `INSERT INTO village_programs (village_id, program_class, program_name) VALUES (?, ?, ?)`,
+    );
+    let programCount = 0;
+    const transaction = this.db.transaction(() => {
+      this.db.prepare("DELETE FROM village_programs").run();
+      this.db.prepare("DELETE FROM experience_villages").run();
+      for (const village of villages) {
+        insertVillage.run({ ...village, fetched_at: fetchedAt });
+        for (const program of village.programs) {
+          insertProgram.run(village.village_id, program.program_class, program.program_name);
+          programCount++;
+        }
+      }
+    });
+    transaction();
+    return { villages: villages.length, programs: programCount };
+  }
+
+  loadVillagesByRegion(region: string): Record<string, unknown>[] {
+    return this.db.prepare(
+      `SELECT v.*, GROUP_CONCAT(p.program_class || ': ' || p.program_name, ' | ') AS programs
+       FROM experience_villages v
+       LEFT JOIN village_programs p ON p.village_id = v.village_id
+       WHERE v.sido LIKE '%' || ? || '%' OR v.sigungu LIKE '%' || ? || '%'
+       GROUP BY v.village_id
+       ORDER BY v.sido, v.sigungu, v.name`,
+    ).all(region, region) as Record<string, unknown>[];
+  }
+
+  getVillageCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM experience_villages").get() as { count: number };
+    return result.count;
+  }
+
+  getVillageProgramCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM village_programs").get() as { count: number };
+    return result.count;
+  }
+
+  replaceFarmstays(farmstays: FarmstayRecord[], fetchedAt: string): number {
+    const insert = this.db.prepare(
+      `INSERT OR REPLACE INTO farmstays (farmstay_id, business_name, permit_date, address, status_code, status_name, sigungu_code, latitude, longitude, raw_coord_x, raw_coord_y, fetched_at)
+       VALUES (@farmstay_id, @business_name, @permit_date, @address, @status_code, @status_name, @sigungu_code, @latitude, @longitude, @raw_coord_x, @raw_coord_y, @fetched_at)`,
+    );
+    const transaction = this.db.transaction(() => {
+      this.db.prepare("DELETE FROM farmstays").run();
+      for (const farmstay of farmstays) {
+        insert.run({ ...farmstay, fetched_at: fetchedAt });
+      }
+    });
+    transaction();
+    return farmstays.length;
+  }
+
+  loadFarmstaysByRegion(region: string): Record<string, unknown>[] {
+    // Only active businesses: the catalog keeps closed (폐업) and suspended
+    // (휴업) rows for history, and re-permits duplicate the same business.
+    // Left join pulls inherited pet policies; NULL pet_source_text = UNKNOWN.
+    return this.db.prepare(
+      `SELECT f.*, p.place_name AS pet_policy_place, p.distance_meters AS pet_policy_distance,
+              p.source_text AS pet_source_text, p.source_url AS pet_source_url, p.observed_at AS pet_observed_at
+       FROM farmstays f
+       LEFT JOIN farmstay_pet_policies p ON p.farmstay_id = f.farmstay_id
+       WHERE f.status_name = '영업/정상' AND f.address LIKE '%' || ? || '%'
+       ORDER BY (p.farmstay_id IS NOT NULL) DESC, f.business_name`,
+    ).all(region) as Record<string, unknown>[];
+  }
+
+  getFarmstayCount(activeOnly = false): number {
+    const result = activeOnly
+      ? this.db.prepare("SELECT COUNT(*) as count FROM farmstays WHERE status_name = '영업/정상'").get() as { count: number }
+      : this.db.prepare("SELECT COUNT(*) as count FROM farmstays").get() as { count: number };
+    return result.count;
+  }
+
+  loadFarmstayCandidates(): { farmstay_id: string; business_name: string; latitude: number; longitude: number }[] {
+    return this.db.prepare(
+      `SELECT farmstay_id, business_name, latitude, longitude FROM farmstays
+       WHERE status_name = '영업/정상' AND latitude IS NOT NULL AND longitude IS NOT NULL`,
+    ).all() as { farmstay_id: string; business_name: string; latitude: number; longitude: number }[];
+  }
+
+  replaceFarmstayPetPolicies(
+    rows: { farmstayId: string; placeId: string; placeName: string; distanceMeters: number; sourceText: string; sourceUrl: string; observedAt: string }[],
+    matchedAt: string,
+  ): number {
+    const insert = this.db.prepare(
+      `INSERT OR REPLACE INTO farmstay_pet_policies (farmstay_id, place_id, place_name, distance_meters, source_text, source_url, observed_at, matched_at)
+       VALUES (@farmstay_id, @place_id, @place_name, @distance_meters, @source_text, @source_url, @observed_at, @matched_at)`,
+    );
+    const transaction = this.db.transaction(() => {
+      this.db.prepare("DELETE FROM farmstay_pet_policies").run();
+      for (const row of rows) {
+        insert.run({
+          farmstay_id: row.farmstayId,
+          place_id: row.placeId,
+          place_name: row.placeName,
+          distance_meters: row.distanceMeters,
+          source_text: row.sourceText,
+          source_url: row.sourceUrl,
+          observed_at: row.observedAt,
+          matched_at: matchedAt,
+        });
+      }
+    });
+    transaction();
+    return rows.length;
+  }
+
+  getFarmstayPetPolicyCount(): number {
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM farmstay_pet_policies").get() as { count: number };
     return result.count;
   }
 }

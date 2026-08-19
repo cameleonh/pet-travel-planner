@@ -1,7 +1,7 @@
 # Project Status
 
-**As of:** 2026-08-13
-**Current objective:** Pet-detail ingestion is 100% complete (9,695/9,695 fetched, 0 failed). General-admission fallback promotes "동반 가능" without explicit size restriction to size-qualified true, raising confirmed matches to ~9,600 per size band. Phase 2 integration largely complete: GoCamping catalog corrected to 1,131 pet-admitted sites (was 2,602 due to a regex bug that matched "불가능"), barrier-free provider and UI built (35 smoke rows; full ingestion pending quota reset), multilingual translations ingested (EN 3,618 / ZH 3,584 via coordinate matching). All Phase 2 providers have test coverage (53 new tests, 137 total). Owner portal, Google auth, directions/festivals/gpx/trails/veterinary/pet-restaurants/pet-shops/place-image API routes added since last checkpoint. Full QA passed on 2026-08-13: lint 0 warnings, typecheck clean, 137/137 unit tests, 11 E2E passed (1 skipped), production build OK, 0 vulnerabilities.
+**As of:** 2026-08-19
+**Current objective:** Rural tourism catalog is fully live, including pet-policy inheritance. Experience villages: 1,246 villages / 17,719 programs (farm 1,087 / fishing 159; parenthesis-aware program splitting). Farmstays: 55,325 rows from the confirmed endpoint `https://apis.data.go.kr/1741000/rural_homestays/info`, 51,229 coordinate conversions verified against ground truth, region queries filter to 36,604 active businesses. Pet-policy inheritance (2026-08-19, migration v10): 11 farmstays inherit a confirmed policy from the KTO Pet Travel accommodation catalog via the dual-criteria matcher (≤150m haversine AND name compatibility) — display-only provenance with an evidence panel; never enters tri-state hard matching. Verification on 2026-08-19: lint 0 warnings, typecheck clean, 184/184 unit tests, production build OK.
 
 ## State Ledger
 
@@ -60,6 +60,8 @@
 - Phase 2 GoCamping provider, `place_camping` schema, sync script, and expandable UI section with reservation link
 - `/api/places` enrichment pipeline that left-joins accessibility, camping, congestion, and multilingual translation data at query time without modifying pet-policy matching
 - Phase 2 multilingual translation provider (`EngService2`/`ChtService2`), `place_translations` schema (v8), sync script, language toggle UI, and expandable translation section on result cards
+- Rural tourism catalog (2026-08-19): `experience_villages` + `village_programs` + `farmstays` schema (migration v9), `VillageProvider` (standard-data JSON ingestion), `FarmstayProvider` (농어촌민박업 OpenAPI + pure-TS EPSG:5174→WGS84 TM inverse with 3-parameter Bessel→WGS84 datum shift), `sync:villages` / `sync:farmstay` scripts, region-scoped `/api/rural` route, and a `RuralSection` discovery-disclosure UI listing villages, programs, and guesthouses with an explicit confirm-pet-policy-directly disclosure (rural entries never enter tri-state pet matching)
+- Rural provider test coverage: 14 new tests covering village mapping/classification/dedup/validation, TM conversion invariants, and farmstay envelope/error handling (173 total, all passing)
 - Phase 2 provider test coverage: 51 tests covering barrier-free, camping, congestion, trail, and multilingual providers (quota handling, error isolation, credential safety, pagination, data mapping)
 
 ### Verified
@@ -162,7 +164,7 @@
 
 ## Exact Next Action
 
-Run `npm run sync:accessibility` after the KorWithService2 quota resets to ingest barrier-free data for existing places (cron scheduled for 00:07 KST). English (3,618) and Chinese (3,584) translations are ingested via coordinate-based matching. The GoCamping catalog (1,131 pet-admitted sites) is already ingested and corrected. The congestion forecast API (`TatsCnctrRateService`) remains unapproved (`SERVICE_KEY_IS_NOT_REGISTERED`); `TarRlteTarService1` and `PhotoGalleryService1` are deprecated (`NO_OPENAPI_SERVICE_ERROR`) and cannot be implemented.
+Rural catalog + pet-policy inheritance (2026-08-19): complete and live. Optional follow-ups: (1) schedule `sync:farmstay` + `sync:farmstay-pets` after the daily tour sync (~554 requests/day fits the 10,000 quota; inheritance should re-run after each snapshot refresh), (2) surface village/farmstay markers on the course map handoff using the stored WGS84 coordinates, (3) widen inheritance by also matching the GoCamping catalog (1,131 pet-admitted sites) once camping rows carry comparable name fields. Separately, re-run `npm run sync:accessibility` after the KorWithService2 quota resets to complete barrier-free ingestion (35 smoke rows so far). The congestion forecast API (`TatsCnctrRateService`) remains unapproved (`SERVICE_KEY_IS_NOT_REGISTERED`); `TarRlteTarService1` and `PhotoGalleryService1` are deprecated (`NO_OPENAPI_SERVICE_ERROR`) and cannot be implemented.
 
 ## Latest Ingestion Checkpoint (2026-08-06)
 

@@ -337,4 +337,95 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS place_translations;
     `,
   },
+  {
+    version: 9,
+    name: "rural_tourism_catalog",
+    up: `
+      CREATE TABLE experience_villages (
+        village_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        sido TEXT,
+        sigungu TEXT,
+        village_kind TEXT NOT NULL CHECK (village_kind IN ('farm', 'fishing')),
+        address_road TEXT,
+        address_jibun TEXT,
+        phone TEXT,
+        homepage TEXT,
+        designated_at TEXT,
+        facility_info TEXT,
+        photo_url TEXT,
+        latitude REAL NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+        longitude REAL NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+        provider_org TEXT,
+        data_reference_date TEXT,
+        fetched_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_experience_villages_sido ON experience_villages(sido);
+      CREATE INDEX idx_experience_villages_sigungu ON experience_villages(sigungu);
+      CREATE INDEX idx_experience_villages_kind ON experience_villages(village_kind);
+
+      CREATE TABLE village_programs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        village_id TEXT NOT NULL REFERENCES experience_villages(village_id) ON DELETE CASCADE,
+        program_class TEXT NOT NULL,
+        program_name TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_village_programs_village ON village_programs(village_id);
+      CREATE INDEX idx_village_programs_class ON village_programs(program_class);
+
+      CREATE TABLE farmstays (
+        farmstay_id TEXT PRIMARY KEY,
+        business_name TEXT NOT NULL,
+        permit_date TEXT,
+        address TEXT,
+        status_code TEXT,
+        status_name TEXT,
+        sigungu_code TEXT,
+        latitude REAL,
+        longitude REAL,
+        raw_coord_x REAL,
+        raw_coord_y REAL,
+        fetched_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_farmstays_sigungu ON farmstays(sigungu_code);
+      CREATE INDEX idx_farmstays_status ON farmstays(status_code);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_farmstays_status;
+      DROP INDEX IF EXISTS idx_farmstays_sigungu;
+      DROP TABLE IF EXISTS farmstays;
+      DROP INDEX IF EXISTS idx_village_programs_class;
+      DROP INDEX IF EXISTS idx_village_programs_village;
+      DROP TABLE IF EXISTS village_programs;
+      DROP INDEX IF EXISTS idx_experience_villages_kind;
+      DROP INDEX IF EXISTS idx_experience_villages_sigungu;
+      DROP INDEX IF EXISTS idx_experience_villages_sido;
+      DROP TABLE IF EXISTS experience_villages;
+    `,
+  },
+  {
+    version: 10,
+    name: "farmstay_pet_policy_inheritance",
+    up: `
+      CREATE TABLE farmstay_pet_policies (
+        farmstay_id TEXT PRIMARY KEY REFERENCES farmstays(farmstay_id) ON DELETE CASCADE,
+        place_id TEXT NOT NULL,
+        place_name TEXT NOT NULL,
+        distance_meters INTEGER NOT NULL,
+        source_text TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        matched_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX idx_farmstay_pet_policies_place ON farmstay_pet_policies(place_id);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_farmstay_pet_policies_place;
+      DROP TABLE IF EXISTS farmstay_pet_policies;
+    `,
+  },
 ];

@@ -18,6 +18,7 @@ import type { CampingData } from "@/features/results/CampingSection";
 import type { CongestionData } from "@/features/results/CongestionSection";
 import type { TranslationData } from "@/features/results/TranslationSection";
 import { TrailSection, type TrailData } from "@/features/results/TrailSection";
+import { RuralSection, type VillageData, type FarmstayData } from "@/features/results/RuralSection";
 import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
@@ -94,6 +95,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [planGenerationRequest, setPlanGenerationRequest] = useState(0);
   const [courseConfirmed, setCourseConfirmed] = useState(false);
   const [trails, setTrails] = useState<TrailData[]>([]);
+  const [ruralVillages, setRuralVillages] = useState<VillageData[]>([]);
+  const [ruralFarmstays, setRuralFarmstays] = useState<FarmstayData[]>([]);
   const [festivals, setFestivals] = useState<FestivalData[]>([]);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
@@ -212,7 +215,18 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       .then((response) => response.json() as Promise<{ success: boolean; data?: { festivals: FestivalData[] } }>)
       .then((body) => { if (!controller.signal.aborted) setFestivals(body.success && body.data ? body.data.festivals : []); })
       .catch(() => { if (!controller.signal.aborted) setFestivals([]); });
-    void Promise.all([trailTask, festivalTask]).finally(() => {
+    const ruralTask = fetch(`/api/rural?region=${encodeURIComponent(region.trim())}`, { signal: controller.signal })
+      .then((response) => response.json() as Promise<{ success: boolean; data?: { villages: VillageData[]; farmstays: FarmstayData[] } }>)
+      .then((body) => {
+        if (!controller.signal.aborted) {
+          setRuralVillages(body.success && body.data ? body.data.villages : []);
+          setRuralFarmstays(body.success && body.data ? body.data.farmstays : []);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) { setRuralVillages([]); setRuralFarmstays([]); }
+      });
+    void Promise.all([trailTask, festivalTask, ruralTask]).finally(() => {
       if (!controller.signal.aborted) {
         setDiscoveryLoadedRegion(region.trim());
         setDiscoveryLoading(false);
@@ -447,7 +461,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         </header>
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
-          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
+          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
       </div>
@@ -514,8 +528,9 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                     <summary className={selectionCompleted && !regionalReviewComplete && !discoveryOpen ? "next-action-cue" : undefined} onClick={(event) => { event.preventDefault(); setDiscoveryOpen((open) => !open); }}><span><strong>{dict.regionalDiscovery}</strong><small>{dict.regionalDiscoveryNote}</small>{regionalReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{regionalReviewComplete ? "✓" : "＋"}</b></summary>
                     <div className="context-disclosure-body">
                       {discoveryLoading ? <p className="context-loading" role="status">{dict.loadingMessage}</p> : null}
-                      {!discoveryLoading && trails.length === 0 && festivals.length === 0 ? <p className="context-empty">{dict.noRegionalDiscovery}</p> : null}
+                      {!discoveryLoading && trails.length === 0 && festivals.length === 0 && ruralVillages.length === 0 && ruralFarmstays.length === 0 ? <p className="context-empty">{dict.noRegionalDiscovery}</p> : null}
                       {trails.length > 0 ? <TrailSection trails={trails} region={region.trim()} selectedActivityIds={selectedActivityIds} onToggleActivity={togglePlanActivity} /> : null}
+                      {ruralVillages.length > 0 || ruralFarmstays.length > 0 ? <RuralSection villages={ruralVillages} farmstays={ruralFarmstays} region={region.trim()} /> : null}
                       {festivals.length > 0 ? <FestivalSection festivals={festivals} selectedActivityIds={selectedActivityIds} onToggleActivity={togglePlanActivity} /> : null}
                       <button type="button" className={`supplemental-review-button ${selectionCompleted && !regionalReviewComplete ? "next-action-cue" : ""}`} disabled={discoveryLoading} onClick={() => { setRegionalReviewedFor(region.trim()); setDiscoveryOpen(false); }}>{regionalSelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: regionalSelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div>

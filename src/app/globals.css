@@ -469,6 +469,16 @@ h1 {
 .camping-reserve { display: inline-flex; min-height: 44px; align-items: center; color: var(--brand); font-size: 12px; font-weight: 800; text-underline-offset: 3px; margin-top: 4px; }
 .camping-source { margin-top: 8px; font-size: 10px; color: var(--muted); }
 
+.rural-section { margin-top: 12px; }
+.rural-program-list { display: grid; gap: 4px; list-style: none; padding: 0; margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--text); }
+.rural-program-list li::before { content: "· "; color: var(--muted); }
+.rural-farmstays { margin-top: 12px; }
+.rural-farmstay-toggle { width: 100%; min-height: 44px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 13px; font-weight: 800; cursor: pointer; padding: 8px 12px; text-align: left; }
+.rural-farmstay-toggle[aria-expanded="true"] { border-color: var(--brand); color: var(--brand); }
+.rural-farmstay-list { margin-top: 8px; }
+.camping-types.closed { color: #ef4444; opacity: 0.85; }
+.camping-types.rural-pet-ok { color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; }
+
 .congestion-details { border-top: 1px solid var(--line); padding-top: 11px; }
 .congestion-details summary { width: fit-content; min-height: 44px; padding: 10px 0; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
 .congestion-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
