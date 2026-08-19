@@ -36,6 +36,10 @@ export type FarmstayData = {
 
 const KIND_LABELS: Record<VillageData["village_kind"], string> = { farm: "농촌체험마을", fishing: "어촌체험마을" };
 
+function kakaoMapLink(name: string, latitude: number, longitude: number): string {
+  return `https://map.kakao.com/link/map/${encodeURIComponent(name)},${latitude},${longitude}`;
+}
+
 type Props = {
   villages: VillageData[];
   farmstays: FarmstayData[];
@@ -64,7 +68,10 @@ export function RuralSection({ villages, farmstays, region }: Props) {
               {village.designated_at ? <span>📅 지정 {village.designated_at}</span> : null}
             </div>
             {programs.length > 0 ? <details className="trail-details"><summary>체험 프로그램 {programs.length}개</summary><ul className="rural-program-list">{programs.map((program, index) => <li key={index}>{program}</li>)}</ul></details> : null}
-            {village.homepage ? <a href={village.homepage} target="_blank" rel="noreferrer" className="trail-gpx">마을 홈페이지 <span aria-hidden="true">↗</span></a> : null}
+            <div className="rural-actions">
+              <a href={kakaoMapLink(village.name, village.latitude, village.longitude)} target="_blank" rel="noreferrer" className="trail-gpx">카카오맵에서 보기 <span aria-hidden="true">↗</span></a>
+              {village.homepage ? <a href={village.homepage} target="_blank" rel="noreferrer" className="trail-gpx">마을 홈페이지 <span aria-hidden="true">↗</span></a> : null}
+            </div>
           </li>;
         })}
       </ul>
@@ -87,6 +94,9 @@ export function RuralSection({ villages, farmstays, region }: Props) {
                     ) : null}
                   </div>
                   {farmstay.address ? <p className="trail-tagline">{farmstay.address}</p> : null}
+                  {farmstay.latitude != null && farmstay.longitude != null ? (
+                    <a href={kakaoMapLink(farmstay.business_name, farmstay.latitude, farmstay.longitude)} target="_blank" rel="noreferrer" className="trail-gpx">카카오맵에서 보기 <span aria-hidden="true">↗</span></a>
+                  ) : null}
                   {farmstay.pet_source_text ? (
                     <details className="camping-details">
                       <summary>동반 근거 보기</summary>
