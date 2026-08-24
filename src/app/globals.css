@@ -265,27 +265,59 @@ h1 {
 .size-option {
   position: relative;
   display: flex;
-  min-height: 64px;
-  padding: 8px 6px;
+  min-height: 74px;
+  padding: 10px 6px 8px;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 1px;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  gap: 2px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 12px;
   background: var(--surface);
   cursor: pointer;
   text-align: center;
-  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
-.size-option:hover { border-color: var(--brand); }
+.size-option:hover {
+  border-color: var(--brand);
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
 .size-option:active { transform: translateY(1px); }
 .size-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .size-option:focus-within { outline: 3px solid color-mix(in srgb, var(--accent) 78%, white); outline-offset: 3px; }
-.size-option span { font-size: 14px; font-weight: 800; }
-.size-option small { color: var(--muted); font-size: 10px; }
-.size-option.active { border-color: var(--brand); background: var(--brand); color: white; }
-.size-option.active small { color: #d7ebe5; }
+.size-option-icon { font-size: 1.25rem; line-height: 1; margin-bottom: 2px; }
+.size-option-label { font-size: 13px; font-weight: 800; color: var(--ink); line-height: 1.2; }
+.size-option-note { font-size: 10px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+
+/* HIGH-CONTRAST DISTINCT ACTIVE STATE */
+.size-option.active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35), 0 0 0 2px #2563eb;
+  transform: translateY(-2px) scale(1.02);
+}
+.size-option.active .size-option-label { color: #ffffff !important; font-weight: 900; }
+.size-option.active .size-option-note { color: #e0f2fe !important; font-weight: 700; }
+
+.size-active-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 17px;
+  height: 17px;
+  background: white;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 900;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
 .field-help { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
 .pet-profile-inputs { display: grid; margin-bottom: 12px; gap: 8px; }
 .weight-input, .dangerous-dog-input { display: flex; min-height: 42px; padding: 8px 10px; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; font-weight: 700; }
