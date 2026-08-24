@@ -116,10 +116,13 @@ No exact matches
 
 ## 8. Course Flow
 
-The action is enabled whenever at least one exact result exists; the judged two-stop scenario is produced by explicitly removing the carrier preference.
+The next-step action stays available while browsing, but it is enabled only after at least two exact places are saved. Optional regional and nearby choices are revealed after place selection is completed; the travel board is revealed after the course is confirmed.
 
 ```text
 Exact results
+  → Save at least two places
+  → “Places selected · Optional extras”
+  → Review optional regional and nearby choices
   → “Build a course from these results”
   → Order current exact places from the reference coordinate
   → Show approximate course

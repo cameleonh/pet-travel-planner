@@ -154,9 +154,8 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   const addActivity = page.getByRole("button", { name: "코스 경유지로 담기" }).last();
   await addActivity.click();
   await expect(page.getByRole("button", { name: "코스 경유지에 담았어요" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "내 여행 보드 열기" })).toBeVisible();
-  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
-  await expect(courseBuilder.getByRole("checkbox", { name: /반려견 숲 축제/ })).toBeChecked();
+  await expect(page.getByRole("button", { name: "내 여행 · 1개 저장" })).toBeDisabled();
+  await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
   await discoverySummary.click();
   await discoverySummary.click();
   await page.waitForTimeout(100);
@@ -164,9 +163,12 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   await discovery.locator(".supplemental-review-button").click();
   await expect(discovery.locator(":scope > summary")).toContainText("확인 완료");
   const nearbyReview = page.locator(".nearby-disclosure");
-  await nearbyReview.locator("summary").click();
+  if (await nearbyReview.getAttribute("open") === null) await nearbyReview.locator("summary").click();
   await nearbyReview.locator(".supplemental-review-button").click();
   await page.locator(".plan-add-button").first().click();
+  await page.locator(".selection-complete-button").click();
+  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
+  await expect(courseBuilder.getByRole("checkbox", { name: /반려견 숲 축제/ })).toBeChecked();
   await expect(courseBuilder.getByRole("checkbox")).toHaveCount(2);
   await courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
   const dialog = page.getByRole("dialog", { name: "03 · 내 여행 보드" });
@@ -181,14 +183,14 @@ test("selection completion moves to supplemental choices and only course confirm
   await page.goto("/");
   await page.locator(".plan-add-button").first().click();
   await page.locator(".plan-add-button").nth(1).click();
-  const complete = page.getByRole("button", { name: /장소 선택 완료/ });
+  const complete = page.locator(".selection-complete-button");
   await complete.click();
   const supplemental = page.getByRole("region", { name: "축제·산책과 주변 장소도 살펴보세요" });
   await expect(supplemental).toBeInViewport();
   await expect(supplemental).toBeFocused();
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   expect(await supplemental.evaluate((element) => element.nextElementSibling?.classList.contains("course-card"))).toBe(true);
-  expect(await courseBuilder.evaluate((element) => element.nextElementSibling?.classList.contains("trip-board-plan"))).toBe(true);
+  await expect(page.locator(".trip-board-plan")).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toHaveCount(0);
   const reviewGuide = courseBuilder.getByRole("button", { name: "위의 추가 선택을 먼저 확인해 주세요" });
   await expect(reviewGuide).toBeEnabled();
@@ -202,7 +204,48 @@ test("selection completion moves to supplemental choices and only course confirm
   await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toBeVisible();
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
   await page.keyboard.press("Escape");
-  await expect(confirmCourse).toBeFocused();
+  await expect(page.locator(".course-card .course-button")).toBeFocused();
+});
+
+test("one saved place keeps the next step available without exposing a blocked planner", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await page.locator(".plan-add-button").first().click();
+  const tray = page.getByRole("button", { name: "내 여행 · 1개 저장" });
+  await expect(tray).toBeDisabled();
+  await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
+  await expect(page.locator(".trip-board-plan")).toHaveCount(0);
+  await expect(page.locator(".selection-complete-button")).toBeDisabled();
+  await expect(page.locator(".selection-complete-button")).toContainText("한 곳 더 저장해 주세요");
+});
+
+test("saving a place preserves the current viewport and button focus", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  const addButton = page.locator(".plan-add-button").first();
+  await addButton.scrollIntoViewIfNeeded();
+  await addButton.focus();
+  const beforeY = await page.evaluate(() => window.scrollY);
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { __selectionScrollCalls?: number };
+    state.__selectionScrollCalls = 0;
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (options?: boolean | ScrollIntoViewOptions) {
+      state.__selectionScrollCalls = (state.__selectionScrollCalls ?? 0) + 1;
+      original.call(this, options);
+    };
+  });
+
+  await addButton.click();
+  await expect(addButton).toHaveClass(/added/);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+
+  expect(await page.evaluate(() => (window as typeof window & { __selectionScrollCalls?: number }).__selectionScrollCalls ?? 0)).toBe(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(beforeY);
+  await expect(addButton).toBeFocused();
 });
 
 test("an empty category result does not request closures without place IDs", async ({ page }) => {

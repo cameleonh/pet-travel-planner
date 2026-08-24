@@ -150,7 +150,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const supplementalReviewComplete = regionalReviewComplete && nearbyReviewComplete;
   const supplementalReviewTotal = Number(regionalReviewRequired) + Number(nearbyReviewRequired);
   const supplementalReviewDone = Number(regionalReviewComplete && regionalReviewRequired) + Number(nearbyReviewComplete && nearbyReviewRequired);
+  const hasEnoughPlaces = planPlaces.length >= 2;
   const visibleResults = catalogIsCurrent ? catalog.results : [];
+  const openPlanner = useCallback(() => {
+    plannerReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : tripTrayRef.current;
+    setPlannerOpen(true);
+  }, []);
   const closePlanner = useCallback(() => {
     setPlannerOpen(false);
     globalThis.setTimeout(() => (plannerReturnFocusRef.current ?? tripTrayRef.current)?.focus(), 0);
@@ -327,35 +332,62 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
 
   const finishChoosing = useCallback(() => {
-    if (!hasPlanItems) return;
+    if (!hasEnoughPlaces) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setSelectionCompleted(true);
-    supplementalChoicesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    globalThis.setTimeout(() => supplementalChoicesRef.current?.focus({ preventScroll: true }), 350);
-  }, [hasPlanItems]);
+    globalThis.setTimeout(() => {
+      const target = supplementalChoicesRef.current;
+      if (!target) return;
+      target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+      globalThis.setTimeout(() => target.focus({ preventScroll: true }), reducedMotion ? 0 : 350);
+    }, 0);
+  }, [hasEnoughPlaces]);
+
+  const focusSupplementalTarget = useCallback((selector: string) => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    globalThis.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(selector);
+      if (!target) return;
+      target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+      globalThis.setTimeout(() => target.focus({ preventScroll: true }), reducedMotion ? 0 : 350);
+    }, 0);
+  }, []);
 
   const guideToSupplementalReview = useCallback(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const reveal = (selector: string) => globalThis.setTimeout(() => {
-      const target = document.querySelector<HTMLElement>(selector);
-      target?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
-      globalThis.setTimeout(() => target?.focus({ preventScroll: true }), reducedMotion ? 0 : 350);
-    }, 0);
     setSelectionCompleted(true);
     if (!regionalReviewComplete && region.trim()) {
       setDiscoveryOpen(true);
-      reveal(".supplemental-choices .context-disclosure:not(.nearby-disclosure) > summary");
+      focusSupplementalTarget(".supplemental-choices .context-disclosure:not(.nearby-disclosure) > summary");
       return;
     }
     if (!nearbyReviewComplete && nearbyAnchor) {
       setNearbyActivatedFor(nearbyAnchor.id);
       setNearbyOpenFor(nearbyAnchor.id);
-      reveal(".supplemental-choices .nearby-disclosure > summary");
+      focusSupplementalTarget(".supplemental-choices .nearby-disclosure > summary");
     }
-  }, [nearbyAnchor, nearbyReviewComplete, region, regionalReviewComplete]);
+  }, [focusSupplementalTarget, nearbyAnchor, nearbyReviewComplete, region, regionalReviewComplete]);
+
+  const completeRegionalReview = useCallback(() => {
+    setRegionalReviewedFor(region.trim());
+    setDiscoveryOpen(false);
+    if (!nearbyReviewComplete && nearbyAnchor) {
+      setNearbyActivatedFor(nearbyAnchor.id);
+      setNearbyOpenFor(nearbyAnchor.id);
+      focusSupplementalTarget(".supplemental-choices .nearby-disclosure > summary");
+      return;
+    }
+    if (selectionCompleted && planPlaces.length > 0) focusSupplementalTarget(".course-card .course-button");
+  }, [focusSupplementalTarget, nearbyAnchor, nearbyReviewComplete, planPlaces.length, region, selectionCompleted]);
+
+  const completeNearbyReview = useCallback(() => {
+    if (!nearbyAnchor) return;
+    setNearbyReviewedFor(nearbyAnchor.id);
+    setNearbyOpenFor(null);
+    if (selectionCompleted && planPlaces.length > 0) focusSupplementalTarget(".course-card .course-button");
+  }, [focusSupplementalTarget, nearbyAnchor, planPlaces.length, selectionCompleted]);
 
   const togglePlanPlace = useCallback((result: MatchEvaluation) => {
     const place = result.place;
-    const isSaved = planPlaces.some((p) => p.id === place.id);
     const isRemovingLastPlace = planPlaces.length === 1 && planPlaces[0]?.id === place.id;
     const isRemovingNearbyAnchor = planPlaces[0]?.id === place.id;
     const planPlace: PlanPlace = {
@@ -374,18 +406,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setSelectionCompleted(false);
     setCourseConfirmed(false);
     setPlanPlaces((current) => current.some((p) => p.id === place.id) ? current.filter((p) => p.id !== place.id) : [...current, planPlace]);
-    // 담기(추가) 직후: 다음 미담기 카드로 스크롤·포커스 — 목록을 따라가며 연속으로 담는 흐름 지원
-    if (!isSaved) {
-      globalThis.setTimeout(() => {
-        const row = document.querySelector<HTMLElement>(`.place-row[data-place-id="${place.id}"]`);
-        let next: HTMLElement | null = row?.nextElementSibling as HTMLElement | null ?? null;
-        while (next && next.querySelector?.(".plan-add-button.added")) next = next.nextElementSibling as HTMLElement | null;
-        const target = next ?? row;
-        target?.scrollIntoView({ behavior: "smooth", block: "center" });
-        const button = (next ?? row)?.querySelector?.<HTMLElement>(".plan-add-button:not(.added)");
-        button?.focus({ preventScroll: true });
-      }, 0);
-    }
   }, [planPlaces, planActivities.length, closePlanner]);
 
   const removePlanPlace = useCallback((id: string) => {
@@ -454,9 +474,9 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setCourseConfirmed(true);
     setPlanGenerationRequest((request) => request + 1);
 
+    if (document.activeElement instanceof HTMLElement) plannerReturnFocusRef.current = document.activeElement;
     const isMobile = window.matchMedia("(max-width: 767px)").matches;
     if (isMobile) {
-      if (document.activeElement instanceof HTMLElement) plannerReturnFocusRef.current = document.activeElement;
       setPlannerOpen(true);
     }
   }, []);
@@ -498,10 +518,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                 {catalog.results.length > 0 ? <div className="place-list">{visibleResults.map((result) => {
                   const isSaved = planPlaces.some((place) => place.id === result.place.id);
                   const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
-                  return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
+                  return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
                 })}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
                 {catalog.results.length > 0 ? <div className="result-actions">
-                  <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasPlanItems && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasPlanItems} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{hasPlanItems ? t(lang, "selectionDoneCount", { n: planItemCount }) : dict.selectionDoneNeed}</small></button>
+                  <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasEnoughPlaces && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasEnoughPlaces} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : t(lang, "selectionDoneCount", { n: planItemCount })}</small></button>
+                  <p className="sr-only" role="status" aria-live="polite">{planItemCount > 0 ? t(lang, "savedTrayCount", { n: planItemCount }) : dict.selectionDoneNeed}</p>
                 </div> : null}
                 {!isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>{t(lang, "unknownNote", { n: catalog.unverifiedCount.toLocaleString("ko-KR") })}</strong></p> : null}
                 <nav className="catalog-pagination" aria-label={dict.confirmedResults}>
@@ -524,7 +545,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
               </section>
             ) : null}
 
-            {hasPlanItems || region.trim() ? (
+            {selectionCompleted || region.trim() ? (
               <section ref={supplementalChoicesRef} tabIndex={-1} className="supplemental-choices" aria-labelledby="supplemental-choices-title">
                 <header className="supplemental-heading">
                   <div className="supplemental-progress-line"><p className="section-kicker">{dict.supplementalTitle}</p><span>{t(lang, "supplementalProgress", { done: supplementalReviewDone, total: supplementalReviewTotal })}</span></div>
@@ -542,7 +563,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                       {ruralVillages.length > 0 || ruralFarmstays.length > 0 ? <RuralSection villages={ruralVillages} farmstays={ruralFarmstays} region={region.trim()} /> : null}
                       {categories.includes("cafe") && petCafes.length > 0 ? <PetCafeSection cafes={petCafes} region={region.trim()} /> : null}
                       {festivals.length > 0 ? <FestivalSection festivals={festivals} selectedActivityIds={selectedActivityIds} onToggleActivity={togglePlanActivity} /> : null}
-                      <button type="button" className={`supplemental-review-button ${selectionCompleted && !regionalReviewComplete ? "next-action-cue" : ""}`} disabled={discoveryLoading} onClick={() => { setRegionalReviewedFor(region.trim()); setDiscoveryOpen(false); }}>{regionalSelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: regionalSelectionCount }) : dict.supplementalConfirmNone}</button>
+                      <button type="button" className={`supplemental-review-button ${selectionCompleted && !regionalReviewComplete ? "next-action-cue" : ""}`} disabled={discoveryLoading} onClick={completeRegionalReview}>{regionalSelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: regionalSelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div>
                   </details>
                 ) : null}
@@ -553,7 +574,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                     {nearbyActivatedFor === nearbyAnchor.id ? <div className="context-disclosure-body extensions">
                       {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} /> : null}
                       <NearbyServices origin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} />
-                      <button type="button" className={`supplemental-review-button ${selectionCompleted && regionalReviewComplete && !nearbyReviewComplete ? "next-action-cue" : ""}`} onClick={() => { setNearbyReviewedFor(nearbyAnchor.id); setNearbyOpenFor(null); }}>{nearbySelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: nearbySelectionCount }) : dict.supplementalConfirmNone}</button>
+                      <button type="button" className={`supplemental-review-button ${selectionCompleted && regionalReviewComplete && !nearbyReviewComplete ? "next-action-cue" : ""}`} onClick={completeNearbyReview}>{nearbySelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: nearbySelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div> : null}
                   </details>
                 ) : (
@@ -567,11 +588,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
               null
             )}
 
-            {planPlaces.length > 0 ? (
+            {selectionCompleted && planPlaces.length > 0 ? (
               <CourseBuilder selectedPlaces={planPlaces} origin={planPlaces[0]!.coordinates} supplementalReviewComplete={courseConfirmed || supplementalReviewComplete} highlightAction={selectionCompleted && supplementalReviewComplete && !courseConfirmed} onApplyOrder={applyCourseOrder} onConfigurationChange={invalidateCourse} onReviewNeeded={guideToSupplementalReview} />
             ) : null}
 
-            {hasPlanItems ? (
+            {courseConfirmed && hasPlanItems ? (
               <div ref={plannerDialogRef} tabIndex={-1} className="trip-board-plan" role={plannerOpen ? "dialog" : undefined} aria-modal={plannerOpen ? true : undefined} aria-label={dict.tripBoardTitle}>
                 {plannerOpen ? <div className="mobile-planner-heading"><strong>{dict.tripBoardTitle}</strong><button type="button" autoFocus aria-label={dict.closeTripBoard} onClick={closePlanner}>×</button></div> : null}
                 <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onClear={clearPlanPlaces} />
@@ -580,7 +601,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           </aside>
         </div>
       </div>
-      {hasPlanItems ? <button ref={tripTrayRef} type="button" className="saved-trip-tray" aria-label={dict.openTripBoard} onClick={() => { plannerReturnFocusRef.current = tripTrayRef.current; setPlannerOpen(true); }}><span><strong>{dict.savedTray}</strong><small>{planPlaces[0]?.name ?? planActivities[0]?.title}{planItemCount > 1 ? ` +${planItemCount - 1}` : ""}</small></span><b>{planItemCount}</b></button> : null}
+      {hasPlanItems ? <button ref={tripTrayRef} type="button" className="saved-trip-tray" disabled={!hasEnoughPlaces && !courseConfirmed} aria-label={courseConfirmed ? dict.openTripBoard : hasEnoughPlaces ? dict.selectionDone : t(lang, "savedTrayCount", { n: planItemCount })} onClick={courseConfirmed ? openPlanner : finishChoosing}><span><strong>{dict.savedTray}</strong><small>{planPlaces[0]?.name ?? planActivities[0]?.title}{planItemCount > 1 ? ` +${planItemCount - 1}` : ""} · {planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : courseConfirmed ? dict.openTripBoard : selectionCompleted ? dict.savedTrayNext : dict.selectionDone}</small></span><b>{planItemCount}</b></button> : null}
     </section>
   );
 }

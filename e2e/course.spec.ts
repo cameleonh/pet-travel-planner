@@ -15,7 +15,7 @@ test("nearby catalog separates status and location denial falls back", async ({ 
   await page.goto("/");
   await page.getByLabel("지역").selectOption("강원");
   await page.getByRole("button", { name: /여행에 담기/ }).first().click();
-  await expect(page.getByRole("button", { name: "내 여행 보드 열기" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "내 여행 · 1개 저장" })).toBeDisabled();
   await page.getByLabel("시·군·구").selectOption("강원 속초시");
   expect(nearbyServiceRequests).toEqual([]);
   await page.getByText("저장한 장소 주변", { exact: true }).click();
@@ -27,6 +27,7 @@ test("nearby catalog separates status and location denial falls back", async ({ 
   await expect(nearby.getByText("해오름 동물병원")).toBeVisible();
   await page.getByRole("button", { name: "해오름 동물병원 여행에 담기" }).click();
   await expect(page.getByRole("button", { name: "해오름 동물병원 여행에서 빼기" })).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".selection-complete-button").click();
   await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" }).getByRole("checkbox")).toHaveCount(2);
   await expect(nearby.getByText("청초호 반려산책구간")).toBeVisible();
   await expect(nearby.getByText("전화 확인 필요")).toBeVisible();
@@ -64,6 +65,8 @@ test("a failed nearby service can be retried without reopening the panel", async
 
   await page.goto("/");
   await page.locator(".plan-add-button").first().click();
+  await page.locator(".plan-add-button").nth(1).click();
+  await page.locator(".selection-complete-button").click();
   await page.locator(".nearby-disclosure > summary").click();
   const veterinaryGroup = page.locator(".nearby-services-grid > div", { has: page.getByRole("heading", { name: "동물병원" }) });
   await veterinaryGroup.getByRole("button", { name: "다시 불러오기" }).click();
@@ -84,6 +87,7 @@ test("course uses only places explicitly saved from browsing", async ({ page }) 
   const addButtons = page.locator(".plan-add-button");
   await addButtons.nth(0).click();
   await addButtons.nth(1).click();
+  await page.locator(".selection-complete-button").click();
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   await expect(courseBuilder.getByRole("checkbox")).toHaveCount(2);
   await expect(courseBuilder.getByRole("checkbox").nth(0)).toBeChecked();
@@ -106,8 +110,10 @@ test("course uses only places explicitly saved from browsing", async ({ page }) 
 test("mobile trip drawer traps focus and restores it after Escape", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /여행에 담기/ }).first().click();
-  const tray = page.getByRole("button", { name: "내 여행 보드 열기" });
-  await tray.click();
+  await page.locator(".plan-add-button").nth(1).click();
+  await page.locator(".selection-complete-button").click();
+  await finishNearbyReview(page);
+  await page.getByRole("button", { name: /2곳 코스 만들기/ }).click();
   const dialog = page.getByRole("dialog", { name: "03 · 내 여행 보드" });
   await expect(dialog).toBeVisible();
   await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
@@ -119,7 +125,7 @@ test("mobile trip drawer traps focus and restores it after Escape", async ({ pag
 
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(tray).toBeFocused();
+  await expect(page.locator(".course-card .course-button")).toBeFocused();
   await expect(page.locator("body")).not.toHaveCSS("overflow", "hidden");
 });
 
@@ -135,6 +141,7 @@ test("mobile PDF alertdialog keeps the trip drawer open and traps focus", async 
   await page.goto("/");
   await page.locator(".plan-add-button").nth(0).click();
   await page.locator(".plan-add-button").nth(1).click();
+  await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
   await page.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
 
@@ -162,6 +169,7 @@ test("desktop course confirmation follows the user to the travel plan", async ({
   const addButtons = page.locator(".plan-add-button");
   await addButtons.nth(0).click();
   await addButtons.nth(1).click();
+  await page.locator(".selection-complete-button").click();
 
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   await courseBuilder.getByRole("button", { name: "위의 추가 선택을 먼저 확인해 주세요" }).click();
@@ -186,10 +194,8 @@ test("route provider failure falls back to a usable straight-line plan", async (
   const addButtons = page.locator(".plan-add-button");
   await addButtons.nth(0).click();
   await addButtons.nth(1).click();
+  await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
-  await page.getByRole("button", { name: "내 여행 보드 열기" }).click();
-  await expect(page.getByRole("button", { name: "아래에서 코스를 먼저 확정해 주세요" })).toBeDisabled();
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
   await expect(page.locator(".plan-notice")).toContainText("직선거리");
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
@@ -217,6 +223,7 @@ test("print layout contains only the selected travel plan", async ({ page }) => 
   const addButtons = page.locator(".plan-add-button");
   await addButtons.nth(0).click();
   await addButtons.nth(1).click();
+  await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
   await page.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);

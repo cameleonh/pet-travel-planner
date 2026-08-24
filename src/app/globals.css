@@ -1113,9 +1113,9 @@ body {
 .plan-add-button.added { background: var(--lime); color: var(--night); }
 .plan-add-button > span { font-size: 17px; line-height: 1; }
 .catalog-pagination button { border-color: var(--line-strong); border-radius: 13px; background: white; }
-.result-actions { display: grid; margin-top: 16px; grid-template-columns: 1fr; gap: 10px; }
+.result-actions { position: sticky; bottom: 18px; z-index: 12; display: grid; margin-top: 16px; grid-template-columns: 1fr; gap: 10px; }
 .result-actions > :only-child { grid-column: 1 / -1; }
-.selection-complete-button { display: grid; min-height: 56px; padding: 8px 14px; place-content: center; border: 0; border-radius: 15px; background: var(--brand); color: white; cursor: pointer; text-align: center; }
+.selection-complete-button { display: grid; min-height: 56px; padding: 8px 14px; place-content: center; border: 0; border-radius: 15px; background: var(--brand); color: white; box-shadow: 0 12px 26px rgb(16 46 39 / 16%); cursor: pointer; text-align: center; }
 .selection-complete-button span { font-size: 13px; font-weight: 900; }
 .selection-complete-button small { margin-top: 1px; color: #f0fdfa; font-size: 9px; }
 .selection-complete-button:hover:not(:disabled) { background: var(--brand-strong); }
@@ -1272,6 +1272,7 @@ footer { max-width: 1240px; }
   .result-heading h2 { font-size: clamp(24px, 7vw, 30px); }
   .result-count { display: none; }
   .place-list { grid-template-columns: 1fr; gap: 14px; }
+  .result-actions { position: static; }
   .place-thumbnail { height: 190px; }
   .place-card h3 { font-size: 19px; }
   .context-rail { position: static; }
@@ -1320,6 +1321,9 @@ footer { max-width: 1240px; }
   .saved-trip-tray strong { color: var(--lime); font-size: 12px; }
   .saved-trip-tray small { overflow: hidden; color: #d6e3df; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
   .saved-trip-tray > b { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 12px; background: var(--lime); color: var(--night); font-size: 15px; }
+  .saved-trip-tray:disabled { border-color: rgb(255 255 255 / 10%); background: #243530; color: #a7b7b0; cursor: not-allowed; opacity: .92; }
+  .saved-trip-tray:disabled strong { color: #b7cbc4; }
+  .saved-trip-tray:disabled > b { background: #61756d; color: white; }
 }
 
 @media (max-width: 389px) {

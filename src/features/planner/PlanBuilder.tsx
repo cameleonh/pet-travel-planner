@@ -217,7 +217,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
 
   const closePrintDialog = useCallback(() => {
     setPrintDialogOpen(false);
-    globalThis.setTimeout(() => printButtonRef.current?.focus(), 0);
+    globalThis.setTimeout(() => printButtonRef.current?.focus({ preventScroll: true }), 0);
   }, []);
 
   const openPrintDialog = () => setPrintDialogOpen(true);
