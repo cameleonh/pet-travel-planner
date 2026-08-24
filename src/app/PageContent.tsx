@@ -11,7 +11,7 @@ import { LangToggle } from "@/i18n/LangToggle";
 const HERO_VIDEO_URL = "/hero-dog-walk.mp4";
 
 export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regionOptions }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[] }) {
-  const { dict } = useLang();
+  const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
 
@@ -65,6 +65,11 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
               <li><span>02</span><div><strong>{dict.journeyChoose}</strong><small>{dict.journeyChooseNote}</small></div></li>
               <li><span>03</span><div><strong>{dict.journeyPlan}</strong><small>{dict.journeyPlanNote}</small></div></li>
             </ol>
+          </div>
+          <div className="hero-cta-wrap">
+            <a href="#search" className="hero-scroll-btn">
+              🐾 {lang === "ko" ? "동반 가능 장소 바로보기" : "Explore Places"} ↓
+            </a>
           </div>
         </div>
         <div className="hero-video-actions">
