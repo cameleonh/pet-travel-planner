@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWeightChange, onDangerousDogChange }: Props) {
-  const { dict } = useLang();
+  const { dict, lang } = useLang();
   const sizes: { key: ConditionKey | null; icon: string; label: string; note: string }[] = [
     { key: null, icon: "🐾", label: dict.allSizes, note: dict.allSizesNote },
     { key: "smallDog", icon: "🐶", label: dict.smallDog, note: dict.smallDogNote },
@@ -24,7 +24,22 @@ export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWe
     <fieldset className="filter-fieldset">
       <legend>{dict.petProfile}</legend>
       <div className="pet-profile-inputs">
-        <label className="weight-input"><span>{dict.weight}</span><span><input type="number" inputMode="decimal" min="0.1" max="150" step="0.1" value={weight} placeholder={dict.weightPlaceholder} onChange={(event) => onWeightChange(event.target.value)} /> kg</span></label>
+        <label className="weight-input disabled" title={lang === "ko" ? "아래 강아지 크기(소형/중형/대형견) 버튼으로 자동 선택됩니다" : "Automatically selected via pet size buttons"}>
+          <span>{dict.weight}</span>
+          <span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0.1"
+              max="150"
+              step="0.1"
+              value={weight}
+              placeholder={dict.weightPlaceholder}
+              disabled
+              onChange={(event) => onWeightChange(event.target.value)}
+            /> kg
+          </span>
+        </label>
         <label className="dangerous-dog-input"><input type="checkbox" checked={dangerousDog} onChange={(event) => onDangerousDogChange(event.target.checked)} /><span>{dict.dangerousDog}</span></label>
       </div>
       <div className="size-grid">

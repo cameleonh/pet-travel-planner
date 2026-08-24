@@ -321,7 +321,9 @@ h1 {
 .field-help { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
 .pet-profile-inputs { display: grid; margin-bottom: 12px; gap: 8px; }
 .weight-input, .dangerous-dog-input { display: flex; min-height: 42px; padding: 8px 10px; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; font-weight: 700; }
+.weight-input.disabled { background: var(--surface-subtle); color: var(--muted); cursor: not-allowed; opacity: 0.85; }
 .weight-input input { width: 82px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 7px; font: inherit; }
+.weight-input input:disabled { background: #e2e8f0; color: var(--muted); cursor: not-allowed; border-color: var(--line); }
 .dangerous-dog-input { justify-content: flex-start; cursor: pointer; }
 .dangerous-dog-input input { width: 17px; height: 17px; accent-color: var(--brand); }
 .region-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
