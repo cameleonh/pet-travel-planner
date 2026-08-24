@@ -1446,3 +1446,507 @@ footer { max-width: 1240px; }
   .route-links a { color: #1d4ed8 !important; font-size: 9.5pt; }
   .plan-print-footer { display: block; margin: 10mm 0 0; padding-top: 4mm; border-top: 1px solid #dbe4f0; color: #64748b; font-size: 9pt; line-height: 1.5; text-align: center; }
 }
+
+/* ==========================================================================
+   FEATURE 2: THEME CURATIONS & PERSONA PRESETS
+   ========================================================================== */
+.theme-curations-container {
+  margin: 1.25rem 0 1.5rem 0;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f4f8f6 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 12px rgba(20, 38, 33, 0.04);
+}
+
+.theme-curations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.theme-curations-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.theme-header-icon {
+  font-size: 1.5rem;
+  background: var(--brand-soft);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.theme-header-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.theme-header-subtitle {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.theme-reset-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(189, 70, 47, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: auto;
+  transition: all 0.2s ease;
+}
+
+.theme-reset-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.theme-cards-scroll {
+  display: flex;
+  gap: 0.85rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.theme-preset-card {
+  flex: 0 0 240px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 155px;
+}
+
+.theme-preset-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--brand);
+  box-shadow: 0 6px 16px rgba(24, 88, 77, 0.12);
+}
+
+.theme-preset-card.active {
+  border-color: var(--brand);
+  background: #f0f7f5;
+  box-shadow: 0 0 0 2px var(--brand);
+}
+
+.theme-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.theme-card-emoji {
+  font-size: 1.6rem;
+}
+
+.theme-card-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--brand);
+  background: var(--brand-soft);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.theme-card-body {
+  flex: 1;
+}
+
+.theme-card-title {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin-bottom: 0.3rem;
+  line-height: 1.35;
+}
+
+.theme-card-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.theme-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.theme-tag-pill {
+  font-size: 0.68rem;
+  color: var(--brand-strong);
+  background: rgba(24, 88, 77, 0.07);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   FEATURE 3: VIEW MODE TOGGLE & INTERACTIVE MAP VIEW
+   ========================================================================== */
+.view-mode-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem 0;
+}
+
+.view-mode-segmented {
+  display: inline-flex;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  padding: 3px;
+  border-radius: 12px;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  min-height: auto;
+  transition: all 0.18s ease;
+}
+
+.view-mode-btn.active {
+  color: var(--brand-strong);
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.interactive-map-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(20, 38, 33, 0.06);
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.map-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #fafcfb;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-stats-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.map-live-dot {
+  width: 9px;
+  height: 9px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.map-plan-badge {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.78rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.map-zoom-controls {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.map-zoom-btn {
+  width: 32px;
+  height: 32px;
+  min-height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.map-zoom-btn:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand-strong);
+}
+
+.map-viewport {
+  width: 100%;
+  height: 480px;
+  position: relative;
+  overflow: hidden;
+  background: #eef5f2;
+  cursor: grab;
+  user-select: none;
+}
+
+.map-viewport.dragging {
+  cursor: grabbing;
+}
+
+.map-transform-layer {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 50% 50%;
+  transition: transform 0.08s ease-out;
+}
+
+.map-svg-canvas {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.map-route-polyline {
+  filter: drop-shadow(0 2px 4px rgba(189, 70, 47, 0.4));
+  animation: dash-flow 30s linear infinite;
+}
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: -100; }
+}
+
+.map-pin-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  min-height: auto;
+  z-index: 10;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.map-pin-marker:hover,
+.map-pin-marker.selected {
+  transform: translate(-50%, -115%) scale(1.15);
+  z-index: 25;
+}
+
+.pin-icon-box {
+  width: 34px;
+  height: 34px;
+  background: var(--surface);
+  border: 2px solid var(--brand);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  font-size: 1rem;
+}
+
+.map-pin-marker.selected .pin-icon-box {
+  background: var(--brand);
+  color: white;
+  border-color: white;
+  box-shadow: 0 6px 14px rgba(24, 88, 77, 0.4);
+}
+
+.map-pin-marker.in-plan .pin-icon-box {
+  background: var(--accent);
+  color: white;
+  border-color: white;
+  box-shadow: 0 6px 14px rgba(189, 70, 47, 0.4);
+}
+
+.pin-order-num {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: white;
+}
+
+.pin-label-text {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-top: 3px;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.map-place-sheet {
+  padding: 1.25rem;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.sheet-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.sheet-cat-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand);
+  background: var(--brand-soft);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.sheet-plan-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.sheet-place-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.sheet-place-address {
+  margin: 0.2rem 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.sheet-place-policy {
+  margin-bottom: 1rem;
+}
+
+.sheet-policy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: #f7faf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.83rem;
+  color: var(--ink);
+}
+
+.sheet-action-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.sheet-plan-toggle-btn {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.sheet-plan-toggle-btn.add {
+  background: var(--brand);
+  color: white;
+  border: none;
+}
+
+.sheet-plan-toggle-btn.add:hover {
+  background: var(--brand-strong);
+}
+
+.sheet-plan-toggle-btn.remove {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.sheet-view-card-btn {
+  padding: 0.65rem 1rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.sheet-view-card-btn:hover {
+  background: var(--line);
+}

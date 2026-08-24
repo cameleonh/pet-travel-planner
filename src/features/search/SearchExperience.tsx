@@ -25,6 +25,9 @@ import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
+import { ThemeCurations } from "@/features/search/ThemeCurations";
+import type { ThemePreset, ThemePresetId } from "@/domain/themes";
+import { InteractiveMapView } from "@/features/map/InteractiveMapView";
 
 const condLabelKeys: Record<ConditionKey, "smallDog" | "mediumDog" | "largeDog"> = { smallDog: "smallDog", mediumDog: "mediumDog", largeDog: "largeDog" };
 const prepFilterKeys: Record<PreparationFilterKey, "leash" | "carrier" | "indoor" | "outdoor"> = { leash: "leash", carrier: "carrier", indoor: "indoor", outdoor: "outdoor" };
@@ -109,6 +112,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [regionalReviewedFor, setRegionalReviewedFor] = useState<string | null>(null);
   const [nearbyReviewedFor, setNearbyReviewedFor] = useState<string | null>(null);
   const [selectionCompleted, setSelectionCompleted] = useState(false);
+  const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const plannerDialogRef = useRef<HTMLDivElement>(null);
   const tripTrayRef = useRef<HTMLButtonElement>(null);
   const selectionCompleteRef = useRef<HTMLButtonElement>(null);
@@ -329,6 +334,25 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setPage(1);
     setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
   };
+  const handleApplyTheme = useCallback((theme: ThemePreset) => {
+    setActiveThemeId(theme.id);
+    setPage(1);
+    if (theme.petSize) {
+      setPetSize(theme.petSize);
+      setHard((current) => {
+        const withoutSize = current.filter((item) => !conditionKeys.includes(item));
+        return theme.petSize ? [...withoutSize, theme.petSize] : withoutSize;
+      });
+    }
+    setCategories(theme.categories);
+    setPrepFilters(theme.prepFilters);
+  }, []);
+  const handleClearTheme = useCallback(() => {
+    setActiveThemeId(null);
+    setPage(1);
+    setCategories([]);
+    setPrepFilters([]);
+  }, []);
   const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
 
   const finishChoosing = useCallback(() => {
@@ -488,6 +512,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           <div><p className="section-kicker section-step">{dict.stepSearch}</p><h2>{dict.searchHeading}</h2></div>
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
+        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} />
         <aside className="filter-panel">
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
@@ -500,6 +525,30 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             <div className="result-heading">
               <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{!catalogIsCurrent ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
               {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>{dict.places}</span></p> : null}
+            </div>
+            <div className="view-mode-toggle-bar">
+              <div className="view-mode-segmented" role="tablist" aria-label="결과 보기 방식">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === "list"}
+                  className={`view-mode-btn ${viewMode === "list" ? "active" : ""}`}
+                  onClick={() => setViewMode("list")}
+                >
+                  <span>📋</span>
+                  <span>{lang === "ko" ? "목록으로 보기" : "List View"}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === "map"}
+                  className={`view-mode-btn ${viewMode === "map" ? "active" : ""}`}
+                  onClick={() => setViewMode("map")}
+                >
+                  <span>🗺️</span>
+                  <span>{lang === "ko" ? "지도에서 탐색" : "Interactive Map"}</span>
+                </button>
+              </div>
             </div>
             <details className="coverage-disclosure">
               <summary>{dict.dataDetails}</summary>
@@ -515,11 +564,35 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
             {catalogIsCurrent ? (
               <>
-                {catalog.results.length > 0 ? <div className="place-list">{visibleResults.map((result) => {
-                  const isSaved = planPlaces.some((place) => place.id === result.place.id);
-                  const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
-                  return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
-                })}</div> : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
+                {catalog.results.length > 0 ? (
+                  viewMode === "map" ? (
+                    <InteractiveMapView
+                      results={visibleResults}
+                      planPlaces={planPlaces}
+                      onTogglePlanPlace={(place) => {
+                        const match = visibleResults.find((r) => r.place.id === place.id);
+                        if (match) togglePlanPlace(match);
+                      }}
+                      onFocusPlaceCard={(placeId) => {
+                        setViewMode("list");
+                        globalThis.setTimeout(() => {
+                          const target = document.querySelector(`[data-place-id="${placeId}"]`);
+                          if (target) {
+                            target.scrollIntoView({ behavior: "smooth", block: "center" });
+                            target.classList.add("highlight-pulse");
+                            globalThis.setTimeout(() => target.classList.remove("highlight-pulse"), 2000);
+                          }
+                        }, 80);
+                      }}
+                    />
+                  ) : (
+                    <div className="place-list">{visibleResults.map((result) => {
+                      const isSaved = planPlaces.some((place) => place.id === result.place.id);
+                      const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
+                      return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
+                    })}</div>
+                  )
+                ) : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
                 {catalog.results.length > 0 ? <div className="result-actions">
                   <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasEnoughPlaces && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasEnoughPlaces} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : t(lang, "selectionDoneCount", { n: planItemCount })}</small></button>
                   <p className="sr-only" role="status" aria-live="polite">{planItemCount > 0 ? t(lang, "savedTrayCount", { n: planItemCount }) : dict.selectionDoneNeed}</p>
