@@ -28,6 +28,9 @@ import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
 import type { ThemePreset, ThemePresetId } from "@/domain/themes";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
+import { PetProfileModal } from "@/features/owner/PetProfileModal";
+import { getSavedPetProfile, type PetProfile } from "@/domain/pet-profile";
+import { WeatherSafeWidget } from "@/features/weather/WeatherSafeWidget";
 
 const condLabelKeys: Record<ConditionKey, "smallDog" | "mediumDog" | "largeDog"> = { smallDog: "smallDog", mediumDog: "mediumDog", largeDog: "largeDog" };
 const prepFilterKeys: Record<PreparationFilterKey, "leash" | "carrier" | "indoor" | "outdoor"> = { leash: "leash", carrier: "carrier", indoor: "indoor", outdoor: "outdoor" };
@@ -114,6 +117,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [selectionCompleted, setSelectionCompleted] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const plannerDialogRef = useRef<HTMLDivElement>(null);
   const tripTrayRef = useRef<HTMLButtonElement>(null);
   const selectionCompleteRef = useRef<HTMLButtonElement>(null);
@@ -310,15 +315,15 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setPage(1);
     setPrepFilters((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   };
-  const selectSize = (key: ConditionKey | null) => {
+  const selectSize = useCallback((key: ConditionKey | null) => {
     setPage(1);
     setPetSize(key);
     setHard((current) => {
       const withoutSize = current.filter((item) => !conditionKeys.includes(item));
       return key ? [...withoutSize, key] : withoutSize;
     });
-  };
-  const changeWeight = (value: string) => {
+  }, []);
+  const changeWeight = useCallback((value: string) => {
     setPage(1);
     setPetWeight(value);
     const weight = Number(value);
@@ -329,7 +334,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       return [...new Set(next)];
     });
     setPetSize(newSize);
-  };
+  }, [petSize]);
   const toggleCategory = (category: RawPlace["category"]) => {
     setPage(1);
     setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
@@ -353,6 +358,33 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setCategories([]);
     setPrepFilters([]);
   }, []);
+
+  useEffect(() => {
+    const saved = getSavedPetProfile();
+    if (!saved) return;
+    queueMicrotask(() => {
+      setPetProfile(saved);
+      if (saved.weight) {
+        changeWeight(saved.weight);
+      } else if (saved.size) {
+        selectSize(saved.size);
+      }
+      if (saved.dangerousDog) {
+        setDangerousDog(true);
+      }
+    });
+  }, [changeWeight, selectSize]);
+
+  const handleSavePetProfile = useCallback((profile: PetProfile) => {
+    setPetProfile(profile);
+    if (profile.weight) {
+      changeWeight(profile.weight);
+    } else if (profile.size) {
+      selectSize(profile.size);
+    }
+    setDangerousDog(profile.dangerousDog);
+  }, [changeWeight, selectSize]);
+
   const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
 
   const finishChoosing = useCallback(() => {
@@ -508,12 +540,40 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   return (
     <section className="search-workspace" id="search" aria-label={dict.findPlace}>
       <div className="control-panel">
+        {petProfile ? (
+          <div className="pet-profile-bar" role="region" aria-label="내 반려견 맞춤 설정">
+            <div className="pet-profile-info">
+              <span className="pet-profile-avatar">{petProfile.avatar || "🐶"}</span>
+              <div>
+                <h3 className="pet-profile-name">{petProfile.name}{petProfile.breed ? ` (${petProfile.breed})` : ""} 맞춤 추천 중 ✨</h3>
+                <p className="pet-profile-meta">{petProfile.weight ? `${petProfile.weight}kg · ` : ""}{petProfile.size === "smallDog" ? "소형견" : petProfile.size === "mediumDog" ? "중형견" : petProfile.size === "largeDog" ? "대형견" : "모든 견종"} 입장 가능 장소 자동 탐색</p>
+              </div>
+            </div>
+            <button type="button" className="pet-profile-edit-btn" onClick={() => setProfileModalOpen(true)}>
+              ⚙️ 프로필 수정
+            </button>
+          </div>
+        ) : (
+          <div className="pet-profile-bar" role="region" aria-label="내 반려견 등록">
+            <div className="pet-profile-info">
+              <span className="pet-profile-avatar">🐾</span>
+              <div>
+                <h3 className="pet-profile-name">{lang === "ko" ? "내 반려견을 등록해보세요!" : "Register your pet!"}</h3>
+                <p className="pet-profile-meta">{lang === "ko" ? "이름과 체중을 저장하면 매번 필터링할 필요 없이 딱 맞는 장소만 추천해 드려요." : "Save name and weight for automatic tailored place filtering."}</p>
+              </div>
+            </div>
+            <button type="button" className="pet-profile-edit-btn" onClick={() => setProfileModalOpen(true)}>
+              ＋ {lang === "ko" ? "댕댕이 등록" : "Register"}
+            </button>
+          </div>
+        )}
         <header className="control-heading">
           <div><p className="section-kicker section-step">{dict.stepSearch}</p><h2>{dict.searchHeading}</h2></div>
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
         <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} />
         <aside className="filter-panel">
+          <WeatherSafeWidget region={region} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
@@ -675,6 +735,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         </div>
       </div>
       {hasPlanItems ? <button ref={tripTrayRef} type="button" className="saved-trip-tray" disabled={!hasEnoughPlaces && !courseConfirmed} aria-label={courseConfirmed ? dict.openTripBoard : hasEnoughPlaces ? dict.selectionDone : t(lang, "savedTrayCount", { n: planItemCount })} onClick={courseConfirmed ? openPlanner : finishChoosing}><span><strong>{dict.savedTray}</strong><small>{planPlaces[0]?.name ?? planActivities[0]?.title}{planItemCount > 1 ? ` +${planItemCount - 1}` : ""} · {planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : courseConfirmed ? dict.openTripBoard : selectionCompleted ? dict.savedTrayNext : dict.selectionDone}</small></span><b>{planItemCount}</b></button> : null}
+      <PetProfileModal
+        initialProfile={petProfile}
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        onSave={handleSavePetProfile}
+      />
     </section>
   );
 }

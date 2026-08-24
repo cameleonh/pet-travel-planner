@@ -9,6 +9,8 @@ import { t } from "@/i18n/dictionary";
 import { generateTravelPlan } from "@/domain/planning/orchestrator";
 import { createDirectionsApiProvider } from "@/domain/planning/providers/directions-api";
 import { planningRequestFromLegacy } from "@/features/search/planning-request-adapter";
+import { SmartChecklist } from "@/features/planner/SmartChecklist";
+import { ShareTripModal } from "@/features/planner/ShareTripModal";
 
 type RouteApiResponse = {
   success: boolean;
@@ -62,6 +64,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
   const [stayMinutes, setStayMinutes] = useState(90);
   const [departureRecommendation, setDepartureRecommendation] = useState<DepartureRecommendation | null>(null);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const handledGenerateRequest = useRef(0);
   const printDialogRef = useRef<HTMLDivElement>(null);
   const printButtonRef = useRef<HTMLButtonElement>(null);
@@ -462,9 +465,20 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
               </div>
             </article>;
           })}
+          <SmartChecklist places={selectedPlaces} />
           <div className="plan-actions">
+            <button type="button" onClick={() => setShareDialogOpen(true)} className="btn-save" style={{ marginRight: "0.5rem" }}>
+              📲 {lang === "ko" ? "카카오톡/코스 공유" : "Share Itinerary"}
+            </button>
             <button ref={printButtonRef} type="button" onClick={openPrintDialog} className="print-button">{dict.planPrint}</button>
           </div>
+          <ShareTripModal
+            isOpen={shareDialogOpen}
+            onClose={() => setShareDialogOpen(false)}
+            places={selectedPlaces}
+            routes={routes}
+            tripDate={tripDate}
+          />
         </div>
       ) : null}
       {printDialogOpen ? (

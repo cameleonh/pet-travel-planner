@@ -66,6 +66,8 @@ function PlaceThumbnail({ name, address, placeId }: { name: string; address: str
   );
 }
 
+import { NaviActionButtons } from "@/features/results/NaviActionButtons";
+
 export function ResultCard({ result, dangerousDog = false, closureStatus, accessibility, camping, congestion, translation, lang = "ko" }: { result: MatchEvaluation; dangerousDog?: boolean; closureStatus?: PublicClosureStatus; accessibility?: AccessibilityData; camping?: CampingData; congestion?: CongestionData; translation?: TranslationData; lang?: string }) {
   const { dict } = useLang();
   const isCatalogResult = !result.exact && result.proof.length === 0;
@@ -87,6 +89,9 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
         <CampingSection data={camping} />
         <CongestionSection data={congestion} />
         <TranslationSection data={translation} lang={lang} />
+        {result.place.coordinates && (
+          <NaviActionButtons name={displayName} coordinates={result.place.coordinates} />
+        )}
       </div>
     </article>
   );
