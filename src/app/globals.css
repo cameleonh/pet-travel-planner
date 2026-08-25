@@ -1599,7 +1599,7 @@ footer { max-width: 1240px; }
 .theme-card-badge {
   font-size: 0.7rem;
   font-weight: 700;
-  color: var(--brand);
+  color: var(--brand-strong);
   background: var(--brand-soft);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
@@ -2257,7 +2257,7 @@ footer { max-width: 1240px; }
 }
 
 .navi-btn.tmap {
-  background: #ff0055;
+  background: #c0003e;
   color: white;
 }
 
@@ -2267,7 +2267,7 @@ footer { max-width: 1240px; }
 }
 
 .navi-btn.naver {
-  background: #03c75a;
+  background: #027a37;
   color: white;
 }
 
@@ -2338,17 +2338,17 @@ footer { max-width: 1240px; }
 }
 
 .weather-safety-badge.safe {
-  background: #16a34a;
+  background: #14532d;
   color: white;
 }
 
 .weather-safety-badge.caution {
-  background: #d97706;
+  background: #78350f;
   color: white;
 }
 
 .weather-safety-badge.indoor {
-  background: #0284c7;
+  background: #075985;
   color: white;
 }
 

@@ -12,7 +12,7 @@ function request(): PlanningRequestV1 {
   return {
     schemaVersion: 1, planId: "session", revision: 0, locale: "ko", timeZone: "Asia/Seoul", region: "대전", qualificationContext: {
       queryFingerprint: "q", dataSnapshotId: "d", matchRuleVersion: "v1", petProfileRevision: 1, hardConstraintKeys: [], preferenceKeys: [], categoryKeys: [], preparationFilterKeys: [], petProfile: { size: null, weightKg: null, dangerousDog: false },
-    }, selectedItems: [item("a", 36), item("b", 36.1)], includedItemIds: ["a", "b"], orderedItemIds: ["a", "b"], nearbyAnchorId: "a", startItemId: "a", endPolicy: "last-item",
+    }, selectedItems: [item("a", 36), item("b", 36.1), item("c", 36.2)], includedItemIds: ["a", "b", "c"], orderedItemIds: ["a", "b", "c"], nearbyAnchorId: "a", startItemId: "a", endPolicy: "last-item",
     settings: { tripDate: "2026-08-20", startTime: "09:00", dayEndTime: null, transportMode: "car", pace: "balanced", orderMode: "saved", defaultDwellMinutes: 90, defaultDwellSource: "preset", budgetKrw: null, includeTollsInBudget: true },
   };
 }
@@ -33,9 +33,9 @@ describe("planning session reducer", () => {
   it("reconciles removing the start item atomically", () => {
     const session = createPlanningSession(request());
     const next = applyPlannerCommand(session, { type: "REMOVE_ITEM", itemId: "a" });
-    expect(next.request.selectedItems.map((item) => item.id)).toEqual(["b"]);
-    expect(next.request.includedItemIds).toEqual(["b"]);
-    expect(next.request.orderedItemIds).toEqual(["b"]);
+    expect(next.request.selectedItems.map((item) => item.id)).toEqual(["b", "c"]);
+    expect(next.request.includedItemIds).toEqual(["b", "c"]);
+    expect(next.request.orderedItemIds).toEqual(["b", "c"]);
     expect(next.request.startItemId).toBe("b");
     expect(next.request.nearbyAnchorId).toBeNull();
   });
@@ -57,5 +57,56 @@ describe("planning session reducer", () => {
     session = applyPlannerCommand(session, { type: "SET_PACE", pace: "packed" });
     expect(session.request.settings.defaultDwellMinutes).toBe(150);
     expect(session.request.settings.defaultDwellSource).toBe("user");
+  });
+
+  it("handles planner commands: toggle inclusion, reorder, start item, budget, and time settings", () => {
+    let session = createPlanningSession(request());
+    session = applyPlannerCommand(session, { type: "SET_ITEM_INCLUDED", itemId: "b", included: false });
+    expect(session.request.includedItemIds).toEqual(["a", "c"]);
+
+    session = applyPlannerCommand(session, { type: "SET_ITEM_INCLUDED", itemId: "b", included: true });
+    expect(session.request.includedItemIds).toEqual(["a", "c", "b"]);
+
+    session = applyPlannerCommand(session, { type: "REORDER_ITEMS", orderedItemIds: ["c", "b", "a"] });
+    expect(session.request.orderedItemIds).toEqual(["c", "b", "a"]);
+
+    session = applyPlannerCommand(session, { type: "SET_START_ITEM", itemId: "b" });
+    expect(session.request.startItemId).toBe("b");
+
+    session = applyPlannerCommand(session, { type: "SET_ORDER_MODE", mode: "nearby" });
+    expect(session.request.settings.orderMode).toBe("nearby");
+
+    session = applyPlannerCommand(session, { type: "SET_END_POLICY", policy: "return-to-start" });
+    expect(session.request.endPolicy).toBe("return-to-start");
+
+    session = applyPlannerCommand(session, { type: "SET_TRIP_DATE", date: "2026-08-25" });
+    expect(session.request.settings.tripDate).toBe("2026-08-25");
+
+    session = applyPlannerCommand(session, { type: "SET_START_TIME", time: "10:00" });
+    expect(session.request.settings.startTime).toBe("10:00");
+
+    session = applyPlannerCommand(session, { type: "SET_DAY_END_TIME", time: "18:00" });
+    expect(session.request.settings.dayEndTime).toBe("18:00");
+
+    session = applyPlannerCommand(session, { type: "SET_BUDGET", amountKrw: 50000 });
+    expect(session.request.settings.budgetKrw).toBe(50000);
+
+    session = applyPlannerCommand(session, { type: "SET_INCLUDE_TOLLS", included: false });
+    expect(session.request.settings.includeTollsInBudget).toBe(false);
+
+    session = applyPlannerCommand(session, { type: "SET_ITEM_DWELL", itemId: "a", minutes: 60 });
+    expect(session.request.selectedItems.find((i) => i.id === "a")?.userDwellMinutes).toBe(60);
+
+    session = applyPlannerCommand(session, { type: "SET_ITEM_COST", itemId: "a", amountKrw: 12000 });
+    expect(session.request.selectedItems.find((i) => i.id === "a")?.userCostKrw).toBe(12000);
+
+    session = applyPlannerCommand(session, { type: "RESET_DEFAULT_DWELL_TO_PACE" });
+    expect(session.request.settings.defaultDwellSource).toBe("preset");
+
+    session = applyPlanningEvent(session, { type: "SET_NEARBY_ANCHOR", itemId: "b" });
+    expect(session.request.nearbyAnchorId).toBe("b");
+
+    session = applyPlannerCommand(session, { type: "REMOVE_ITEM", itemId: "a" });
+    expect(session.request.selectedItems.find((i) => i.id === "a")).toBeUndefined();
   });
 });

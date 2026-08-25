@@ -45,7 +45,7 @@ test("critical controls are keyboard reachable and expose state", async ({ page 
   await expect(medium).toBeFocused();
   await medium.check();
   await expect(medium).toBeChecked();
-  const indoor = page.getByRole("button", { name: /실내 동반/ });
+  const indoor = page.getByRole("button", { name: "실내 동반", exact: true });
   await indoor.focus();
   await page.keyboard.press("Enter");
   await expect(indoor).toHaveAttribute("aria-pressed", "true");
@@ -135,7 +135,7 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
 
   await page.goto("/");
   await page.getByLabel("지역").selectOption("강원");
-  await page.getByRole("button", { name: /카페/ }).click();
+  await page.locator(".category-grid").getByRole("button", { name: /카페/ }).click();
 
   await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
   await expect(page.locator(".interactive-results")).toHaveAttribute("aria-busy", "false");

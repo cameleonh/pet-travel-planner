@@ -47,31 +47,10 @@ type CatalogApiResponse = {
 
 type CatalogApiData = NonNullable<CatalogApiResponse["data"]>;
 
-const MAX_CLIENT_CATALOG_CACHE_ENTRIES = 32;
-const catalogResponseCache = new Map<string, CatalogApiData>();
-
-function getCachedCatalog(url: string): CatalogApiData | undefined {
-  const cached = catalogResponseCache.get(url);
-  if (!cached) return undefined;
-  catalogResponseCache.delete(url);
-  catalogResponseCache.set(url, cached);
-  return cached;
-}
-
-function cacheCatalog(url: string, data: CatalogApiData): void {
-  catalogResponseCache.set(url, data);
-  if (catalogResponseCache.size <= MAX_CLIENT_CATALOG_CACHE_ENTRIES) return;
-  const oldest = catalogResponseCache.keys().next().value as string | undefined;
-  if (oldest) catalogResponseCache.delete(oldest);
-}
-
 async function fetchCatalog(url: string, signal?: AbortSignal): Promise<CatalogApiData> {
-  const cached = getCachedCatalog(url);
-  if (cached) return cached;
   const response = await fetch(url, { signal });
   const body = await response.json() as CatalogApiResponse;
   if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "Error");
-  cacheCatalog(url, body.data);
   return body.data;
 }
 
@@ -89,6 +68,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [prepFilters, setPrepFilters] = useState<PreparationFilterKey[]>([]);
   const [page, setPage] = useState(1);
   const [catalog, setCatalog] = useState(initialCatalog);
+  const [catalogRequestKey, setCatalogRequestKey] = useState("||1||||ko");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
@@ -140,6 +120,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
   const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}`;
+  const catalogIsCurrent = catalogRequestKey === requestKey;
   const nearbyAnchor = planPlaces[0];
   const selectedPlaceIds = useMemo(() => new Set(planPlaces.map((place) => place.id)), [planPlaces]);
   const auxiliaryPlaceIds = useMemo(() => new Set(auxiliaryPlaces.map((place) => place.id)), [auxiliaryPlaces]);
@@ -159,7 +140,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const supplementalReviewTotal = Number(regionalReviewRequired) + Number(nearbyReviewRequired);
   const supplementalReviewDone = Number(regionalReviewComplete && regionalReviewRequired) + Number(nearbyReviewComplete && nearbyReviewRequired);
   const hasEnoughPlaces = planPlaces.length >= 2;
-  const visibleResults = catalog.results;
+  const visibleResults = catalogIsCurrent ? catalog.results : [];
   const openPlanner = useCallback(() => {
     plannerReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : tripTrayRef.current;
     setPlannerOpen(true);
@@ -179,16 +160,16 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     if (prepFilters.length > 0) parameters.set("prep", prepFilters.join(","));
     if (lang !== "ko") parameters.set("lang", lang);
     const catalogUrl = `/api/places?${parameters}`;
-    const cachedCatalog = getCachedCatalog(catalogUrl);
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
-      setLoading(!cachedCatalog);
+      setLoading(true);
       setErrorMessage(null);
     });
-    (cachedCatalog ? Promise.resolve(cachedCatalog) : fetchCatalog(catalogUrl, controller.signal))
+    fetchCatalog(catalogUrl, controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
         setCatalog(data.catalog);
+        setCatalogRequestKey(requestKey);
         setAccessibilityByPlaceId(data.accessibility ?? {});
         setCampingByPlaceId(data.camping ?? {});
         setCongestionByPlaceId(data.congestion ?? {});
@@ -261,6 +242,27 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     const dialog = plannerDialogRef.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    const focusFirst = () => {
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex='-1'])"));
+      if (focusable[0]) {
+        focusable[0].focus();
+      } else {
+        dialog.focus();
+      }
+    };
+
+    focusFirst();
+
+    const handleFocusIn = (event: FocusEvent) => {
+      if (document.querySelector(".plan-print-dialog-backdrop")) return;
+      if (dialog && !dialog.contains(event.target as Node)) {
+        event.preventDefault();
+        focusFirst();
+      }
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       // The planner can host the PDF alertdialog. While it is open, only the
       // inner dialog may consume Escape/Tab; otherwise both document-level
@@ -272,22 +274,24 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         return;
       }
       if (event.key !== "Tab" || !dialog) return;
-      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], summary, [tabindex]:not([tabindex='-1'])"));
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex='-1'])"));
       const first = focusable[0];
       const last = focusable.at(-1);
       if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
         event.preventDefault();
         first.focus();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("focusin", handleFocusIn);
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", handleFocusIn);
     };
   }, [plannerOpen, closePlanner]);
 
@@ -580,8 +584,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         <div className={`results-layout ${plannerOpen ? "planner-open" : ""}`}>
           <div className="results-primary">
             <div className="result-heading">
-              <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{loading ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
-              <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>{dict.places}</span></p>
+              <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{!catalogIsCurrent ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
+              {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>{dict.places}</span></p> : null}
             </div>
             <div className="view-mode-toggle-bar">
               <div className="view-mode-segmented" role="tablist" aria-label="결과 보기 방식">
@@ -611,49 +615,53 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
               <summary>{dict.dataDetails}</summary>
               <p className="catalog-coverage">{dict.coverageDetail} {catalog.searchableCount.toLocaleString("ko-KR")}{dict.places} · {dict.coverageSource} {catalog.sourceTotalCount.toLocaleString("ko-KR")}{dict.places} · {dict.coverageRate} {catalog.sourceTotalCount > 0 ? ((catalog.detailCoverage / catalog.sourceTotalCount) * 100).toFixed(1) : "0.0"}% · {dict.coverageNotFetched} {catalog.pendingDetailCount.toLocaleString("ko-KR")}{dict.places} · {dict.coverageFailed} {catalog.failedDetailCount.toLocaleString("ko-KR")}{dict.places}</p>
             </details>
-            {!isBrowsing ? <dl className="decision-summary" aria-label={dict.confirmedMatch}>
+            {!isBrowsing && catalogIsCurrent ? <dl className="decision-summary" aria-label={dict.confirmedMatch}>
               <div><dt>{dict.confirmedMatch}</dt><dd>{catalog.confirmedMatchCount.toLocaleString("ko-KR")}</dd></div>
               <div><dt>{dict.confirmedNonMatch}</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
               <div><dt>{dict.unverified}</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
             </dl> : null}
             <div className="match-bar"><strong>{isBrowsing ? dict.browsingFilter : dict.allApplied}</strong><div className="active-query" aria-label={dict.currentConditions}>{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">{dict.allPlaces}</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>{dict.preference}</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{t(lang, prepFilterKeys[key])}</span>)}</div></div>
-            {loading && !errorMessage ? <p className="catalog-status" role="status">{dict.loadingMessage}</p> : null}
+            {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">{dict.loadingMessage}</p> : null}
             {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
-            {catalog.results.length > 0 ? (
+            {catalogIsCurrent ? (
               <>
-                {viewMode === "map" ? (
-                  <InteractiveMapView
-                    results={visibleResults}
-                    planPlaces={planPlaces}
-                    onTogglePlanPlace={(place) => {
-                      const match = visibleResults.find((r) => r.place.id === place.id);
-                      if (match) togglePlanPlace(match);
-                    }}
-                    onFocusPlaceCard={(placeId) => {
-                      setViewMode("list");
-                      globalThis.setTimeout(() => {
-                        const target = document.querySelector(`[data-place-id="${placeId}"]`);
-                        if (target) {
-                          target.scrollIntoView({ behavior: "smooth", block: "center" });
-                          target.classList.add("highlight-pulse");
-                          globalThis.setTimeout(() => target.classList.remove("highlight-pulse"), 2000);
-                        }
-                      }, 80);
-                    }}
-                  />
-                ) : (
-                  <div className="place-list" style={{ opacity: loading ? 0.65 : 1, transition: "opacity 0.2s ease" }}>
-                    {visibleResults.map((result) => {
-                      const isSaved = planPlaces.some((place) => place.id === result.place.id);
-                      const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
-                      return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
-                    })}
+                {catalog.results.length > 0 ? (
+                  viewMode === "map" ? (
+                    <InteractiveMapView
+                      results={visibleResults}
+                      planPlaces={planPlaces}
+                      onTogglePlanPlace={(place) => {
+                        const match = visibleResults.find((r) => r.place.id === place.id);
+                        if (match) togglePlanPlace(match);
+                      }}
+                      onFocusPlaceCard={(placeId) => {
+                        setViewMode("list");
+                        globalThis.setTimeout(() => {
+                          const target = document.querySelector(`[data-place-id="${placeId}"]`);
+                          if (target) {
+                            target.scrollIntoView({ behavior: "smooth", block: "center" });
+                            target.classList.add("highlight-pulse");
+                            globalThis.setTimeout(() => target.classList.remove("highlight-pulse"), 2000);
+                          }
+                        }, 80);
+                      }}
+                    />
+                  ) : (
+                    <div className="place-list">
+                      {visibleResults.map((result) => {
+                        const isSaved = planPlaces.some((place) => place.id === result.place.id);
+                        const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
+                        return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
+                      })}
+                    </div>
+                  )
+                ) : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
+                {catalog.results.length > 0 ? (
+                  <div className="result-actions">
+                    <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasEnoughPlaces && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasEnoughPlaces} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : t(lang, "selectionDoneCount", { n: planItemCount })}</small></button>
+                    <p className="sr-only" role="status" aria-live="polite">{planItemCount > 0 ? t(lang, "savedTrayCount", { n: planItemCount }) : dict.selectionDoneNeed}</p>
                   </div>
-                )}
-                <div className="result-actions">
-                  <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasEnoughPlaces && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasEnoughPlaces} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : t(lang, "selectionDoneCount", { n: planItemCount })}</small></button>
-                  <p className="sr-only" role="status" aria-live="polite">{planItemCount > 0 ? t(lang, "savedTrayCount", { n: planItemCount }) : dict.selectionDoneNeed}</p>
-                </div>
+                ) : null}
                 {!isBrowsing && catalog.confirmedMatchCount > 0 && catalog.unverifiedCount > 0 ? <p className="unknown-note"><strong>{t(lang, "unknownNote", { n: catalog.unverifiedCount.toLocaleString("ko-KR") })}</strong></p> : null}
                 <nav className="catalog-pagination" aria-label={dict.confirmedResults}>
                   <button type="button" disabled={loading || catalog.page <= 1} onClick={() => setPage(Math.max(1, catalog.page - 1))}>{dict.prevPage}</button>
@@ -661,9 +669,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                   <button type="button" disabled={loading || catalog.page >= catalog.totalPages} onClick={() => setPage(Math.min(catalog.totalPages, catalog.page + 1))}>{dict.nextPage}</button>
                 </nav>
               </>
-            ) : (
-              <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />
-            )}
+            ) : null}
           </div>
 
           {plannerOpen ? <button type="button" className="drawer-backdrop" aria-label={dict.closeTripBoard} onClick={closePlanner} /> : null}

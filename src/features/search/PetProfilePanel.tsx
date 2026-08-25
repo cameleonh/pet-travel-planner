@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWeightChange, onDangerousDogChange }: Props) {
-  const { dict, lang } = useLang();
+  const { dict } = useLang();
   const sizes: { key: ConditionKey | null; icon: string; label: string; note: string }[] = [
     { key: null, icon: "🐾", label: dict.allSizes, note: dict.allSizesNote },
     { key: "smallDog", icon: "🐶", label: dict.smallDog, note: dict.smallDogNote },
@@ -24,7 +24,7 @@ export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWe
     <fieldset className="filter-fieldset">
       <legend>{dict.petProfile}</legend>
       <div className="pet-profile-inputs">
-        <label className="weight-input disabled" title={lang === "ko" ? "아래 강아지 크기(소형/중형/대형견) 버튼으로 자동 선택됩니다" : "Automatically selected via pet size buttons"}>
+        <label className="weight-input">
           <span>{dict.weight}</span>
           <span>
             <input
@@ -35,7 +35,6 @@ export function PetProfilePanel({ selected, weight, dangerousDog, onSelect, onWe
               step="0.1"
               value={weight}
               placeholder={dict.weightPlaceholder}
-              disabled
               onChange={(event) => onWeightChange(event.target.value)}
             /> kg
           </span>
