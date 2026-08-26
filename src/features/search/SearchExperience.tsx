@@ -196,12 +196,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     return () => controller.abort();
   }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, requestKey, dict]);
 
+  const inFlightDiscoveryRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!discoveryOpen || !region.trim() || discoveryLoadedRegion === region.trim()) return;
+    if (!discoveryOpen || !region.trim() || discoveryLoadedRegion === region.trim() || inFlightDiscoveryRef.current === region.trim()) return;
     const controller = new AbortController();
-    queueMicrotask(() => {
-      if (!controller.signal.aborted) setDiscoveryLoading(true);
-    });
+    inFlightDiscoveryRef.current = region.trim();
+    setDiscoveryLoading(true);
     const trailTask = fetch(`/api/trails?region=${encodeURIComponent(region.trim())}`, { signal: controller.signal })
       .then((response) => response.json() as Promise<{ success: boolean; data?: { trails: TrailData[] } }>)
       .then((body) => { if (!controller.signal.aborted) setTrails(body.success && body.data ? body.data.trails : []); })
@@ -229,12 +229,16 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         .catch(() => { if (!controller.signal.aborted) setPetCafes([]); })
       : Promise.resolve();
     void Promise.all([trailTask, festivalTask, ruralTask, petCafeTask]).finally(() => {
+      inFlightDiscoveryRef.current = null;
       if (!controller.signal.aborted) {
         setDiscoveryLoadedRegion(region.trim());
         setDiscoveryLoading(false);
       }
     });
-    return () => controller.abort();
+    return () => {
+      inFlightDiscoveryRef.current = null;
+      controller.abort();
+    };
   }, [discoveryOpen, discoveryLoadedRegion, region, categories]);
 
   useEffect(() => {
@@ -651,11 +655,40 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                       {visibleResults.map((result) => {
                         const isSaved = planPlaces.some((place) => place.id === result.place.id);
                         const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
-                        return <div className="place-row" data-place-id={result.place.id} key={result.place.id}><ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} /><button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button></div>;
+                        return (
+                          <div className="place-row" data-place-id={result.place.id} key={result.place.id}>
+                            <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} />
+                            <div className="place-action-row">
+                              <button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button>
+                              {isSaved ? (
+                                <button
+                                  type="button"
+                                  className="place-direct-finish-button"
+                                  onClick={finishChoosing}
+                                  aria-label={t(lang, "planQuickDoneNamed", { name: accessibleName })}
+                                >
+                                  <span>{dict.planQuickDone}</span>
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
                       })}
                     </div>
                   )
                 ) : <ZeroResultRecovery proposal={catalog.proposal} unverifiedCount={catalog.unverifiedCount} onApply={() => catalog.proposal && setPreferences((current) => current.filter((key) => !catalog.proposal?.removedPreferences.some((item) => item.key === key)))} />}
+                {planPlaces.length > 0 && !selectionCompleted ? (
+                  <div className="floating-trip-bar" aria-label={dict.tripBoardTitle}>
+                    <button
+                      type="button"
+                      className="floating-trip-btn next-action-cue"
+                      onClick={finishChoosing}
+                      aria-label={t(lang, "floatingTripCount", { n: planPlaces.length })}
+                    >
+                      <span>{t(lang, "floatingTripCount", { n: planPlaces.length })}</span>
+                    </button>
+                  </div>
+                ) : null}
                 {catalog.results.length > 0 ? (
                   <div className="result-actions">
                     <button ref={selectionCompleteRef} type="button" className={`selection-complete-button ${hasEnoughPlaces && !selectionCompleted ? "next-action-cue" : ""}`} disabled={!hasEnoughPlaces} onClick={finishChoosing}><span>{dict.selectionDone}</span><small>{planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : t(lang, "selectionDoneCount", { n: planItemCount })}</small></button>
