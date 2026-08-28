@@ -10,18 +10,16 @@ import { t } from "@/i18n/dictionary";
 type Props = {
   selectedPlaces: PlanPlace[];
   origin: Coordinates;
-  supplementalReviewComplete: boolean;
   highlightAction: boolean;
   onApplyOrder: (orderedPlaceIds: string[]) => void;
   onConfigurationChange: () => void;
-  onReviewNeeded: () => void;
 };
 
 function placeSetKey(places: PlanPlace[]): string {
   return places.map((place) => place.id).sort().join("|");
 }
 
-export function CourseBuilder({ selectedPlaces, origin, supplementalReviewComplete, highlightAction, onApplyOrder, onConfigurationChange, onReviewNeeded }: Props) {
+export function CourseBuilder({ selectedPlaces, origin, highlightAction, onApplyOrder, onConfigurationChange }: Props) {
   const { lang, dict } = useLang();
   const radioName = useId();
   const [excludedIds, setExcludedIds] = useState<Set<string>>(() => new Set());
@@ -50,10 +48,6 @@ export function CourseBuilder({ selectedPlaces, origin, supplementalReviewComple
   };
 
   const buildCourse = () => {
-    if (!supplementalReviewComplete) {
-      onReviewNeeded();
-      return;
-    }
     const selectedOrigin = includedPlaces.find((place) => place.id === effectiveOriginId);
     const result = buildApproximateCourseFromPlaces(includedPlaces, selectedOrigin?.coordinates ?? origin, orderMode);
     if (result.success) {
@@ -117,8 +111,8 @@ export function CourseBuilder({ selectedPlaces, origin, supplementalReviewComple
       </div>
 
       <p className="course-apply-note">{dict.courseApplyNote}</p>
-      <button className={`course-button ${hasEnoughPlaces && highlightAction && !course?.success ? "next-action-cue" : ""}`} type="button" disabled={!hasEnoughPlaces} onClick={buildCourse}>
-        {!hasEnoughPlaces ? dict.courseNeedTwo : !supplementalReviewComplete ? dict.courseReviewFirst : t(lang, course?.success ? "courseButton" : "courseReady", { n: includedPlaces.length })}
+      <button className={`course-button ${highlightAction && !course?.success ? "next-action-cue" : ""}`} type="button" disabled={!hasEnoughPlaces} onClick={buildCourse}>
+        {!hasEnoughPlaces ? dict.courseNeedTwo : t(lang, course?.success ? "courseButton" : "courseReady", { n: includedPlaces.length })}
       </button>
       {course?.success ? <p className="course-applied" role="status">{dict.courseApplied}</p> : course ? <p className="course-error" role="alert">{course.message}</p> : null}
     </section>

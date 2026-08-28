@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
 import type { RegionOption } from "@/domain/regions";
+import { getRegionSearchTerm } from "@/domain/regions";
 import { conditionKeys, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
@@ -22,12 +23,16 @@ import { RuralSection, type VillageData, type FarmstayData } from "@/features/re
 import { PetCafeSection, type PetCafeData } from "@/features/results/PetCafeSection";
 import { FestivalSection, type FestivalData } from "@/features/results/FestivalSection";
 import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
+import { RecentlyViewed } from "@/features/results/RecentlyViewed";
+import { recordViewedPlace, type ViewedPlaceSummary } from "@/domain/viewed-history";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
 import type { ThemePreset, ThemePresetId } from "@/domain/themes";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
+import { FloatingQuickNav } from "@/features/navigation/FloatingQuickNav";
+import { hasActiveFilters } from "@/domain/search-filters";
 import { PetProfileModal } from "@/features/owner/PetProfileModal";
 import { getSavedPetProfile, type PetProfile } from "@/domain/pet-profile";
 import { WeatherSafeWidget } from "@/features/weather/WeatherSafeWidget";
@@ -103,6 +108,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const selectionCompleteRef = useRef<HTMLButtonElement>(null);
   const plannerReturnFocusRef = useRef<HTMLElement | null>(null);
   const supplementalChoicesRef = useRef<HTMLElement>(null);
+  const resultsPanelRef = useRef<HTMLDivElement>(null);
   const constraints = useMemo(() => {
     const seen = new Set<string>();
     const result: SelectedConstraint[] = [];
@@ -136,7 +142,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const nearbyReviewRequired = Boolean(nearbyAnchor);
   const regionalReviewComplete = !regionalReviewRequired || regionalReviewedFor === region.trim();
   const nearbyReviewComplete = !nearbyReviewRequired || nearbyReviewedFor === nearbyAnchor?.id;
-  const supplementalReviewComplete = regionalReviewComplete && nearbyReviewComplete;
   const supplementalReviewTotal = Number(regionalReviewRequired) + Number(nearbyReviewRequired);
   const supplementalReviewDone = Number(regionalReviewComplete && regionalReviewRequired) + Number(nearbyReviewComplete && nearbyReviewRequired);
   const hasEnoughPlaces = planPlaces.length >= 2;
@@ -356,12 +361,62 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     }
     setCategories(theme.categories);
     setPrepFilters(theme.prepFilters);
+    globalThis.setTimeout(() => {
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      resultsPanelRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+    }, 80);
   }, []);
   const handleClearTheme = useCallback(() => {
     setActiveThemeId(null);
     setPage(1);
     setCategories([]);
     setPrepFilters([]);
+  }, []);
+
+  const filtersActive = hasActiveFilters({ region, categories, hard, preferences, prepFilters, page });
+  const recordView = useCallback((place: Pick<RawPlace, "id" | "name" | "address" | "category">) => {
+    recordViewedPlace({
+      id: place.id,
+      name: place.name,
+      category: place.category,
+      region: getRegionSearchTerm(place.address.trim().split(/\s+/)[0] ?? ""),
+    });
+  }, []);
+  const handleOpenViewed = useCallback((entry: ViewedPlaceSummary) => {
+    const card = document.querySelector(`[data-place-id="${CSS.escape(entry.id)}"]`);
+    if (card) {
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setViewMode("list");
+      globalThis.setTimeout(() => {
+        card.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+        card.classList.add("highlight-pulse");
+        globalThis.setTimeout(() => card.classList.remove("highlight-pulse"), 2000);
+      }, 80);
+      return;
+    }
+    setPage(1);
+    if (entry.region) setRegion(entry.region);
+    setCategories([entry.category]);
+  }, []);
+  const handleResetFilters = useCallback(() => {
+    setPage(1);
+    setRegion("");
+    setCategories([]);
+    setHard([]);
+    setPreferences([]);
+    setPrepFilters([]);
+    setPetSize(null);
+    setPetWeight("");
+    setActiveThemeId(null);
+    setTrails([]);
+    setFestivals([]);
+    setRuralVillages([]);
+    setRuralFarmstays([]);
+    setPetCafes([]);
+    setDiscoveryLoadedRegion(null);
+    setDiscoveryOpen(false);
+    setRegionalReviewedFor(null);
+    setCourseConfirmed(false);
   }, []);
 
   useEffect(() => {
@@ -413,20 +468,6 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       globalThis.setTimeout(() => target.focus({ preventScroll: true }), reducedMotion ? 0 : 350);
     }, 0);
   }, []);
-
-  const guideToSupplementalReview = useCallback(() => {
-    setSelectionCompleted(true);
-    if (!regionalReviewComplete && region.trim()) {
-      setDiscoveryOpen(true);
-      focusSupplementalTarget(".supplemental-choices .context-disclosure:not(.nearby-disclosure) > summary");
-      return;
-    }
-    if (!nearbyReviewComplete && nearbyAnchor) {
-      setNearbyActivatedFor(nearbyAnchor.id);
-      setNearbyOpenFor(nearbyAnchor.id);
-      focusSupplementalTarget(".supplemental-choices .nearby-disclosure > summary");
-    }
-  }, [focusSupplementalTarget, nearbyAnchor, nearbyReviewComplete, region, regionalReviewComplete]);
 
   const completeRegionalReview = useCallback(() => {
     setRegionalReviewedFor(region.trim());
@@ -584,7 +625,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
       </div>
-      <div className="results-panel interactive-results" aria-busy={loading}>
+      <div ref={resultsPanelRef} className="results-panel interactive-results" aria-busy={loading}>
         <div className={`results-layout ${plannerOpen ? "planner-open" : ""}`}>
           <div className="results-primary">
             <div className="result-heading">
@@ -624,7 +665,10 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
               <div><dt>{dict.confirmedNonMatch}</dt><dd>{catalog.confirmedNonMatchCount.toLocaleString("ko-KR")}</dd></div>
               <div><dt>{dict.unverified}</dt><dd>{catalog.unverifiedCount.toLocaleString("ko-KR")}</dd></div>
             </dl> : null}
-            <div className="match-bar"><strong>{isBrowsing ? dict.browsingFilter : dict.allApplied}</strong><div className="active-query" aria-label={dict.currentConditions}>{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">{dict.allPlaces}</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>{dict.preference}</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{t(lang, prepFilterKeys[key])}</span>)}</div></div>
+            <div className="match-bar-row">
+              <div className="match-bar"><strong>{isBrowsing ? dict.browsingFilter : dict.allApplied}</strong><div className="active-query" aria-label={dict.currentConditions}>{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">{dict.allPlaces}</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>{dict.preference}</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{t(lang, prepFilterKeys[key])}</span>)}</div>{filtersActive ? <button type="button" className="filter-reset-button" onClick={handleResetFilters}>⟲ <span>{dict.resetFilters}</span></button> : null}</div>
+              <RecentlyViewed onOpen={handleOpenViewed} />
+            </div>
             {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">{dict.loadingMessage}</p> : null}
             {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
             {catalogIsCurrent ? (
@@ -656,21 +700,31 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                         const isSaved = planPlaces.some((place) => place.id === result.place.id);
                         const accessibleName = translationByPlaceId[result.place.id]?.title || result.place.name;
                         return (
-                          <div className="place-row" data-place-id={result.place.id} key={result.place.id}>
+                          <div
+                            className="place-row"
+                            data-place-id={result.place.id}
+                            key={result.place.id}
+                            onClickCapture={() => recordView(result.place)}
+                          >
                             <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} />
                             <div className="place-action-row">
                               <button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button>
-                              {isSaved ? (
+                            </div>
+                            {isSaved ? (
+                              <div className="place-direct-finish-row">
                                 <button
                                   type="button"
                                   className="place-direct-finish-button"
                                   onClick={finishChoosing}
+                                  disabled={!hasEnoughPlaces}
+                                  title={!hasEnoughPlaces ? dict.selectionDoneNeedMore : undefined}
                                   aria-label={t(lang, "planQuickDoneNamed", { name: accessibleName })}
                                 >
-                                  <span>{dict.planQuickDone}</span>
+                                  <span aria-hidden="true">➜</span>
+                                  <span>{hasEnoughPlaces ? dict.planQuickDone : dict.selectionDoneNeedMore}</span>
                                 </button>
-                              ) : null}
-                            </div>
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}
@@ -681,11 +735,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                   <div className="floating-trip-bar" aria-label={dict.tripBoardTitle}>
                     <button
                       type="button"
-                      className="floating-trip-btn next-action-cue"
+                      className={`floating-trip-btn ${hasEnoughPlaces ? "next-action-cue" : ""}`}
                       onClick={finishChoosing}
-                      aria-label={t(lang, "floatingTripCount", { n: planPlaces.length })}
+                      disabled={!hasEnoughPlaces}
+                      aria-label={hasEnoughPlaces ? t(lang, "floatingTripCount", { n: planPlaces.length }) : dict.selectionDoneNeedMore}
                     >
-                      <span>{t(lang, "floatingTripCount", { n: planPlaces.length })}</span>
+                      <span>{hasEnoughPlaces ? t(lang, "floatingTripCount", { n: planPlaces.length }) : `🐾 ${dict.selectionDoneNeedMore}`}</span>
                     </button>
                   </div>
                 ) : null}
@@ -726,7 +781,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
                 {region.trim() ? (
                   <details key={region.trim()} className="context-disclosure" open={discoveryOpen}>
-                    <summary className={selectionCompleted && !regionalReviewComplete && !discoveryOpen ? "next-action-cue" : undefined} onClick={(event) => { event.preventDefault(); setDiscoveryOpen((open) => !open); }}><span><strong>{dict.regionalDiscovery}</strong><small>{dict.regionalDiscoveryNote}</small>{regionalReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{regionalReviewComplete ? "✓" : "＋"}</b></summary>
+                    <summary onClick={(event) => { event.preventDefault(); setDiscoveryOpen((open) => !open); }}><span><strong>{dict.regionalDiscovery}</strong><small>{dict.regionalDiscoveryNote}</small>{regionalReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{regionalReviewComplete ? "✓" : "＋"}</b></summary>
                     <div className="context-disclosure-body">
                       {discoveryLoading ? <p className="context-loading" role="status">{dict.loadingMessage}</p> : null}
                       {!discoveryLoading && trails.length === 0 && festivals.length === 0 && ruralVillages.length === 0 && ruralFarmstays.length === 0 ? <p className="context-empty">{dict.noRegionalDiscovery}</p> : null}
@@ -741,11 +796,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
                 {nearbyAnchor ? (
                   <details key={nearbyAnchor.id} className="context-disclosure nearby-disclosure" open={nearbyOpenFor === nearbyAnchor.id}>
-                    <summary className={selectionCompleted && regionalReviewComplete && !nearbyReviewComplete && nearbyOpenFor !== nearbyAnchor.id ? "next-action-cue" : undefined} onClick={(event) => { event.preventDefault(); const willOpen = nearbyOpenFor !== nearbyAnchor.id; setNearbyOpenFor(willOpen ? nearbyAnchor.id : null); if (willOpen) setNearbyActivatedFor(nearbyAnchor.id); }}><span><strong>{dict.nearbySaved}</strong><small>{dict.nearbySavedNote}</small>{nearbyReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{nearbyReviewComplete ? "✓" : "＋"}</b></summary>
+                    <summary onClick={(event) => { event.preventDefault(); const willOpen = nearbyOpenFor !== nearbyAnchor.id; setNearbyOpenFor(willOpen ? nearbyAnchor.id : null); if (willOpen) setNearbyActivatedFor(nearbyAnchor.id); }}><span><strong>{dict.nearbySaved}</strong><small>{dict.nearbySavedNote}</small>{nearbyReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{nearbyReviewComplete ? "✓" : "＋"}</b></summary>
                     {nearbyActivatedFor === nearbyAnchor.id ? <div className="context-disclosure-body extensions">
                       {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} /> : null}
                       <NearbyServices origin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} />
-                      <button type="button" className={`supplemental-review-button ${selectionCompleted && regionalReviewComplete && !nearbyReviewComplete ? "next-action-cue" : ""}`} onClick={completeNearbyReview}>{nearbySelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: nearbySelectionCount }) : dict.supplementalConfirmNone}</button>
+                      <button type="button" className="supplemental-review-button" onClick={completeNearbyReview}>{nearbySelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: nearbySelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div> : null}
                   </details>
                 ) : (
@@ -760,7 +815,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             )}
 
             {selectionCompleted && planPlaces.length > 0 ? (
-              <CourseBuilder selectedPlaces={planPlaces} origin={planPlaces[0]!.coordinates} supplementalReviewComplete={courseConfirmed || supplementalReviewComplete} highlightAction={selectionCompleted && supplementalReviewComplete && !courseConfirmed} onApplyOrder={applyCourseOrder} onConfigurationChange={invalidateCourse} onReviewNeeded={guideToSupplementalReview} />
+              <CourseBuilder selectedPlaces={planPlaces} origin={planPlaces[0]!.coordinates} highlightAction={selectionCompleted && !courseConfirmed} onApplyOrder={applyCourseOrder} onConfigurationChange={invalidateCourse} />
             ) : null}
 
             {courseConfirmed && hasPlanItems ? (
@@ -773,6 +828,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         </div>
       </div>
       {hasPlanItems ? <button ref={tripTrayRef} type="button" className="saved-trip-tray" disabled={!hasEnoughPlaces && !courseConfirmed} aria-label={courseConfirmed ? dict.openTripBoard : hasEnoughPlaces ? dict.selectionDone : t(lang, "savedTrayCount", { n: planItemCount })} onClick={courseConfirmed ? openPlanner : finishChoosing}><span><strong>{dict.savedTray}</strong><small>{planPlaces[0]?.name ?? planActivities[0]?.title}{planItemCount > 1 ? ` +${planItemCount - 1}` : ""} · {planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : courseConfirmed ? dict.openTripBoard : selectionCompleted ? dict.savedTrayNext : dict.selectionDone}</small></span><b>{planItemCount}</b></button> : null}
+      <FloatingQuickNav viewMode={viewMode} onToggleViewMode={() => setViewMode((mode) => mode === "list" ? "map" : "list")} />
       <PetProfileModal
         initialProfile={petProfile}
         isOpen={profileModalOpen}

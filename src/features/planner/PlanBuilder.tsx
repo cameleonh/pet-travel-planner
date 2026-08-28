@@ -11,6 +11,7 @@ import { createDirectionsApiProvider } from "@/domain/planning/providers/directi
 import { planningRequestFromLegacy } from "@/features/search/planning-request-adapter";
 import { SmartChecklist } from "@/features/planner/SmartChecklist";
 import { ShareTripModal } from "@/features/planner/ShareTripModal";
+import { TripWeatherCard } from "@/features/weather/TripWeatherCard";
 
 type RouteApiResponse = {
   success: boolean;
@@ -340,6 +341,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
             <div><dt>{dict.planReportStops}</dt><dd>{selectedPlaces.length}</dd></div>
             <div><dt>{dict.planReportEnd}</dt><dd>{finalArrival ?? dict.planTimeUnknown}</dd></div>
           </dl>
+          <TripWeatherCard tripDate={tripDate} coordinates={selectedPlaces[0]?.coordinates ?? null} />
           <table className="plan-report-table">
             <thead>
               <tr>

@@ -28,24 +28,30 @@ export function ConditionPicker({ region, regionOptions, prepFilters, onRegionCh
     <fieldset className="filter-fieldset">
       <legend>{dict.region}</legend>
       <div className="region-selects">
-        <label className="region-input">
-          <span>{dict.region}</span>
-          <select value={selectedArea?.value ?? ""} onChange={(event) => onRegionChange(event.target.value)}>
-            <option value="">{dict.allRegions}</option>
-            {regionOptions.map((option) => <option value={option.value} key={option.value}>{regionLabel(option)}</option>)}
-          </select>
-        </label>
-        <label className="region-input">
-          <span>{dict.district}</span>
-          <select
-            value={selectedDistrict?.value ?? ""}
-            disabled={!selectedArea || selectedArea.districts.length === 0}
-            onChange={(event) => onRegionChange(event.target.value || selectedArea?.value || "")}
-          >
-            <option value="">{dict.allDistricts}</option>
-            {selectedArea?.districts.map((district) => <option value={district.value} key={district.value}>{district.label}</option>)}
-          </select>
-        </label>
+        <div className="region-select-with-clear">
+          <label className="region-input">
+            <span>{dict.region}</span>
+            <select value={selectedArea?.value ?? ""} onChange={(event) => onRegionChange(event.target.value)}>
+              <option value="">{dict.allRegions}</option>
+              {regionOptions.map((option) => <option value={option.value} key={option.value}>{regionLabel(option)}</option>)}
+            </select>
+          </label>
+          {selectedArea ? <button type="button" className="region-clear-button" onClick={() => onRegionChange("")} aria-label={dict.clearRegion}>✕</button> : null}
+        </div>
+        <div className="region-select-with-clear">
+          <label className="region-input">
+            <span>{dict.district}</span>
+            <select
+              value={selectedDistrict?.value ?? ""}
+              disabled={!selectedArea || selectedArea.districts.length === 0}
+              onChange={(event) => onRegionChange(event.target.value || selectedArea?.value || "")}
+            >
+              <option value="">{dict.allDistricts}</option>
+              {selectedArea?.districts.map((district) => <option value={district.value} key={district.value}>{district.label}</option>)}
+            </select>
+          </label>
+          {selectedDistrict ? <button type="button" className="region-clear-button" onClick={() => onRegionChange(selectedArea?.value ?? "")} aria-label={dict.clearRegion}>✕</button> : null}
+        </div>
       </div>
       <p className="field-help">{dict.regionHelp}</p>
       <div className="prep-filter-group" role="group" aria-label={dict.visitConditions}>

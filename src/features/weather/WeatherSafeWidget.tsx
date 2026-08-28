@@ -1,78 +1,80 @@
 "use client";
 
 import { useMemo } from "react";
+import { classifyDogWalkSafety, regionCenter, weatherConditionFor } from "@/domain/weather";
 import { useLang } from "@/i18n/LangContext";
+import { t } from "@/i18n/dictionary";
+import { useDailyForecast } from "@/features/weather/useDailyForecast";
 
-interface WeatherSafeWidgetProps {
-  region: string;
-}
+const SAFETY_KEY_BY_LEVEL = {
+  safe: "weatherSafetySafe",
+  caution: "weatherSafetyCaution",
+  indoor: "weatherSafetyIndoor",
+} as const;
 
-export function WeatherSafeWidget({ region }: WeatherSafeWidgetProps) {
-  const { lang } = useLang();
+const ADVICE_KEY_BY_REASON = {
+  fine: "weatherAdviceFine",
+  rain: "weatherAdviceRain",
+  hot: "weatherAdviceHot",
+  snow: "weatherAdviceSnow",
+  cold: "weatherAdviceCold",
+} as const;
 
-  const weatherInfo = useMemo(() => {
-    const cleanRegion = region.trim() || "전국";
-    const charCodeSum = cleanRegion.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const temp = 20 + (charCodeSum % 7);
-    const isCloudy = charCodeSum % 3 === 0;
-    const isRain = charCodeSum % 8 === 0;
+export function WeatherSafeWidget({ region }: { region: string }) {
+  const { lang, dict } = useLang();
+  const coordinates = useMemo(() => regionCenter(region), [region]);
+  const { days, loading, failed } = useDailyForecast(coordinates);
 
-    let icon = "☀️";
-    let conditionKo = "맑음 & 쾌적";
-    let conditionEn = "Sunny & Pleasant";
-    let safetyLevel: "safe" | "caution" | "indoor" = "safe";
-    let safetyAdviceKo = "발바닥 화상 걱정 없이 잔디밭 산책하기 좋은 날씨예요! 🌿";
-    let safetyAdviceEn = "Great weather for outdoor grass walking! 🌿";
+  if (!region.trim() || !coordinates) {
+    return (
+      <div className="weather-safe-widget empty" aria-label={dict.weatherTitle}>
+        <p className="weather-region-hint">🌤️ {dict.weatherSelectRegion}</p>
+      </div>
+    );
+  }
 
-    if (isRain) {
-      icon = "🌧️";
-      conditionKo = "비 / 흐림";
-      conditionEn = "Rainy / Overcast";
-      safetyLevel = "indoor";
-      safetyAdviceKo = "비가 오니 실내 동반 카페나 쇼핑몰 코스를 추천해요! ☔";
-      safetyAdviceEn = "Rain expected. We recommend indoor pet cafes & malls! ☔";
-    } else if (temp >= 25) {
-      icon = "☀️";
-      conditionKo = "다소 더움";
-      conditionEn = "Warm Sun";
-      safetyLevel = "caution";
-      safetyAdviceKo = "오후에는 아스팔트가 뜨거울 수 있으니 그늘과 잔디밭을 이용하세요! 🐾";
-      safetyAdviceEn = "Asphalt may get hot in the afternoon. Stick to shade & grass! 🐾";
-    } else if (isCloudy) {
-      icon = "⛅";
-      conditionKo = "구름 많음";
-      conditionEn = "Partly Cloudy";
-      safetyLevel = "safe";
-      safetyAdviceKo = "자외선이 약해 반려견과 장시간 야외 활동하기 최적이에요! ☁️";
-      safetyAdviceEn = "Mild UV, perfect for long outdoor strolls! ☁️";
-    }
+  const today = days[0] ?? null;
+  if (loading) {
+    return (
+      <div className="weather-safe-widget" aria-label={dict.weatherTitle} aria-busy="true">
+        <p className="weather-region-hint">{dict.weatherLoading}</p>
+      </div>
+    );
+  }
+  if (failed || !today) return null;
 
-    return { temp, icon, conditionKo, conditionEn, safetyLevel, safetyAdviceKo, safetyAdviceEn };
-  }, [region]);
+  const condition = weatherConditionFor(today.weatherCode);
+  const safety = classifyDogWalkSafety(today);
+  const strip = days.slice(1, 6);
 
   return (
-    <div className={`weather-safe-widget ${weatherInfo.safetyLevel}`} aria-label="반려견 산책 안전 날씨 정보">
+    <div className={`weather-safe-widget ${safety.level}`} aria-label={dict.weatherTitle}>
       <div className="weather-top-row">
-        <span className="weather-icon">{weatherInfo.icon}</span>
+        <span className="weather-icon">{condition.icon}</span>
         <div className="weather-main-info">
           <strong className="weather-temp">
-            {region.trim() || (lang === "ko" ? "여행지" : "Region")} {weatherInfo.temp}°C
+            {region.trim()} {t(lang, "weatherTempMinMax", { min: today.tempMin, max: today.tempMax })}
           </strong>
           <span className="weather-cond">
-            {lang === "ko" ? weatherInfo.conditionKo : weatherInfo.conditionEn}
+            {lang === "ko" ? condition.ko : lang === "zh" ? condition.zh : condition.en} · {t(lang, "weatherPrecipChance", { p: today.precipProb })}
           </span>
         </div>
-        <span className={`weather-safety-badge ${weatherInfo.safetyLevel}`}>
-          {weatherInfo.safetyLevel === "safe"
-            ? "산책 지수 최고 ✨"
-            : weatherInfo.safetyLevel === "caution"
-            ? "열기 주의 ⚠️"
-            : "실내 추천 🌧️"}
-        </span>
+        <span className={`weather-safety-badge ${safety.level}`}>{t(lang, SAFETY_KEY_BY_LEVEL[safety.level], {})}</span>
       </div>
-      <p className="weather-advice">
-        {lang === "ko" ? weatherInfo.safetyAdviceKo : weatherInfo.safetyAdviceEn}
-      </p>
+      <p className="weather-advice">{t(lang, ADVICE_KEY_BY_REASON[safety.reason], {})}</p>
+      <div className="weather-day-strip" role="list" aria-label={dict.weatherTitle}>
+        {strip.map((day) => {
+          const dayCondition = weatherConditionFor(day.weatherCode);
+          const daySafety = classifyDogWalkSafety(day);
+          return (
+            <div key={day.date} className={`weather-day ${daySafety.level}`} role="listitem">
+              <small>{new Date(`${day.date}T12:00:00`).toLocaleDateString(lang === "en" ? "en-US" : lang === "zh" ? "zh-CN" : "ko-KR", { weekday: "short" })}</small>
+              <span aria-hidden="true">{dayCondition.icon}</span>
+              <b>{t(lang, "weatherTempMinMax", { min: day.tempMin, max: day.tempMax })}</b>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

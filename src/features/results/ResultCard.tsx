@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { MatchEvaluation } from "@/domain/types";
-import { resolveDisplayCategory, displayCategoryLabel, displayCategoryIcon } from "@/domain/categories";
+import { resolveDisplayCategory, displayCategoryLabel, displayCategoryIcon, type DisplayCategory } from "@/domain/categories";
+import { resolvePlaceVisual } from "@/domain/place-visuals";
 import { MatchProof } from "@/features/results/MatchProof";
 import { AccessibilitySection, type AccessibilityData } from "@/features/results/AccessibilitySection";
 import { CampingSection, type CampingData } from "@/features/results/CampingSection";
@@ -17,7 +18,7 @@ export type PublicClosureStatus = {
 
 const prepLabelKeys = { leash: "prepLeash", carrier: "prepCarrier", muzzle: "prepMuzzle", wasteBag: "prepWasteBag", stroller: "prepStroller", mannerBelt: "prepMannerBelt" } as const;
 
-function PlaceThumbnail({ name, address, placeId }: { name: string; address: string; placeId: string }) {
+function PlaceThumbnail({ name, address, placeId, displayCategory }: { name: string; address: string; placeId: string; displayCategory: DisplayCategory }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const region = address.split(" ").slice(0, 2).join(" ");
@@ -58,10 +59,16 @@ function PlaceThumbnail({ name, address, placeId }: { name: string; address: str
     }).catch(() => {});
     return () => controller.abort();
   }, [query, contentId, shouldLoad]);
+  const visual = resolvePlaceVisual(displayCategory);
   return (
     <div ref={containerRef} className="place-thumbnail" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {thumbUrl ? <img src={thumbUrl} alt="" loading="lazy" decoding="async" onError={() => setAttempt((n) => n + 1)} /> : null}
+      {thumbUrl ? <img src={thumbUrl} alt="" loading="lazy" decoding="async" onError={() => setAttempt((n) => n + 1)} /> : (
+        <div className="thumbnail-placeholder" style={{ "--placeholder-from": visual.from, "--placeholder-to": visual.to } as React.CSSProperties}>
+          <span className="thumbnail-emoji">{visual.emoji}</span>
+          <span className="thumbnail-paw">🐾</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -77,7 +84,7 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
   const displayAddress = (lang !== "ko" && translation?.address) ? translation.address : result.place.address;
   return (
     <article className={`place-card ${isCatalogResult ? "catalog-card" : "exact-card"}`}>
-      <PlaceThumbnail name={result.place.name} address={result.place.address} placeId={result.place.id} />
+      <PlaceThumbnail name={result.place.name} address={result.place.address} placeId={result.place.id} displayCategory={displayCat} />
       <div className="place-card-body">
         <div className="place-top"><span>{displayCategoryIcon[displayCat]} {displayCategoryLabel[displayCat]}</span><strong>{isCatalogResult ? dict.beforeSelection : dict.allConditionsMet}</strong></div>
         <h3>{displayName}</h3>

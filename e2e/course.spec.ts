@@ -92,13 +92,11 @@ test("course uses only places explicitly saved from browsing", async ({ page }) 
   await expect(courseBuilder.getByRole("checkbox")).toHaveCount(2);
   await expect(courseBuilder.getByRole("checkbox").nth(0)).toBeChecked();
   await expect(courseBuilder.getByRole("checkbox").nth(1)).toBeChecked();
-  const reviewGuide = courseBuilder.getByRole("button", { name: "위의 추가 선택을 먼저 확인해 주세요" });
+  const reviewGuide = courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" });
   await expect(reviewGuide).toBeEnabled();
-  await reviewGuide.click();
-  await expect(page.locator(".nearby-disclosure")).toHaveAttribute("open", "");
-  await finishNearbyReview(page);
+  await expect(page.locator(".nearby-disclosure")).not.toHaveAttribute("open", "");
   await courseBuilder.getByLabel("출발 장소").selectOption({ label: "파도끝 테라스" });
-  await courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  await reviewGuide.click();
   const tripBoard = page.getByRole("dialog", { name: "03 · 내 여행 보드" });
   await expect(tripBoard.locator(".plan-place-list li").first()).toContainText("파도끝 테라스");
   await expect(tripBoard.locator(".plan-route-segment")).toHaveCount(1);
@@ -143,7 +141,7 @@ test("mobile PDF alertdialog keeps the trip drawer open and traps focus", async 
   await page.locator(".plan-add-button").nth(1).click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
-  await page.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
 
   const drawer = page.getByRole("dialog", { name: "03 · 내 여행 보드" });
   await expect(drawer).toBeVisible();
@@ -172,9 +170,7 @@ test("desktop course confirmation follows the user to the travel plan", async ({
   await page.locator(".selection-complete-button").click();
 
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
-  await courseBuilder.getByRole("button", { name: "위의 추가 선택을 먼저 확인해 주세요" }).click();
-  await page.locator(".nearby-disclosure .supplemental-review-button").click();
-  await courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  await courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
 
   const plan = page.locator(".trip-board-plan");
   await expect(plan).toBeInViewport();
@@ -196,7 +192,7 @@ test("route provider failure falls back to a usable straight-line plan", async (
   await addButtons.nth(1).click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
-  await page.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
   await expect(page.locator(".plan-notice")).toContainText("직선거리");
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
   await expect(page.locator(".plan-route-segment")).toContainText("도로 경로 응답 지연");
@@ -225,7 +221,7 @@ test("print layout contains only the selected travel plan", async ({ page }) => 
   await addButtons.nth(1).click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
-  await page.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
 
   await page.emulateMedia({ media: "print" });

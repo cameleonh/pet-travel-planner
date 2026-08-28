@@ -49,15 +49,30 @@ src/
     relax.ts              # minimal relaxation suggestions on zero results
     categories.ts         # display categories + CAFE_NAME_PATTERN
     regions.ts            # region grouping/search terms
+    place-visuals.ts      # category-themed placeholder gradients for photo-less cards
+    search-filters.ts     # canonical empty-filter state + active-filter predicate
+    viewed-history.ts     # recently-viewed places (localStorage store + subscription)
     planning/             # course/planner engine, plan sessions
   features/               # UI components by feature area
     search/               # SearchExperience (main flow), panels
-    results/              # ResultCard, RuralSection, PetCafeSection, ...
+    results/              # ResultCard, RecentlyViewed, RuralSection, PetCafeSection, ...
     nearby/               # NearbyServices (vet/shop/restaurant around anchor)
     planner/ course/      # plan builder, course timeline
     owner/                # owner claims/closures portal
+    navigation/           # FloatingQuickNav (scroll-top + map/list toggle)
+    map/                  # InteractiveMapView
   i18n/
 ```
+
+## UX polish layer (2026-08-28)
+
+Five experience features added on top of the matching pipeline, all following the same domain/feature split:
+
+- **Photo-less card placeholders** — `domain/place-visuals.ts` maps every display category to a pastel gradient + emoji; `PlaceThumbnail` renders it until a real image loads (or when none exists).
+- **Share cards** — `layout.tsx` metadata carries OpenGraph/Twitter tags pointing at `GET /og` (`src/app/og/route.tsx`), a `next/og` ImageResponse (1200×630: brand gradient + mascot + Korean headline, fonts read from `@fontsource/noto-sans-kr` woff subsets). `NEXT_PUBLIC_SITE_URL` overrides the default `https://gggo.blog` base.
+- **Floating quick nav** — `features/navigation/FloatingQuickNav.tsx`: scroll-to-top (appears past 480px) + map/list view toggle mirroring the results header segmented control.
+- **One-click filter reset** — `domain/search-filters.ts` defines the empty state and `hasActiveFilters`; the match-bar shows a reset button whenever any filter is active, and region/district selects have inline ✕ clear buttons.
+- **Recently viewed** — `domain/viewed-history.ts` keeps the last 4 interacted places in localStorage (dedup, newest-first, observable via `subscribeViewedHistory` for `useSyncExternalStore`); chips under the match-bar jump to the card when visible, otherwise re-apply the stored region+category filters.
 
 ## The matching pipeline
 

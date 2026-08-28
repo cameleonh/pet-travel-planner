@@ -170,7 +170,7 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   await expect(courseBuilder.getByRole("checkbox", { name: /반려견 숲 축제/ })).toBeChecked();
   await expect(courseBuilder.getByRole("checkbox")).toHaveCount(2);
-  await courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" }).click();
+  await courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
   const dialog = page.getByRole("dialog", { name: "03 · 내 여행 보드" });
   await expect(dialog.locator(".plan-route-segment")).toHaveCount(1);
   await expect(dialog.locator(".plan-route-segment")).toContainText("반려견 숲 축제");
@@ -192,14 +192,8 @@ test("selection completion moves to supplemental choices and only course confirm
   expect(await supplemental.evaluate((element) => element.nextElementSibling?.classList.contains("course-card"))).toBe(true);
   await expect(page.locator(".trip-board-plan")).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toHaveCount(0);
-  const reviewGuide = courseBuilder.getByRole("button", { name: "위의 추가 선택을 먼저 확인해 주세요" });
-  await expect(reviewGuide).toBeEnabled();
-  await reviewGuide.click();
-  const nearbyReview = page.locator(".nearby-disclosure");
-  await expect(nearbyReview).toHaveAttribute("open", "");
-  await expect(nearbyReview.locator("summary")).toBeFocused();
-  await nearbyReview.locator(".supplemental-review-button").click();
-  const confirmCourse = courseBuilder.getByRole("button", { name: "추가 선택 확인 완료 · 2곳 코스 만들기" });
+  const confirmCourse = courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" });
+  await expect(confirmCourse).toBeEnabled();
   await confirmCourse.click();
   await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toBeVisible();
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
