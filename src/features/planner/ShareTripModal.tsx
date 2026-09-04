@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PlanPlace, RouteSegment } from "@/domain/plan";
 import { useLang } from "@/i18n/LangContext";
 
@@ -10,6 +10,8 @@ interface ShareTripModalProps {
   places: PlanPlace[];
   routes: RouteSegment[];
   tripDate: string;
+  departureTime?: string;
+  finalArrival?: string | null;
 }
 
 export function ShareTripModal({
@@ -18,32 +20,77 @@ export function ShareTripModal({
   places,
   routes,
   tripDate,
+  departureTime,
+  finalArrival,
 }: ShareTripModalProps) {
   const { lang } = useLang();
   const [copied, setCopied] = useState(false);
-
-  if (!isOpen) return null;
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [shortUrl, setShortUrl] = useState<string | null>(null);
 
   const totalKm = routes.reduce((acc, r) => acc + (r.distanceKm || 0), 0);
   const totalMinutes = routes.reduce((acc, r) => acc + (r.durationMinutes || 0), 0);
 
+  useEffect(() => {
+    if (!isOpen || shortUrl) return;
+    const controller = new AbortController();
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      void fetch("/api/plans/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: {
+            tripDate,
+            departure: departureTime ?? "09:00",
+            arrival: finalArrival ?? null,
+            places: places.map((p) => ({ name: p.name, address: p.address, dwell: p.dwellMinutes ?? null })),
+            routes: routes.map((r) => ({ fromName: r.fromName, toName: r.toName, distanceKm: r.distanceKm, durationMinutes: r.durationMinutes })),
+          },
+        }),
+        signal: controller.signal,
+      })
+        .then(async (res) => {
+          if (!res.ok) return;
+          const json = await res.json();
+          if (json.success && json.data?.url) {
+            setShortUrl(`${typeof window !== "undefined" ? window.location.origin : "https://gggo.blog"}${json.data.url}`);
+          }
+        })
+        .catch(() => {});
+    });
+    return () => controller.abort();
+  }, [isOpen, shortUrl, tripDate, departureTime, finalArrival, places, routes]);
+
+  const shareLink = shortUrl ?? (typeof window !== "undefined" ? window.location.href : "https://gggo.blog");
+
   const shareText = `🐾 [같이갈개] ${tripDate} 반려견 동반 여행 코스
-  
+
 총 ${places.length}곳 방문 (예상 이동: ${totalKm.toFixed(1)}km, 약 ${Math.round(totalMinutes)}분)
 ${places.map((p, idx) => `${idx + 1}. ${p.name} (${p.address})`).join("\n")}
 
 ✨ 검증된 반려견 여행 코스 확인하기:
-${typeof window !== "undefined" ? window.location.href : "https://pet-travel-planner.local"}`;
+${shareLink}`;
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      alert("클립보드 복사에 실패했습니다.");
+      // clipboard unavailable
     }
-  };
+  }, [shareText]);
+
+  const handleLinkCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      // clipboard unavailable
+    }
+  }, [shareLink]);
 
   const handleNativeShare = async () => {
     if (typeof navigator.share === "function") {
@@ -51,13 +98,15 @@ ${typeof window !== "undefined" ? window.location.href : "https://pet-travel-pla
         await navigator.share({
           title: `[같이갈개] ${places[0]?.name || "반려견"} 여행 코스`,
           text: shareText,
-          url: window.location.href,
+          url: shareLink,
         });
       } catch {}
     } else {
       handleCopy();
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="pet-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
@@ -89,6 +138,19 @@ ${typeof window !== "undefined" ? window.location.href : "https://pet-travel-pla
             ))}
           </ol>
         </div>
+
+        {shortUrl ? (
+          <div style={{ margin: "12px 0", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              🔗 {shortUrl}
+            </span>
+            <button type="button" onClick={() => void handleLinkCopy()} style={{ border: "1px solid #86efac", background: linkCopied ? "#dcfce7" : "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+              {linkCopied ? "✓ 복사됨" : "링크 복사"}
+            </button>
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: "#94a3b8", margin: "8px 0" }}>링크 생성 중…</p>
+        )}
 
         <div className="share-actions-row">
           <button type="button" className="btn-kakao-share" onClick={handleNativeShare}>

@@ -640,7 +640,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         </header>
         <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} todaySafetyLevel={todaySafety} />
         <aside className="filter-panel">
-          <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} onSafetyLevel={setTodaySafety} />
+          <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} onSafetyLevel={setTodaySafety} />
           <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />

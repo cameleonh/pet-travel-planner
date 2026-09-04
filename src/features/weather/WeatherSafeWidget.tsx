@@ -20,9 +20,10 @@ const ADVICE_KEY_BY_REASON = {
   cold: "weatherAdviceCold",
 } as const;
 
-export function WeatherSafeWidget({ region, themeActive, onSafetyLevel }: {
+export function WeatherSafeWidget({ region, themeActive, petName, onSafetyLevel }: {
   region: string;
   themeActive?: boolean;
+  petName?: string;
   onSafetyLevel?: (level: "safe" | "caution" | "indoor" | "unknown") => void;
 }) {
   const { lang, dict } = useLang();
@@ -70,6 +71,12 @@ export function WeatherSafeWidget({ region, themeActive, onSafetyLevel }: {
 
   return (
     <div className={`weather-safe-widget ${safety.level}`} aria-label={dict.weatherTitle}>
+      {petName ? (
+        <p className="weather-pet-greeting" style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700 }}>
+          {lang === "ko" ? `🐾 ${petName}는 오늘 ` : lang === "zh" ? `🐾 ${petName}今天 ` : `🐾 ${petName} today: `}
+          <span className={`weather-safety-badge ${safety.level}`} style={{ fontSize: 12 }}>{t(lang, SAFETY_KEY_BY_LEVEL[safety.level], {})}</span>
+        </p>
+      ) : null}
       <div className="weather-top-row">
         <span className="weather-icon">{condition.icon}</span>
         <div className="weather-main-info">

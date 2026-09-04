@@ -549,6 +549,8 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
             places={selectedPlaces}
             routes={routes}
             tripDate={tripDate}
+            departureTime={departureRecommendation?.time ?? preferredDeparture}
+            finalArrival={finalArrival}
           />
         </div>
       ) : null}
