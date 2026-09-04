@@ -3,32 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>3D 야경 뷰어 — 같이갈개</title>
+<title>3D 뷰어 — 같이갈개</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #05070d; overflow: hidden; font-family: system-ui, sans-serif; }
+  html, body { margin: 0; height: 100%; background: #0b1220; overflow: hidden; font-family: system-ui, sans-serif; }
   #vmap3d { position: absolute; inset: 0; }
   .hud { position: absolute; z-index: 20; }
   #title { top: 14px; left: 14px; right: 14px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
   #title h1 { margin: 0; font-size: 17px; }
   #title p { margin: 2px 0 0; font-size: 12px; opacity: .8; }
-  #slider-wrap { bottom: 46px; left: 50%; transform: translateX(-50%); background: rgba(10,16,30,.78); border: 1px solid rgba(255,255,255,.15); border-radius: 999px; padding: 8px 18px; display: flex; gap: 10px; align-items: center; color: #dbe4ff; font-size: 13px; backdrop-filter: blur(6px); }
-  #slider-wrap input { width: 180px; accent-color: #7aa2ff; }
   #credit { bottom: 12px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.55); font-size: 10.5px; }
-  #loading { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: #05070d; color: #cdd7f5; flex-direction: column; gap: 10px; font-size: 14px; }
-  #err { position: absolute; left: 14px; right: 14px; bottom: 90px; z-index: 40; background: #3a1010; color: #fdd; font: 12px/1.5 monospace; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-wrap; }
+  #loading { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: #0b1220; color: #cdd7f5; flex-direction: column; gap: 10px; font-size: 14px; }
+  #err { position: absolute; left: 14px; right: 14px; bottom: 60px; z-index: 40; background: #3a1010; color: #fdd; font: 12px/1.5 monospace; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <div id="vmap3d"></div>
-<div id="title" class="hud"><h1 id="spot-name">3D 야경</h1><p>드래그=회전 · 휠=줌 · 불빛은 합성입니다</p></div>
-<div id="slider-wrap" class="hud">
-  <span>☀️ 낮</span>
-  <input id="k" type="range" min="0" max="100" value="100" aria-label="낮 밤 조절">
-  <span>🌙 밤</span>
-</div>
-<div id="credit" class="hud">© VWorld 3D 타일 · 국토교통부 / 같이갈개 — 합성 야경(실제 밤 사진이 아님)</div>
+<div id="title" class="hud"><h1 id="spot-name">3D 뷰어</h1><p>드래그=회전 · 휠=줌</p></div>
+<div id="credit" class="hud">© VWorld 3D 타일 · 국토교통부 / 같이갈개</div>
 <div id="err" class="hud"></div>
-<div id="loading"><div>🏙️ 도시를 불러오는 중…</div><div style="font-size:12px;opacity:.6">VWorld 3D 엔진 + 야경 합성</div></div>
+<div id="loading"><div>🏙️ 도시를 불러오는 중…</div><div style="font-size:12px;opacity:.6">VWorld 3D 엔진</div></div>
 <script>
 /* VWorld 로더는 document.write 로 파싱 중 삽입해야 한다 (minicity 검증 패턴). */
 (function () {
@@ -37,9 +30,9 @@
   window.__NV = {
     lat: Number(q.get("lat")) || 37.5126,
     lng: Number(q.get("lng")) || 127.1026,
-    name: q.get("name") || "3D 야경"
+    name: q.get("name") || "3D 뷰어"
   };
-  document.title = window.__NV.name + " — 3D 야경 · 같이갈개";
+  document.title = window.__NV.name + " — 3D 뷰어 · 같이갈개";
   document.getElementById("spot-name").textContent = window.__NV.name;
   if (!key) { showErr("VWorld API 키가 설정되지 않았습니다 (NEXT_PUBLIC_VWORLD_API_KEY)."); }
   document.write("<scr" + "ipt src='https://map.vworld.kr/js/webglMapInit.js.do?version=2.0"
@@ -66,162 +59,21 @@ function waitFor(fn, ms, what) {
   });
 }
 
-/* Night shader (depth variant): desaturated deep-blue city with rectangular
-   window grids, warm streetlight dots on gray roads, gradient sky with
-   horizon city-glow, stars and a soft vignette — the miniature-diorama
-   palette minicity uses, reproduced client-side only. */
-var NIGHT_FS_DEPTH = [
-  "uniform sampler2D colorTexture;",
-  "varying vec2 v_textureCoordinates;",
-  "uniform float u_k;",
-  "const vec3 W = vec3(0.2126, 0.7152, 0.0722);",
-  "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }",
-  "float box(vec2 p, vec2 b){ vec2 d = abs(p) - b; return -max(d.x, d.y); }",
-  "void main(){",
-  "  vec2 uv = v_textureCoordinates;",
-  "  vec4 c4 = texture2D(colorTexture, uv);",
-  "  vec3 c = c4.rgb;",
-  "  float depth = czm_unpackDepth(texture2D(czm_globeDepthTexture, uv));",
-  "  bool isSky = depth >= 0.999999;",
-  "  float lum = dot(c, W);",
-  "  float sat = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);",
-  "  vec3 night;",
-  "  if (isSky) {",
-  "    float st = hash(floor(gl_FragCoord.xy / 2.0));",
-  "    vec3 sky = mix(vec3(0.010, 0.016, 0.038), vec3(0.020, 0.030, 0.065), uv.y);",
-  "    sky += vec3(0.10, 0.065, 0.030) * pow(1.0 - uv.y, 6.0);", // 도시 스모그 빛
-  "    night = sky + step(0.9982, st) * vec3(0.55, 0.65, 0.85) * (0.6 + 0.4 * hash(floor(gl_FragCoord.xy / 2.0) + 7.0));",
-  "  } else {",
-  "    vec3 mono = vec3(lum);",
-  "    night = mono * vec3(0.150, 0.185, 0.360);",
-  // 건물 창문: 6px 셀 안에 사각 창 1~2개, 밝은 표면 위 해시 점등
-  "    vec2 cellPx = floor(gl_FragCoord.xy / 6.0);",
-  "    float hw = hash(cellPx);",
-  "    if (lum > 0.52 && hw > 0.30) {",
-  "      vec2 f = fract(gl_FragCoord.xy / 6.0) - 0.5;",
-  "      float win1 = smoothstep(0.0, 0.12, box(f - vec2(0.0, 0.0), vec2(0.26, 0.20)));",
-  "      float win2 = (hw > 0.72 && abs(f.x) > 0.22) ? smoothstep(0.0, 0.12, box(f - vec2(sign(f.x) * 0.36, 0.0), vec2(0.24, 0.20))) : 0.0;",
-  "      float warm = 0.75 + 0.55 * hash(cellPx + 13.0);",
-  "      night += vec3(1.0, 0.72, 0.38) * max(win1, win2) * warm * min(1.0, lum);",
-  "    }",
-  // 가로등: 회색 도로 위 성긴 주황 점광
-  "    vec2 lampPx = floor(gl_FragCoord.xy / 14.0);",
-  "    float hl = hash(lampPx);",
-  "    if (sat < 0.16 && lum > 0.34 && lum < 0.62 && hl > 0.80) {",
-  "      vec2 lf = fract(gl_FragCoord.xy / 14.0) - 0.5;",
-  "      float lamp = smoothstep(0.30, 0.05, length(lf));",
-  "      night += vec3(1.0, 0.62, 0.28) * lamp * 0.85;",
-  "    }",
-  "  }",
-  "  float vig = smoothstep(1.25, 0.45, length(uv - 0.5) * 1.6);",
-  "  night *= 0.85 + 0.15 * vig;",
-  "  gl_FragColor = vec4(mix(c, night, u_k), c4.a);",
-  "}"
-].join("\n");
-
-/* Fallback without depth: bright low-saturation pixels are treated as sky. */
-var NIGHT_FS_PLAIN = [
-  "uniform sampler2D colorTexture;",
-  "varying vec2 v_textureCoordinates;",
-  "uniform float u_k;",
-  "const vec3 W = vec3(0.2126, 0.7152, 0.0722);",
-  "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }",
-  "float box(vec2 p, vec2 b){ vec2 d = abs(p) - b; return -max(d.x, d.y); }",
-  "void main(){",
-  "  vec2 uv = v_textureCoordinates;",
-  "  vec4 c4 = texture2D(colorTexture, uv);",
-  "  vec3 c = c4.rgb;",
-  "  float lum = dot(c, W);",
-  "  float sat = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);",
-  "  bool skyish = lum > 0.60 && sat < 0.12;",
-  "  vec3 mono = vec3(lum);",
-  "  vec3 night = mono * (skyish ? vec3(0.12, 0.16, 0.32) : vec3(0.150, 0.185, 0.360));",
-  "  if (!skyish) {",
-  "    vec2 cellPx = floor(gl_FragCoord.xy / 6.0);",
-  "    float hw = hash(cellPx);",
-  "    if (lum > 0.52 && hw > 0.30) {",
-  "      vec2 f = fract(gl_FragCoord.xy / 6.0) - 0.5;",
-  "      float win1 = smoothstep(0.0, 0.12, box(f, vec2(0.26, 0.20)));",
-  "      night += vec3(1.0, 0.72, 0.38) * win1 * (0.75 + 0.55 * hash(cellPx + 13.0));",
-  "    }",
-  "    vec2 lampPx = floor(gl_FragCoord.xy / 14.0);",
-  "    float hl = hash(lampPx);",
-  "    if (sat < 0.16 && lum > 0.34 && lum < 0.62 && hl > 0.80) {",
-  "      vec2 lf = fract(gl_FragCoord.xy / 14.0) - 0.5;",
-  "      night += vec3(1.0, 0.62, 0.28) * smoothstep(0.30, 0.05, length(lf)) * 0.85;",
-  "    }",
-  "  }",
-  "  float vig = smoothstep(1.25, 0.45, length(uv - 0.5) * 1.6);",
-  "  night *= 0.72 + 0.28 * vig;",
-  "  gl_FragColor = vec4(mix(c, night, u_k), c4.a);",
-  "}"
-].join("\n");
-
-var stage = null;
-var mode = "none"; // depth | plain | none
-
 window.addEventListener("load", function () {
   var p = window.__NV;
-  var widget = null, scene = null;
-  var slider = document.getElementById("k");
-
-  slider.addEventListener("input", function () {
-    if (stage) stage.uniforms.u_k = Number(slider.value) / 100;
-  });
-
-  function attachStage(shader) {
-    var fxaa = scene.postProcessStages && scene.postProcessStages.fxaa;
-    if (!fxaa) throw new Error("PostProcessStage를 찾지 못했습니다");
-    var PostProcessStage = Object.getPrototypeOf(fxaa).constructor;
-    stage = new PostProcessStage({ fragmentShader: shader, uniforms: { u_k: 1.0 } });
-    scene.postProcessStages.add(stage);
-  }
-
-  function detachStage() {
-    try { if (stage) scene.postProcessStages.remove(stage); } catch (e) {}
-    stage = null;
-  }
-
   waitFor(function () { return typeof vw !== "undefined" && vw.Map; }, 15000,
     "VWorld 엔진 로드 실패 — 키 도메인 등록과 접속 호스트(" + location.hostname + ")를 확인하세요")
     .then(function () {
       var bm = (vw.BasemapType && vw.BasemapType.PHOTO !== undefined) ? vw.BasemapType.PHOTO : vw.BasemapType.GRAPHIC;
-      // 6.2km+협화각 조합에서는 VWorld 타일이 스트리밍되지 않아 검은 화면이
-      // 되었다(픽셀 실측: meanLum 0.05, 77% 검정). 동작 검증된 1.5km 시점 유지.
       var start = new vw.CameraPosition(new vw.CoordZ(p.lng, p.lat, 1500), new vw.Direction(0, -42, 0));
       var opt = new vw.MapOptions(bm, "", vw.DensityType.FULL, vw.DensityType.FULL, false, start, start);
       window.map3d = new vw.Map("vmap3d", opt);
       return waitFor(function () { return map3d._wsViewer && map3d._wsViewer._cesiumWidget; }, 25000, "3D 뷰어 초기화 실패");
     })
-    .then(function (w) {
-      widget = w;
-      scene = widget.scene;
-
-      scene.renderError.addEventListener(function () {
-        document.querySelectorAll(".cesium-widget-errorPanel").forEach(function (n) { n.remove(); });
-        if (mode === "depth") {
-          detachStage();
-          try { attachStage(NIGHT_FS_PLAIN); mode = "plain"; window.__nvMode = mode; return; } catch (e) {}
-        }
-        detachStage();
-        mode = "none";
-        window.__nvMode = mode;
-        showErr("렌더 에러 — 야경 효과를 껐습니다. 지도는 계속 사용할 수 있습니다.");
-      });
-
-      /* The depth texture only exists once the globe has rendered at least
-         once — attaching a depth-sampling stage earlier kills the render loop. */
-      return waitFor(function () {
-        try { return scene.context && scene.context.uniformState && scene.context.uniformState.globeDepthTexture; } catch (e) { return false; }
-      }, 20000, "깊이 텍스처 대기 실패");
-    })
     .then(function () {
-      attachStage(NIGHT_FS_DEPTH);
-      mode = "depth";
-      window.__nvMode = mode;
-
+      window.__nvMode = "plain-map";
       var loading = document.getElementById("loading");
-      setTimeout(function () { loading.style.transition = "opacity .6s"; loading.style.opacity = "0"; setTimeout(function () { loading.remove(); }, 650); }, 1200);
+      setTimeout(function () { loading.style.transition = "opacity .6s"; loading.style.opacity = "0"; setTimeout(function () { loading.remove(); }, 650); }, 1500);
     })
     .catch(function (e) { showErr(String(e && e.message || e)); });
 });

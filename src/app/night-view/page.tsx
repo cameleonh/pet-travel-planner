@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "3D 야경 뷰어 — 같이갈개",
+  title: "3D 뷰어 — 같이갈개",
 };
 
 function firstParam(value: string | string[] | undefined): string | null {
@@ -14,7 +14,7 @@ export default async function NightViewPage({ searchParams }: {
   const params = await searchParams;
   const lat = Number(firstParam(params.lat));
   const lng = Number(firstParam(params.lng));
-  const name = firstParam(params.name) ?? "3D 야경";
+  const name = firstParam(params.name) ?? "3D 뷰어";
   const key = process.env.NEXT_PUBLIC_VWORLD_API_KEY ?? "";
 
   const valid = Number.isFinite(lat) && Number.isFinite(lng)

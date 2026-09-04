@@ -731,10 +731,10 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                                 <a
                                   className="plan-add-button"
                                   href={`/night-view?lat=${result.place.coordinates.latitude}&lng=${result.place.coordinates.longitude}&name=${encodeURIComponent(result.place.name)}`}
-                                  title={lang === "ko" ? "이 장소의 3D 합성 야경 보기" : "View this spot as a 3D night scene"}
+                                  title={lang === "ko" ? "이 장소를 3D로 둘러보기" : "Explore this spot in 3D"}
                                   style={{ textDecoration: "none", textAlign: "center", background: "#1e2a4a", borderColor: "#31437a" }}
                                 >
-                                  🌙 {lang === "ko" ? "3D 야경 보기" : "3D Night View"}
+                                  🏙️ {lang === "ko" ? "3D 보기" : "3D View"}
                                 </a>
                               </div>
                             ) : null}
