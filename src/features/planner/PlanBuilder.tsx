@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { PlanActivity, PlanPlace, RouteSegment } from "@/domain/plan";
 import { distanceKm } from "@/domain/geo";
 import { buildDepartureCandidates, buildTravelSchedule, formatClock, formatDateInput } from "@/domain/travel-schedule";
+import { DepartureTimePicker } from "@/features/planner/DepartureTimePicker";
 import { useLang } from "@/i18n/LangContext";
 import { t } from "@/i18n/dictionary";
 import { generateTravelPlan } from "@/domain/planning/orchestrator";
@@ -69,9 +70,27 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
   const handledGenerateRequest = useRef(0);
   const printDialogRef = useRef<HTMLDivElement>(null);
   const printButtonRef = useRef<HTMLButtonElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const computedFingerprintRef = useRef<string | null>(null);
+
+  // Inputs that fully determine the computed plan; used to decide whether a
+  // prefetched result can be revealed as-is when the analysis button is pressed.
+  const planFingerprint = useCallback(() => JSON.stringify([
+    tripDate,
+    preferredDeparture,
+    stayMinutes,
+    selectedPlaces.map((place) => place.id),
+    selectedActivities.map((activity) => activity.id),
+  ]), [tripDate, preferredDeparture, stayMinutes, selectedPlaces, selectedActivities]);
+
+  const scrollToResults = useCallback(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    resultsRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  }, []);
 
   const generatePlan = useCallback(async () => {
     if (selectedPlaces.length < 2) return;
+    const fingerprint = planFingerprint();
     setLoading(true);
     setError(null);
     setNotice(null);
@@ -184,20 +203,38 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
       setRoutes(segments);
       setDepartureRecommendation(recommendation);
       if (segments.some((segment) => segment.routeMode === "approximate")) setNotice(dict.planFallback);
+      computedFingerprintRef.current = fingerprint;
     } catch (routeError) {
       const isTimeout = routeError instanceof DOMException && routeError.name === "TimeoutError";
       setError(isTimeout ? dict.planTimeout : routeError instanceof Error ? routeError.message : dict.planError);
     } finally {
       setLoading(false);
     }
-  }, [selectedPlaces, selectedActivities, generateRequest, dict, tripDate, preferredDeparture, stayMinutes]);
+  }, [selectedPlaces, selectedActivities, generateRequest, dict, tripDate, preferredDeparture, stayMinutes, planFingerprint]);
 
+  // Prefetch: once the course is confirmed, the plan is (re)computed in the
+  // background after a short debounce — on confirm itself and whenever the
+  // date / departure time / stay length changes — so the analysis button can
+  // reveal instantly instead of recomputing from scratch.
   useEffect(() => {
-    if (generateRequest <= handledGenerateRequest.current || selectedPlaces.length < 2) return;
-    handledGenerateRequest.current = generateRequest;
-    const timer = globalThis.setTimeout(() => void generatePlan(), 0);
+    if (!courseConfirmed || selectedPlaces.length < 2) return;
+    if (generateRequest > handledGenerateRequest.current) handledGenerateRequest.current = generateRequest;
+    const timer = globalThis.setTimeout(() => void generatePlan(), 500);
     return () => globalThis.clearTimeout(timer);
-  }, [generateRequest, generatePlan, selectedPlaces.length]);
+  }, [courseConfirmed, generateRequest, generatePlan, selectedPlaces.length]);
+
+  // Reveal instantly when a fresh prefetched plan already matches the current
+  // inputs; otherwise compute on demand. Either way, land on the results.
+  const handleGenerateClick = useCallback(() => {
+    if (routes.length > 0 && computedFingerprintRef.current === planFingerprint()) {
+      scrollToResults();
+      return;
+    }
+    void (async () => {
+      await generatePlan();
+      scrollToResults();
+    })();
+  }, [routes.length, planFingerprint, generatePlan, scrollToResults]);
 
   const plannedDeparture = departureRecommendation?.time ?? preferredDeparture;
   const schedule = useMemo(
@@ -298,7 +335,11 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
           </label>
           <label>
             <span>{dict.planPreferredDeparture}</span>
-            <input type="time" value={preferredDeparture} onChange={(event) => { setPreferredDeparture(event.target.value); resetGeneratedPlan(); }} />
+            <DepartureTimePicker
+              value={preferredDeparture}
+              onChange={(next) => { setPreferredDeparture(next); resetGeneratedPlan(); }}
+              ariaLabel={dict.planPreferredDeparture}
+            />
           </label>
           <label>
             <span>{dict.planStayMinutes}</span>
@@ -412,7 +453,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
         </div>
       ) : null}
 
-      <button type="button" className="plan-generate-button" disabled={selectedPlaces.length < 2 || loading || !courseConfirmed} onClick={generatePlan}>
+      <button type="button" className="plan-generate-button" disabled={selectedPlaces.length < 2 || loading || !courseConfirmed} onClick={handleGenerateClick}>
         {loading ? dict.planLoading : selectedPlaces.length < 2 ? dict.planNeedMore : !courseConfirmed ? dict.planConfirmCourseFirst : t(lang, "planGenerate", { n: selectedPlaces.length })}
       </button>
 
@@ -420,7 +461,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
       {notice ? <p className="plan-notice" role="status">{notice}</p> : null}
 
       {courseConfirmed && routes.length > 0 ? (
-        <div className="plan-routes">
+        <div className="plan-routes" ref={resultsRef}>
           <div className="plan-routes-heading"><span>{dict.planSchedule}</span><h3>{dict.planRoutes}</h3></div>
           {schedule.map(({ route, departureAt, arrivalAt, durationMinutes }, i) => {
             const departureClock = formatClock(departureAt);
