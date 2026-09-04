@@ -22,7 +22,7 @@ export interface ThemePreset {
   categories: RawPlace['category'][];
   prepFilters: PreparationFilterKey[];
   recommendedTags: string[];
-  placeSet?: 'night-spots';
+  placeSet?: 'night-spots' | 'rural-stays';
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
@@ -95,14 +95,15 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: 'rural-stay',
     emoji: '🌾',
     badge: '촌캉스 힐링',
-    titleKo: '한적한 시골 촌캉스 & 민박 힐링',
-    titleEn: 'Quiet Countryside & Farmstay',
-    descKo: '도시를 벗어나 조용한 자연에서 반려견과 유유자적 힐링하는 농촌 여행',
-    descEn: 'Escape the city for quiet countryside homestays and rural farm walks',
+    titleKo: '반려견 동반 펜션·한옥·민박 37곳',
+    titleEn: 'Pet-Friendly Stays: Pensions, Hanok & Farmhouses',
+    descKo: '강아지랑 같이 자러 가요 — 검증된 반려견 동반 펜션·한옥·게스트하우스 큐레이션',
+    descEn: 'Verified pet-friendly pensions, hanok guesthouses and farm stays across Korea',
     petSize: null,
-    categories: ['accommodation', 'attraction'],
+    categories: [],
     prepFilters: ['outdoor'],
-    recommendedTags: ['촌캉스', '농어촌민박', '조용한휴식', '자연치유'],
+    recommendedTags: ['촌캉스', '펜션', '한옥', '반려견동반숙박'],
+    placeSet: 'rural-stays',
   },
   {
     id: 'night-view',

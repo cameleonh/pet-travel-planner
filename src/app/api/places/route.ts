@@ -44,7 +44,9 @@ export async function GET(request: Request) {
     const prepFiltersRaw = url.searchParams.get("prep");
     const preparationFilters = (prepFiltersRaw ? preparationFilterListSchema.parse(prepFiltersRaw.split(",").filter(Boolean)) : []) as PreparationFilterKey[];
     const lang = z.enum(["ko", "en", "zh"]).default("ko").parse(url.searchParams.get("lang") ?? "ko");
-    const placeSet = url.searchParams.get("placeSet") === "night-spots" ? "night-spots" as const : undefined;
+    const placeSet = url.searchParams.get("placeSet") === "night-spots" ? "night-spots" as const
+      : url.searchParams.get("placeSet") === "rural-stays" ? "rural-stays" as const
+      : undefined;
     const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories, preparationFilters, placeSet });
 
     // Enrich results with accessibility, camping, congestion, and translation data when available

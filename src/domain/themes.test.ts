@@ -27,7 +27,7 @@ describe("THEME_PRESETS", () => {
       expect(preset.descEn).toBeTruthy();
       expect(preset.recommendedTags.length).toBeGreaterThan(0);
       if (preset.placeSet) {
-        expect(preset.placeSet).toBe("night-spots");
+        expect(["night-spots", "rural-stays"]).toContain(preset.placeSet);
       } else {
         expect(preset.categories.length).toBeGreaterThan(0);
       }
@@ -40,6 +40,13 @@ describe("THEME_PRESETS", () => {
     expect(nightPreset?.placeSet).toBe("night-spots");
     expect(nightPreset?.categories).toEqual([]);
     expect(nightPreset?.prepFilters).toContain("leash");
+  });
+
+  it("configures the rural stay preset to drive results via the curated place set", () => {
+    const ruralPreset = THEME_PRESETS.find((p) => p.id === "rural-stay");
+    expect(ruralPreset).toBeDefined();
+    expect(ruralPreset?.placeSet).toBe("rural-stays");
+    expect(ruralPreset?.categories).toEqual([]);
   });
 
   it("configures large dog free preset with largeDog requirement", () => {

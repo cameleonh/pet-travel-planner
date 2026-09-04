@@ -101,7 +101,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [nearbyReviewedFor, setNearbyReviewedFor] = useState<string | null>(null);
   const [selectionCompleted, setSelectionCompleted] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
-  const [placeSet, setPlaceSet] = useState<"night-spots" | null>(null);
+  const [placeSet, setPlaceSet] = useState<"night-spots" | "rural-stays" | null>(null);
   const [todaySafety, setTodaySafety] = useState<"safe" | "caution" | "indoor" | "unknown">("unknown");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
