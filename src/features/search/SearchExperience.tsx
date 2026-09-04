@@ -31,6 +31,7 @@ import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
 import type { ThemePreset, ThemePresetId } from "@/domain/themes";
 import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
+import { track } from "@/domain/usage-client";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
 import { FloatingQuickNav } from "@/features/navigation/FloatingQuickNav";
 import { hasActiveFilters } from "@/domain/search-filters";
@@ -354,6 +355,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
   };
   const handleApplyTheme = useCallback((theme: ThemePreset) => {
+    track("theme_apply", theme.id);
     setActiveThemeId(theme.id);
     setPlaceSet(theme.placeSet ?? null);
     setPage(1);
@@ -381,6 +383,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
   const filtersActive = hasActiveFilters({ region, categories, hard, preferences, prepFilters, page });
   const recordView = useCallback((place: Pick<RawPlace, "id" | "name" | "address" | "category">) => {
+    track("place_view", place.id);
     recordViewedPlace({
       id: place.id,
       name: place.name,
@@ -639,7 +642,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} todaySafetyLevel={todaySafety} />
         <aside className="filter-panel">
           <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} onSafetyLevel={setTodaySafety} />
-          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
+          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
@@ -739,6 +742,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                               </div>
                             ) : null}
                             <div className="place-action-row">
+                              <a className="plan-add-button" href={`/place/${encodeURIComponent(result.place.id)}`} title={lang === "ko" ? "장소 상세 정보" : "Place details"} style={{ textDecoration: "none", textAlign: "center", background: "#fff", color: "#334155" }}>🔎 {lang === "ko" ? "상세" : "Info"}</a>
                               <button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button>
                             </div>
                             {isSaved ? (

@@ -72,6 +72,7 @@ window.addEventListener("load", function () {
     })
     .then(function () {
       window.__nvMode = "plain-map";
+      try { navigator.sendBeacon("/api/usage", new Blob([JSON.stringify({ kind: "nightspot_3d_open", detail: (window.__NV.name || "").slice(0, 40) })], { type: "application/json" })); } catch (e) {}
       var loading = document.getElementById("loading");
       setTimeout(function () { loading.style.transition = "opacity .6s"; loading.style.opacity = "0"; setTimeout(function () { loading.remove(); }, 650); }, 1500);
     })

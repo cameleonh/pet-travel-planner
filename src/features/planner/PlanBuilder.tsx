@@ -5,6 +5,7 @@ import type { PlanActivity, PlanPlace, RouteSegment } from "@/domain/plan";
 import { distanceKm } from "@/domain/geo";
 import { buildDepartureCandidates, buildTravelSchedule, formatClock, formatDateInput } from "@/domain/travel-schedule";
 import { DepartureTimePicker } from "@/features/planner/DepartureTimePicker";
+import { track } from "@/domain/usage-client";
 import { useLang } from "@/i18n/LangContext";
 import { t } from "@/i18n/dictionary";
 import { generateTravelPlan } from "@/domain/planning/orchestrator";
@@ -205,6 +206,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
       setDepartureRecommendation(recommendation);
       if (segments.some((segment) => segment.routeMode === "approximate")) setNotice(dict.planFallback);
       computedFingerprintRef.current = fingerprint;
+      track("plan_generate", String(selectedPlaces.length));
     } catch (routeError) {
       const isTimeout = routeError instanceof DOMException && routeError.name === "TimeoutError";
       setError(isTimeout ? dict.planTimeout : routeError instanceof Error ? routeError.message : dict.planError);
