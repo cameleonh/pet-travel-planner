@@ -15,10 +15,12 @@ const STORAGE_KEY = "pet_travel_profile_v1";
 
 export const DEFAULT_AVATARS = ["🐶", "🐩", "🐕", "🐾", "🦴", "🤎", "🤍", "🖤"];
 
-// 동물보호법 시행규칙 별표 5 — 맹견 품종 (5 breeds legally designated as dangerous).
+// 동물보호법 제2조제5호가목 → 시행규칙 제2조(맹견의 범위) — 법령 표기 그대로:
+// 도사견 / 핏불테리어(아메리칸 핏불테리어 포함) / 아메리칸 스태퍼드셔 테리어 /
+// 스태퍼드셔 불 테리어 / 로트와일러 (각 "그 잡종의 개" 포함).
 export const DANGEROUS_BREEDS = [
-  "토사견",
-  "아메리칸 핏불 테리어",
+  "도사견",
+  "핏불테리어",
   "아메리칸 스태퍼드셔 테리어",
   "스태퍼드셔 불 테리어",
   "로트와일러",
@@ -50,7 +52,7 @@ export const DOG_BREED_GROUPS: readonly BreedGroup[] = [
     breeds: [
       "골든리트리버", "래브라도리트리버", "저먼셰퍼드", "사모예드", "시베리안 허스키",
       "알래스칸 말라뮤트", "도베르만", "로트와일러", "그레이트데인", "아키타견", "풍산개",
-      "아메리칸 핏불 테리어", "아메리칸 스태퍼드셔 테리어", "토사견",
+      "핏불테리어(아메리칸 포함)", "아메리칸 스태퍼드셔 테리어", "도사견",
     ],
   },
   {
@@ -66,10 +68,12 @@ function normalizeBreed(value: string): string {
 }
 
 // A breed counts as legally dangerous when a designated breed name appears in
-// what the user selected/typed, so "로트와일러 믹스" or "아메리칸핏불테리어" also match.
+// what the user selected/typed, so mixes and spacing variants also match.
+// "토사견" is kept as a non-statutory alias because many owners type it that way.
 export function isDangerousBreed(breed: string): boolean {
   const normalized = normalizeBreed(breed);
   if (!normalized) return false;
+  if (normalized.includes("토사견")) return true;
   return DANGEROUS_BREEDS.some((dangerous) => normalized.includes(normalizeBreed(dangerous)));
 }
 

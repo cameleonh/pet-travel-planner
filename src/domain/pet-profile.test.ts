@@ -87,15 +87,18 @@ describe("dog breed catalog", () => {
 
   it("includes all five legally designated dangerous breeds in the selectable list", () => {
     for (const breed of DANGEROUS_BREEDS) {
-      expect(DOG_BREED_LIST).toContain(breed);
+      const listed = DOG_BREED_LIST.some((entry) => entry.replace(/\s+/g, "").includes(breed.replace(/\s+/g, "")));
+      expect(listed, breed).toBe(true);
     }
     expect(DANGEROUS_BREEDS).toHaveLength(5);
   });
 
-  it("detects dangerous breeds including spacing variants and mixes", () => {
-    expect(isDangerousBreed("토사견")).toBe(true);
+  it("detects dangerous breeds including spacing variants, statute spellings and mixes", () => {
+    expect(isDangerousBreed("도사견")).toBe(true);
+    expect(isDangerousBreed("토사견")).toBe(true); // 비법령 별칭도 허용
+    expect(isDangerousBreed("핏불테리어")).toBe(true);
     expect(isDangerousBreed("아메리칸 핏불 테리어")).toBe(true);
-    expect(isDangerousBreed("아메리칸핏불테리어")).toBe(true);
+    expect(isDangerousBreed("아메리칸 스태퍼드셔 테리어")).toBe(true);
     expect(isDangerousBreed("로트와일러 믹스")).toBe(true);
     expect(isDangerousBreed("말티즈")).toBe(false);
     expect(isDangerousBreed("골든리트리버")).toBe(false);
