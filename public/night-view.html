@@ -93,7 +93,7 @@ var NIGHT_FS_DEPTH = [
   "    night = sky + step(0.9982, st) * vec3(0.55, 0.65, 0.85) * (0.6 + 0.4 * hash(floor(gl_FragCoord.xy / 2.0) + 7.0));",
   "  } else {",
   "    vec3 mono = vec3(lum);",
-  "    night = mono * vec3(0.085, 0.105, 0.210);",
+  "    night = mono * vec3(0.150, 0.185, 0.360);",
   // 건물 창문: 6px 셀 안에 사각 창 1~2개, 밝은 표면 위 해시 점등
   "    vec2 cellPx = floor(gl_FragCoord.xy / 6.0);",
   "    float hw = hash(cellPx);",
@@ -114,7 +114,7 @@ var NIGHT_FS_DEPTH = [
   "    }",
   "  }",
   "  float vig = smoothstep(1.25, 0.45, length(uv - 0.5) * 1.6);",
-  "  night *= 0.72 + 0.28 * vig;",
+  "  night *= 0.85 + 0.15 * vig;",
   "  gl_FragColor = vec4(mix(c, night, u_k), c4.a);",
   "}"
 ].join("\n");
@@ -135,7 +135,7 @@ var NIGHT_FS_PLAIN = [
   "  float sat = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);",
   "  bool skyish = lum > 0.60 && sat < 0.12;",
   "  vec3 mono = vec3(lum);",
-  "  vec3 night = mono * (skyish ? vec3(0.12, 0.16, 0.32) : vec3(0.085, 0.105, 0.210));",
+  "  vec3 night = mono * (skyish ? vec3(0.12, 0.16, 0.32) : vec3(0.150, 0.185, 0.360));",
   "  if (!skyish) {",
   "    vec2 cellPx = floor(gl_FragCoord.xy / 6.0);",
   "    float hw = hash(cellPx);",
@@ -166,7 +166,7 @@ window.addEventListener("load", function () {
   var slider = document.getElementById("k");
 
   slider.addEventListener("input", function () {
-    if (stage) stage.uniforms.u_k.value = Number(slider.value) / 100;
+    if (stage) stage.uniforms.u_k = Number(slider.value) / 100;
   });
 
   function attachStage(shader) {
@@ -186,8 +186,9 @@ window.addEventListener("load", function () {
     "VWorld 엔진 로드 실패 — 키 도메인 등록과 접속 호스트(" + location.hostname + ")를 확인하세요")
     .then(function () {
       var bm = (vw.BasemapType && vw.BasemapType.PHOTO !== undefined) ? vw.BasemapType.PHOTO : vw.BasemapType.GRAPHIC;
-      // 망원 압축: 멀리서 좁은 화각으로 내려다 본다 — 미니어처 디오라마 시점.
-      var start = new vw.CameraPosition(new vw.CoordZ(p.lng, p.lat, 6200), new vw.Direction(0, -35, 0));
+      // 6.2km+협화각 조합에서는 VWorld 타일이 스트리밍되지 않아 검은 화면이
+      // 되었다(픽셀 실측: meanLum 0.05, 77% 검정). 동작 검증된 1.5km 시점 유지.
+      var start = new vw.CameraPosition(new vw.CoordZ(p.lng, p.lat, 1500), new vw.Direction(0, -42, 0));
       var opt = new vw.MapOptions(bm, "", vw.DensityType.FULL, vw.DensityType.FULL, false, start, start);
       window.map3d = new vw.Map("vmap3d", opt);
       return waitFor(function () { return map3d._wsViewer && map3d._wsViewer._cesiumWidget; }, 25000, "3D 뷰어 초기화 실패");
@@ -195,7 +196,6 @@ window.addEventListener("load", function () {
     .then(function (w) {
       widget = w;
       scene = widget.scene;
-      try { scene.camera.frustum.fov = 10.5 * Math.PI / 180.0; } catch (e) {}
 
       scene.renderError.addEventListener(function () {
         document.querySelectorAll(".cesium-widget-errorPanel").forEach(function (n) { n.remove(); });
