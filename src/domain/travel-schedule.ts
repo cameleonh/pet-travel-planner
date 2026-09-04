@@ -55,6 +55,7 @@ export function buildTravelSchedule(
   startTime: string,
   stayMinutes: number,
   firstLegDurationMinutes?: number | null,
+  dwellByPlaceId?: Record<string, number>,
 ): ScheduledRoute[] {
   let cursor = parseLocalDateTime(date, startTime);
   return routes.map((route, index) => {
@@ -65,7 +66,8 @@ export function buildTravelSchedule(
     const arrivalAt = cursor && durationMinutes != null
       ? new Date(cursor.getTime() + durationMinutes * 60_000)
       : null;
-    cursor = arrivalAt ? new Date(arrivalAt.getTime() + stayMinutes * 60_000) : null;
+    const stay = dwellByPlaceId?.[route.toPlaceId] ?? stayMinutes;
+    cursor = arrivalAt ? new Date(arrivalAt.getTime() + stay * 60_000) : null;
     return { route, departureAt, arrivalAt, durationMinutes };
   });
 }

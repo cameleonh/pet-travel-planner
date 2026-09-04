@@ -48,6 +48,22 @@ describe("travel schedule", () => {
     expect(schedule[1]?.arrivalAt?.getMinutes()).toBe(15);
   });
 
+  it("applies a per-place dwell override only at the overridden stop", () => {
+    const schedule = buildTravelSchedule(
+      [route("A", "B", 30), route("B", "C", 20)],
+      "2026-08-16",
+      "08:00",
+      90,
+      null,
+      { B: 30 },
+    );
+    // Stay 30 minutes at B instead of the 90-minute default; C keeps the default.
+    expect(schedule[1]?.departureAt?.getHours()).toBe(9);
+    expect(schedule[1]?.departureAt?.getMinutes()).toBe(0);
+    expect(schedule[1]?.arrivalAt?.getHours()).toBe(9);
+    expect(schedule[1]?.arrivalAt?.getMinutes()).toBe(20);
+  });
+
   it("stops assigning times after an approximate segment", () => {
     const schedule = buildTravelSchedule(
       [route("A", "B", null), route("B", "C", 20)],

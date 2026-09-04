@@ -569,6 +569,9 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     closePlanner();
   }, [closePlanner]);
   const invalidateCourse = useCallback(() => setCourseConfirmed(false), []);
+  const changePlaceDwell = useCallback((placeId: string, minutes: number | null) => {
+    setPlanPlaces((current) => current.map((place) => place.id === placeId ? { ...place, dwellMinutes: minutes } : place));
+  }, []);
   const applyCourseOrder = useCallback((orderedPlaceIds: string[]) => {
     setPlanPlaces((current) => {
       const placesById = new Map(current.map((place) => [place.id, place]));
@@ -595,6 +598,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           <div className="pet-profile-bar" role="region" aria-label="내 반려견 맞춤 설정">
             <div className="pet-profile-info">
               {petProfile.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded data URL, optimization is pointless
                 <img
                   src={petProfile.photo}
                   alt={petProfile.name}
@@ -834,7 +838,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             {courseConfirmed && hasPlanItems ? (
               <div ref={plannerDialogRef} tabIndex={-1} className="trip-board-plan" role={plannerOpen ? "dialog" : undefined} aria-modal={plannerOpen ? true : undefined} aria-label={dict.tripBoardTitle}>
                 {plannerOpen ? <div className="mobile-planner-heading"><strong>{dict.tripBoardTitle}</strong><button type="button" autoFocus aria-label={dict.closeTripBoard} onClick={closePlanner}>×</button></div> : null}
-                <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onClear={clearPlanPlaces} />
+                <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onDwellChange={changePlaceDwell} onClear={clearPlanPlaces} />
               </div>
             ) : null}
           </aside>

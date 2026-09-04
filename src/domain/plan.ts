@@ -8,6 +8,8 @@ export type PlanPlace = {
   coordinates: Coordinates;
   policySourceText: string;
   exact: boolean;
+  /** Per-place dwell override in minutes; null/undefined falls back to the global stay length. */
+  dwellMinutes?: number | null;
 };
 
 export type PlanActivity = {

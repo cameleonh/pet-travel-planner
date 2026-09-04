@@ -157,7 +157,7 @@ export function planningItemFromPlanPlace(place: PlanPlace, context: Qualificati
     },
     petAdmission: { status: place.policySourceText ? "confirmed" : "not-evaluated", evidenceText: place.policySourceText || null, needsConfirmation: !place.policySourceText },
     activityWindow: null,
-    userDwellMinutes: null,
+    userDwellMinutes: place.dwellMinutes ?? null,
     userCostKrw: null,
   };
 }

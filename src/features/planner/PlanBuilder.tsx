@@ -52,10 +52,11 @@ type Props = {
   courseConfirmed: boolean;
   onRemove: (id: string) => void;
   onRemoveActivity: (id: string) => void;
+  onDwellChange: (id: string, minutes: number | null) => void;
   onClear: () => void;
 };
 
-export function PlanBuilder({ selectedPlaces, selectedActivities, generateRequest, courseConfirmed, onRemove, onRemoveActivity, onClear }: Props) {
+export function PlanBuilder({ selectedPlaces, selectedActivities, generateRequest, courseConfirmed, onRemove, onRemoveActivity, onDwellChange, onClear }: Props) {
   const { lang, dict } = useLang();
   const [routes, setRoutes] = useState<RouteSegment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,7 +80,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
     tripDate,
     preferredDeparture,
     stayMinutes,
-    selectedPlaces.map((place) => place.id),
+    selectedPlaces.map((place) => [place.id, place.dwellMinutes ?? null]),
     selectedActivities.map((activity) => activity.id),
   ]), [tripDate, preferredDeparture, stayMinutes, selectedPlaces, selectedActivities]);
 
@@ -237,9 +238,13 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
   }, [routes.length, planFingerprint, generatePlan, scrollToResults]);
 
   const plannedDeparture = departureRecommendation?.time ?? preferredDeparture;
+  const dwellByPlaceId = useMemo(
+    () => Object.fromEntries(selectedPlaces.filter((place) => place.dwellMinutes != null).map((place) => [place.id, place.dwellMinutes!])),
+    [selectedPlaces],
+  );
   const schedule = useMemo(
-    () => buildTravelSchedule(routes, tripDate, plannedDeparture, stayMinutes, departureRecommendation?.durationMinutes),
-    [routes, tripDate, plannedDeparture, stayMinutes, departureRecommendation?.durationMinutes],
+    () => buildTravelSchedule(routes, tripDate, plannedDeparture, stayMinutes, departureRecommendation?.durationMinutes, dwellByPlaceId),
+    [routes, tripDate, plannedDeparture, stayMinutes, departureRecommendation?.durationMinutes, dwellByPlaceId],
   );
   const tripDateLabel = useMemo(() => {
     const date = new Date(`${tripDate}T12:00:00`);
@@ -432,6 +437,27 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
               <small>{place.address}</small>
               {place.policySourceText ? <small className="plan-policy">{place.policySourceText.slice(0, 60)}</small> : null}
             </div>
+            <label
+              className="plan-dwell-control"
+              title={lang === "ko" ? "이 장소에서 머무는 시간" : "How long to stay here"}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: 11, color: "#64748b" }}
+            >
+              <span>{lang === "ko" ? "체류" : "Stay"}</span>
+              <select
+                value={place.dwellMinutes ?? ""}
+                aria-label={`${lang === "ko" ? `${place.name} 체류 시간` : `Stay duration at ${place.name}`}`}
+                style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: "4px 6px", fontSize: 12, background: "#fff", color: "#1e293b" }}
+                onChange={(event) => {
+                  onDwellChange(place.id, event.target.value === "" ? null : Number(event.target.value));
+                  resetGeneratedPlan();
+                }}
+              >
+                <option value="">{lang === "ko" ? `기본 ${stayMinutes}분` : `Default ${stayMinutes}m`}</option>
+                {[60, 90, 120, 180, 240].map((minutes) => (
+                  <option key={minutes} value={minutes}>{t(lang, "planStayOption", { n: minutes })}</option>
+                ))}
+              </select>
+            </label>
             <button type="button" className="remove-button" aria-label={t(lang, "planRemoveNamed", { name: place.name })} onClick={() => onRemove(place.id)}>✕</button>
           </li>
         ))}
@@ -482,7 +508,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
                   <div>
                     <small>{arrivalClock ? t(lang, "planArrivalTime", { time: arrivalClock }) : dict.planTimeUnknown}</small>
                     <strong>{route.toName}</strong>
-                    <em>{i === schedule.length - 1 ? dict.planFinalArrival : nextDepartureClock ? t(lang, "planStayThen", { minutes: stayMinutes, time: nextDepartureClock }) : dict.planTimeUnknown}</em>
+                    <em>{i === schedule.length - 1 ? dict.planFinalArrival : nextDepartureClock ? t(lang, "planStayThen", { minutes: dwellByPlaceId[route.toPlaceId] ?? stayMinutes, time: nextDepartureClock }) : dict.planTimeUnknown}</em>
                   </div>
                 </div>
               </div>

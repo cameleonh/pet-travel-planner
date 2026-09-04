@@ -178,6 +178,7 @@ function PetProfileForm({
             <div className="avatar-options">
               {photo ? (
                 <span className={`avatar-btn selected photo`} style={{ position: "relative", padding: 0, overflow: "hidden" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded data URL preview */}
                   <img
                     src={photo}
                     alt={lang === "ko" ? "내 반려견 사진" : "My dog"}
