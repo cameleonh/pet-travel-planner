@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import type { Coordinates } from "@/domain/geo";
 import { classifyDogWalkSafety, weatherConditionFor, type DailyWeather } from "@/domain/weather";
+import { dispatchHeroWeather } from "@/features/weather-hero/hero-events";
 import { useLang } from "@/i18n/LangContext";
 import { t } from "@/i18n/dictionary";
 import { useDailyForecast } from "@/features/weather/useDailyForecast";
@@ -30,6 +32,12 @@ export function TripWeatherCard({ tripDate, coordinates }: { tripDate: string; c
   const { days, loading, failed } = useDailyForecast(coordinates);
   const tripDay = days.find((day) => day.date === tripDate) ?? null;
   const beyondForecast = !loading && !failed && !tripDay && days.length > 0 && days.every((day) => day.date < tripDate);
+
+  // The hero backdrop mirrors the trip day's weather while a plan is open.
+  useEffect(() => {
+    dispatchHeroWeather(tripDay?.weatherCode ?? null, tripDate);
+    return () => dispatchHeroWeather(null, null);
+  }, [tripDay?.weatherCode, tripDate]);
 
   if (!coordinates || failed) return null;
   if (loading) {
