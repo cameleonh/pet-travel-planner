@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/app/api/_shared/rate-limit";
 import { ProviderConfigurationError } from "@/data/providers/provider";
 import { loadPlaceSnapshot } from "@/data/providers";
 import { buildCatalogPage } from "@/data/catalog";
@@ -29,6 +30,8 @@ function parseConstraintList(raw: string | null, kind: SelectedConstraint["kind"
 export async function GET(request: Request) {
   const requestId = randomUUID();
   try {
+    const limited = enforceRateLimit(request);
+    if (limited) return limited;
     const { snapshot, dataSource, notice } = await loadPlaceSnapshot();
     const url = new URL(request.url);
     const legacyHard = url.searchParams.get("conditions");

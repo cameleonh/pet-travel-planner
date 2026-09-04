@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fetchKakaoLocal } from "@/app/api/_shared/kakao-local";
+import { enforceRateLimit } from "@/app/api/_shared/rate-limit";
 
 const querySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -64,6 +65,8 @@ function mapDocument(doc: KakaoDocument) {
 export async function GET(request: Request) {
   const requestId = randomUUID();
   try {
+    const limited = enforceRateLimit(request);
+    if (limited) return limited;
     const apiKey = process.env.KAKAO_REST_API_KEY ?? "";
     if (!apiKey) {
       return NextResponse.json(
