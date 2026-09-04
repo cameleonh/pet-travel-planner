@@ -24,7 +24,15 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [heroSim, setHeroSim] = useState<HeroSimState>("boot");
   const [simPaused, setSimPaused] = useState(false);
-  const simActive = heroSim === "active";
+  const [videoEnded, setVideoEnded] = useState(false);
+  const simActive = heroSim === "active" && videoEnded;
+
+  // The hero video is short (~3s); loop it for a minimum watch time before
+  // the ocean simulation takes over, so the first impression isn't a blink.
+  useEffect(() => {
+    const timer = setTimeout(() => setVideoEnded(true), 10000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -88,7 +96,9 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
         >
           <source src={HERO_VIDEO_URL} type="video/mp4" />
         </video>
-        <WeatherHeroCanvas paused={simPaused} onStateChange={setHeroSim} />
+        <div style={{ opacity: videoEnded ? 1 : 0, transition: "opacity 2s ease-in" }}>
+          <WeatherHeroCanvas paused={simPaused || !videoEnded} onStateChange={setHeroSim} />
+        </div>
         <span className="hero-video-scrim" aria-hidden="true" />
         <div className="intro-copy">
           <p className="eyebrow">{dict.eyebrow}</p>
