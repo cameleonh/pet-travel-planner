@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { classifyDogWalkSafety, regionCenter, weatherConditionFor } from "@/domain/weather";
 import { useLang } from "@/i18n/LangContext";
 import { t } from "@/i18n/dictionary";
@@ -20,15 +20,36 @@ const ADVICE_KEY_BY_REASON = {
   cold: "weatherAdviceCold",
 } as const;
 
-export function WeatherSafeWidget({ region }: { region: string }) {
+export function WeatherSafeWidget({ region, themeActive, onSafetyLevel }: {
+  region: string;
+  themeActive?: boolean;
+  onSafetyLevel?: (level: "safe" | "caution" | "indoor" | "unknown") => void;
+}) {
   const { lang, dict } = useLang();
   const coordinates = useMemo(() => regionCenter(region), [region]);
   const { days, loading, failed } = useDailyForecast(coordinates);
 
+  // Report today's walk-safety level upward so the theme carousel can
+  // highlight the rainy-day theme when the weather calls for it.
+  useEffect(() => {
+    if (!region.trim() || !coordinates) {
+      onSafetyLevel?.("unknown");
+      return;
+    }
+    const today = days[0] ?? null;
+    if (loading || failed || !today) return;
+    onSafetyLevel?.(classifyDogWalkSafety(today).level);
+  }, [region, coordinates, days, loading, failed, onSafetyLevel]);
+
   if (!region.trim() || !coordinates) {
+    const themedHint = lang === "ko"
+      ? "지역을 고르면 이 코스의 그 지역 장소와 오늘 날씨가 함께 표시됩니다"
+      : lang === "zh"
+        ? "选择地区后，即可查看该主题的当地地点与今日天气"
+        : "Pick a region to see this theme's local picks with today's weather";
     return (
       <div className="weather-safe-widget empty" aria-label={dict.weatherTitle}>
-        <p className="weather-region-hint">🌤️ {dict.weatherSelectRegion}</p>
+        <p className="weather-region-hint">🌤️ {themeActive ? themedHint : dict.weatherSelectRegion}</p>
       </div>
     );
   }

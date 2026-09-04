@@ -4,13 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { THEME_PRESETS, type ThemePreset, type ThemePresetId } from "@/domain/themes";
 import { useLang } from "@/i18n/LangContext";
 
+export type TodaySafetyLevel = "safe" | "caution" | "indoor" | "unknown";
+
 interface ThemeCurationsProps {
   activeThemeId: ThemePresetId | null;
   onApplyTheme: (theme: ThemePreset) => void;
   onClearTheme: () => void;
+  todaySafetyLevel?: TodaySafetyLevel;
 }
 
-export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme }: ThemeCurationsProps) {
+export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, todaySafetyLevel }: ThemeCurationsProps) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -140,6 +143,11 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme }: Th
         >
           {THEME_PRESETS.map((theme) => {
             const isActive = activeThemeId === theme.id;
+            // Weather-driven recommendation: when today's walk safety is poor,
+            // surface the rainy-day indoor theme as today's pick.
+            const isTodayPick = theme.id === "rainy-indoor"
+              && (todaySafetyLevel === "caution" || todaySafetyLevel === "indoor");
+            const todayPickLabel = lang === "ko" ? "오늘 추천" : lang === "zh" ? "今日推荐" : "Today's pick";
             return (
               <button
                 key={theme.id}
@@ -151,6 +159,21 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme }: Th
                 <div className="theme-card-top">
                   <span className="theme-card-emoji">{theme.emoji}</span>
                   <span className="theme-card-badge">{theme.badge}</span>
+                  {isTodayPick ? (
+                    <span
+                      style={{
+                        background: "#1d4ed8",
+                        color: "#fff",
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      ⭐ {todayPickLabel}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="theme-card-body">
                   <strong className="theme-card-title">
