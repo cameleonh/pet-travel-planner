@@ -176,6 +176,40 @@ export class SqlitePlaceRepository {
     })();
   }
 
+  latestSuccessfulSnapshotId(): number | null {
+    const row = this.db.prepare(`
+      SELECT s.id AS id
+      FROM sync_runs r
+      JOIN source_snapshots s ON s.id = r.snapshot_id
+      WHERE r.status = 'success'
+      ORDER BY r.finished_at DESC, r.id DESC
+      LIMIT 1
+    `).get() as { id: number } | undefined;
+    return row?.id ?? null;
+  }
+
+  // 경기 반려동물 시설 등 외부 보조 데이터를 기존 스냅샷에 반영. gg-pet:% 행만
+  // 교체하므로 tour-api 동기화로 새 스냅샷이 발행되면 재실행이 필요하다.
+  replaceGyeonggiAuxiliary(snapshotId: number, places: ProviderSnapshot["auxiliaryPlaces"]): number {
+    return this.db.transaction(() => {
+      this.db.prepare("DELETE FROM auxiliary_places WHERE snapshot_id = ? AND place_id LIKE 'gg-pet:%'").run(snapshotId);
+      const insertAuxiliary = this.db.prepare(`
+        INSERT INTO auxiliary_places (
+          snapshot_id, place_id, name, category, address, latitude, longitude, pet_status,
+          evidence_label, evidence_source_text, evidence_source_url, evidence_observed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const place of places) {
+        insertAuxiliary.run(
+          snapshotId, place.id, place.name, place.category, place.address,
+          place.coordinates.latitude, place.coordinates.longitude, place.petStatus,
+          place.evidence.label, place.evidence.sourceText, place.evidence.sourceUrl, place.evidence.observedAt,
+        );
+      }
+      return places.length;
+    })();
+  }
+
   loadLatestSnapshot(): ProviderSnapshot | null {
     const latest = this.db.prepare(`
       SELECT s.id, s.provider, s.fetched_at, s.source_total_count
