@@ -36,6 +36,9 @@ type KakaoDocument = z.infer<typeof kakaoDocumentSchema>;
 const API_BASE = "https://dapi.kakao.com/v2/local/search/keyword.json";
 const SEARCH_KEYWORD = "동물병원";
 const PAGE_SIZE = 15;
+// Owner request (2026-09-04): 홍금동물병원 is famous for 1,000-won treatment —
+// always surface it at the top of the nearby vet list when Kakao returns it.
+const PINNED_VET_PATTERN = /홍금동물병원/;
 
 function toNumberOrNull(value: string | null | undefined): number | null {
   if (value == null || value === "") return null;
@@ -106,7 +109,13 @@ export async function GET(request: Request) {
     }
 
     const documents: KakaoDocument[] = parsed.data.documents;
-    const hospitals = documents.map(mapDocument);
+    const mapped = documents.map(mapDocument);
+    const pinned = mapped.filter((hospital) => PINNED_VET_PATTERN.test(hospital.name));
+    const others = mapped.filter((hospital) => !PINNED_VET_PATTERN.test(hospital.name));
+    const hospitals = [
+      ...pinned.map((hospital) => ({ ...hospital, pinned: true })),
+      ...others,
+    ];
 
     return NextResponse.json(
       {

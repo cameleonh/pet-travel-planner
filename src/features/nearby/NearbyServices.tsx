@@ -16,6 +16,7 @@ type Service = {
   latitude: number | null;
   longitude: number | null;
   placeUrl: string | null;
+  pinned?: boolean;
 };
 
 type Props = {
@@ -119,6 +120,13 @@ export function NearbyServices({ origin, referenceName, selectedPlaceIds, onTogg
       <li key={service.id}>
         <div>
           <strong>{service.name}</strong>
+          {service.pinned ? (
+            <em
+              style={{ display: "inline-block", marginLeft: 6, background: "#fef3c7", border: "1px solid #f59e0b", color: "#92400e", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontStyle: "normal", fontWeight: 700, verticalAlign: "middle" }}
+            >
+              {lang === "ko" ? "📌 1,000원 진료" : lang === "zh" ? "📌 推荐医院" : "📌 Pinned clinic"}
+            </em>
+          ) : null}
           {service.phone ? <a href={`tel:${service.phone}`} className="tel-link">📞 {service.phone}</a> : null}
           <small>{service.distance !== null ? `${(service.distance / 1000).toFixed(1)}km · ` : ""}{service.address}</small>
           {service.placeUrl ? <a href={service.placeUrl} target="_blank" rel="noopener noreferrer" className="place-link">{dict.nearbyKakaoMap}</a> : null}
