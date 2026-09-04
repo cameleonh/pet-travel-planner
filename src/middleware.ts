@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { evaluateApiGate, IpRateLimiter } from "@/domain/api-gate";
 
-// Module-level so the bucket survives across requests within a runtime
-// isolate; resets on deploy/restart, which is acceptable for this purpose.
-const limiter = new IpRateLimiter(120, 120);
+// Cache on globalThis: the middleware bundle can be re-evaluated per isolate,
+// which resets plain module state and silently disarms the limiter (observed
+// in production next start). The global object persists per process.
+const globalStore = globalThis as typeof globalThis & { __ggApiRateLimiter?: IpRateLimiter };
+const limiter = globalStore.__ggApiRateLimiter ??= new IpRateLimiter(120, 120);
 
 function apiError(status: number, code: string, message: string, extraHeaders?: Record<string, string>) {
   return NextResponse.json(

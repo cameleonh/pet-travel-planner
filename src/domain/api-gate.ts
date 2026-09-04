@@ -34,6 +34,16 @@ const BLOCKED_UA_PATTERNS = [
   /crawler/i,
   /scrape/i,
   /headlesschrome/i,
+  // Modern JS runtimes stamp their own UA + a default Sec-Fetch-Mode on every
+  // plain fetch(), so they cannot be told apart from browsers by metadata —
+  // deny them by name.
+  /^node$/i,
+  /node\.js/i,
+  /undici/i,
+  /^deno/i,
+  /^bun\//i,
+  /postmanruntime/i,
+  /insomnia/i,
 ];
 
 const BROWSER_UA_PATTERNS = [

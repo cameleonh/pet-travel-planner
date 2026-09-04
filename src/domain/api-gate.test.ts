@@ -25,6 +25,12 @@ describe("api gate user-agent filter", () => {
       "Googlebot/2.1",
       "SomeCrawler/1.0",
       "HeadlessChrome/126",
+      "node",
+      "Node.js/22",
+      "undici",
+      "deno/1.45",
+      "bun/1.1",
+      "PostmanRuntime/7.39",
     ]) {
       expect(isBlockedUserAgent(ua), ua).toBe(true);
     }
