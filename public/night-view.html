@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D 야경 뷰어 — 같이갈개</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1220; overflow: hidden; font-family: system-ui, sans-serif; }
+  #vmap3d { position: absolute; inset: 0; }
+  .hud { position: absolute; z-index: 20; }
+  #title { top: 14px; left: 14px; right: 14px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+  #title h1 { margin: 0; font-size: 17px; }
+  #title p { margin: 2px 0 0; font-size: 12px; opacity: .8; }
+  #slider-wrap { bottom: 46px; left: 50%; transform: translateX(-50%); background: rgba(10,16,30,.78); border: 1px solid rgba(255,255,255,.15); border-radius: 999px; padding: 8px 18px; display: flex; gap: 10px; align-items: center; color: #dbe4ff; font-size: 13px; backdrop-filter: blur(6px); }
+  #slider-wrap input { width: 180px; accent-color: #7aa2ff; }
+  #credit { bottom: 12px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.55); font-size: 10.5px; }
+  #loading { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: #0b1220; color: #cdd7f5; flex-direction: column; gap: 10px; font-size: 14px; }
+  #err { position: absolute; left: 14px; right: 14px; bottom: 90px; z-index: 40; background: #3a1010; color: #fdd; font: 12px/1.5 monospace; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="vmap3d"></div>
+<div id="title" class="hud"><h1 id="spot-name">3D 야경</h1><p>드래그=회전 · 휠=줌 · 창문 불빛은 합성입니다</p></div>
+<div id="slider-wrap" class="hud">
+  <span>☀️ 낮</span>
+  <input id="k" type="range" min="0" max="100" value="100" aria-label="낮 밤 조절">
+  <span>🌙 밤</span>
+</div>
+<div id="credit" class="hud">© VWorld 3D 타일 · 국토교통부 / 같이갈개 — 합성 야경(실제 밤 사진이 아님)</div>
+<div id="err" class="hud"></div>
+<div id="loading"><div>🏙️ 도시를 불러오는 중…</div><div style="font-size:12px;opacity:.6">VWorld 3D 엔진 + 야경 합성</div></div>
+<script>
+/* VWorld 로더는 document.write 로 파싱 중 삽입해야 한다 (minicity 검증 패턴). */
+(function () {
+  var q = new URLSearchParams(location.search);
+  var key = q.get("key") || "";
+  window.__NV = {
+    lat: Number(q.get("lat")) || 37.5126,
+    lng: Number(q.get("lng")) || 127.1026,
+    name: q.get("name") || "3D 야경"
+  };
+  document.title = window.__NV.name + " — 3D 야경 · 같이갈개";
+  document.getElementById("spot-name").textContent = window.__NV.name;
+  if (!key) { showErr("VWorld API 키가 설정되지 않았습니다 (NEXT_PUBLIC_VWORLD_API_KEY)."); }
+  document.write("<scr" + "ipt src='https://map.vworld.kr/js/webglMapInit.js.do?version=2.0"
+    + "&apiKey=" + encodeURIComponent(key)
+    + "&domain=" + encodeURIComponent(location.hostname) + "'></scr" + "ipt>");
+})();
+
+function showErr(msg) {
+  var e = document.getElementById("err");
+  e.style.display = "block";
+  e.textContent = msg;
+  var l = document.getElementById("loading");
+  if (l) l.style.display = "none";
+}
+
+function waitFor(fn, ms, what) {
+  return new Promise(function (resolve, reject) {
+    var t0 = Date.now();
+    (function tick() {
+      try { var v = fn(); if (v) return resolve(v); } catch (e) {}
+      if (Date.now() - t0 > ms) return reject(new Error(what + " (timeout " + ms + "ms)"));
+      setTimeout(tick, 120);
+    })();
+  });
+}
+
+var NIGHT_FS = [
+  "uniform sampler2D colorTexture;",
+  "varying vec2 v_textureCoordinates;",
+  "uniform float u_k;",
+  "const vec3 W = vec3(0.2126, 0.7152, 0.0722);",
+  "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }",
+  "void main(){",
+  "  vec4 c4 = texture2D(colorTexture, v_textureCoordinates);",
+  "  vec3 c = c4.rgb;",
+  "  float depth = czm_unpackDepth(texture2D(czm_globeDepthTexture, v_textureCoordinates));",
+  "  bool isSky = depth >= 0.999999;",
+  "  float lum = dot(c, W);",
+  "  vec2 cell = floor(gl_FragCoord.xy / 5.0);",
+  "  float h = hash(cell);",
+  "  float lit = step(0.60, lum) * step(0.42, h);",
+  "  vec3 night;",
+  "  if (isSky) {",
+  "    float st = hash(floor(gl_FragCoord.xy / 2.0));",
+  "    night = vec3(0.030, 0.045, 0.090) + step(0.9985, st) * vec3(0.55, 0.65, 0.85);",
+  "  } else {",
+  "    night = c * vec3(0.10, 0.13, 0.24);",
+  "    night += vec3(1.0, 0.78, 0.45) * lit * 0.95;",
+  "  }",
+  "  gl_FragColor = vec4(mix(c, night, u_k), c4.a);",
+  "}"
+].join("\n");
+
+var stage = null;
+
+window.addEventListener("load", function () {
+  var p = window.__NV;
+  waitFor(function () { return typeof vw !== "undefined" && vw.Map; }, 15000,
+    "VWorld 엔진 로드 실패 — 키 도메인 등록과 접속 호스트(" + location.hostname + ")를 확인하세요")
+    .then(function () {
+      var bm = (vw.BasemapType && vw.BasemapType.PHOTO !== undefined) ? vw.BasemapType.PHOTO : vw.BasemapType.GRAPHIC;
+      var start = new vw.CameraPosition(new vw.CoordZ(p.lng, p.lat, 1500), new vw.Direction(0, -42, 0));
+      var opt = new vw.MapOptions(bm, "", vw.DensityType.FULL, vw.DensityType.FULL, false, start, start);
+      window.map3d = new vw.Map("vmap3d", opt);
+      return waitFor(function () { return map3d._wsViewer && map3d._wsViewer._cesiumWidget; }, 25000, "3D 뷰어 초기화 실패");
+    })
+    .then(function (widget) {
+      var scene = widget.scene;
+      var fxaa = scene.postProcessStages && scene.postProcessStages.fxaa;
+      if (!fxaa) throw new Error("PostProcessStage를 찾지 못했습니다");
+      var PostProcessStage = Object.getPrototypeOf(fxaa).constructor;
+
+      scene.renderError.addEventListener(function () {
+        try { if (stage) scene.postProcessStages.remove(stage); stage = null; } catch (e) {}
+        document.querySelectorAll(".cesium-widget-errorPanel").forEach(function (n) { n.remove(); });
+        showErr("렌더 에러 — 야경 스테이지를 제거했습니다. 지도는 계속 사용할 수 있습니다.");
+      });
+
+      stage = new PostProcessStage({
+        fragmentShader: NIGHT_FS,
+        uniforms: { u_k: 1.0 }
+      });
+      scene.postProcessStages.add(stage);
+
+      var slider = document.getElementById("k");
+      slider.addEventListener("input", function () {
+        if (stage) stage.uniforms.u_k.value = Number(slider.value) / 100;
+      });
+
+      var loading = document.getElementById("loading");
+      setTimeout(function () { loading.style.transition = "opacity .6s"; loading.style.opacity = "0"; setTimeout(function () { loading.remove(); }, 650); }, 1800);
+    })
+    .catch(function (e) { showErr(String(e && e.message || e)); });
+});
+</script>
+</body>
+</html>
