@@ -30,7 +30,6 @@ import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
 import type { ThemePreset, ThemePresetId } from "@/domain/themes";
-import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
 import { track } from "@/domain/usage-client";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
 import { FloatingQuickNav } from "@/features/navigation/FloatingQuickNav";
@@ -729,19 +728,15 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                             onClickCapture={() => recordView(result.place)}
                           >
                             <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} />
-                            {NIGHT_SPOT_PLACE_IDS.has(result.place.id) ? (
-                              <div className="place-action-row">
-                                <a
-                                  className="plan-add-button"
-                                  href={`/night-view?lat=${result.place.coordinates.latitude}&lng=${result.place.coordinates.longitude}&name=${encodeURIComponent(result.place.name)}`}
-                                  title={lang === "ko" ? "이 장소를 3D로 둘러보기" : "Explore this spot in 3D"}
-                                  style={{ textDecoration: "none", textAlign: "center", background: "#1e2a4a", borderColor: "#31437a" }}
-                                >
-                                  🏙️ {lang === "ko" ? "3D 보기" : "3D View"}
-                                </a>
-                              </div>
-                            ) : null}
                             <div className="place-action-row">
+                              <a
+                                className="plan-add-button"
+                                href={`/night-view?lat=${result.place.coordinates.latitude}&lng=${result.place.coordinates.longitude}&name=${encodeURIComponent(result.place.name)}`}
+                                title={lang === "ko" ? "이 장소를 3D로 둘러보기" : "Explore this spot in 3D"}
+                                style={{ textDecoration: "none", textAlign: "center", background: "#1e2a4a", borderColor: "#31437a", color: "#dbe4ff" }}
+                              >
+                                🏙️ {lang === "ko" ? "3D 보기" : "3D View"}
+                              </a>
                               <a className="plan-add-button" href={`/place/${encodeURIComponent(result.place.id)}`} title={lang === "ko" ? "장소 상세 정보" : "Place details"} style={{ textDecoration: "none", textAlign: "center", background: "#fff", color: "#334155" }}>🔎 {lang === "ko" ? "상세" : "Info"}</a>
                               <button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button>
                             </div>

@@ -14,7 +14,8 @@ const KIND_LABEL: Record<string, string> = {
   theme_apply: "테마 적용",
   place_view: "장소 카드 조회",
   place_page_view: "장소 상세 페이지",
-  nightspot_3d_open: "3D 뷰어 오픈",
+  nightspot_3d_open: "3D 뷰어 오픈(구 야경)",
+  place_3d_open: "3D 뷰어 오픈",
   plan_generate: "여행 계획 생성",
   region_search: "지역 검색",
 };

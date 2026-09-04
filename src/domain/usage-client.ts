@@ -4,6 +4,7 @@ export type TrackKind =
   | "place_view"
   | "place_page_view"
   | "nightspot_3d_open"
+  | "place_3d_open"
   | "plan_generate"
   | "region_search";
 

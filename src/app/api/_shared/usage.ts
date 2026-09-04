@@ -11,6 +11,7 @@ export const USAGE_EVENT_KINDS = [
   "place_view",
   "place_page_view",
   "nightspot_3d_open",
+  "place_3d_open",
   "plan_generate",
   "region_search",
 ] as const;

@@ -82,9 +82,7 @@ export default async function PlaceDetailPage({ params }: { params: Promise<{ id
       ) : null}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0 28px" }}>
         <a href={mapLink} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "none", border: "1px solid #bfdbfe", borderRadius: 999, padding: "8px 16px", fontSize: 14 }}>🗺 카카오맵에서 보기</a>
-        {isNightSpot ? (
-          <Link href={`/night-view?lat=${place.coordinates.latitude}&lng=${place.coordinates.longitude}&name=${encodeURIComponent(place.name)}`} style={{ color: "#dbe4ff", textDecoration: "none", background: "#1e2a4a", borderRadius: 999, padding: "8px 16px", fontSize: 14 }}>🏙 3D로 둘러보기</Link>
-        ) : null}
+        <Link href={`/night-view?lat=${place.coordinates.latitude}&lng=${place.coordinates.longitude}&name=${encodeURIComponent(place.name)}`} style={{ color: "#dbe4ff", textDecoration: "none", background: "#1e2a4a", borderRadius: 999, padding: "8px 16px", fontSize: 14 }}>🏙 3D로 둘러보기</Link>
       </div>
       {place.petPolicy.sourceUrl ? (
         <p style={{ fontSize: 12, color: "#94a3b8", wordBreak: "break-all" }}>출처: <a href={place.petPolicy.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#64748b" }}>{place.petPolicy.sourceUrl}</a></p>
