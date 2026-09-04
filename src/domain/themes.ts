@@ -7,7 +7,8 @@ export type ThemePresetId =
   | 'healing-cafe'
   | 'camping-glamping'
   | 'ocean-water'
-  | 'rural-stay';
+  | 'rural-stay'
+  | 'night-view';
 
 export interface ThemePreset {
   id: ThemePresetId;
@@ -21,6 +22,7 @@ export interface ThemePreset {
   categories: RawPlace['category'][];
   prepFilters: PreparationFilterKey[];
   recommendedTags: string[];
+  placeSet?: 'night-spots';
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
@@ -101,5 +103,19 @@ export const THEME_PRESETS: ThemePreset[] = [
     categories: ['accommodation', 'attraction'],
     prepFilters: ['outdoor'],
     recommendedTags: ['촌캉스', '농어촌민박', '조용한휴식', '자연치유'],
+  },
+  {
+    id: 'night-view',
+    emoji: '🌙',
+    badge: '야경 데이트',
+    titleKo: '댕댕이와 보는 밤 · 야경 투어',
+    titleEn: 'Night View Tour with Your Dog',
+    descKo: '해 질 녘 한강 산책부터 케이블카, 전망대, 등대까지 — 반려견과 함께 즐기는 밤 풍경 큐레이션',
+    descEn: 'Sunset river walks, cable cars, observatories and lighthouses to enjoy after dark with your dog',
+    petSize: null,
+    categories: [],
+    prepFilters: ['leash'],
+    recommendedTags: ['야경데이트', '한강야간산책', '케이블카', '새벽일출'],
+    placeSet: 'night-spots',
   },
 ];

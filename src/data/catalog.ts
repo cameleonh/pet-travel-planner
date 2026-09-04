@@ -1,5 +1,6 @@
 import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
 import { CAFE_NAME_PATTERN } from "@/domain/categories";
+import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
 import { getRegionSearchTerm } from "@/domain/regions";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
@@ -40,6 +41,7 @@ export type CatalogQuery = {
   region?: string;
   categories?: RawPlace["category"][];
   preparationFilters?: PreparationFilterKey[];
+  placeSet?: "night-spots";
 };
 
 const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/];
@@ -189,6 +191,7 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const constraints = [...query.hard, ...query.preferences];
   const allEvaluations = evaluatePreparedCatalog(prepared, constraints);
   const evaluations = allEvaluations.filter(({ place }) => {
+    if (query.placeSet === "night-spots" && !NIGHT_SPOT_PLACE_IDS.has(place.id)) return false;
     const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
     // "cafe" filter spans both source categories: the KTO pet-travel catalog files

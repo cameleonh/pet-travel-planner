@@ -100,6 +100,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [nearbyReviewedFor, setNearbyReviewedFor] = useState<string | null>(null);
   const [selectionCompleted, setSelectionCompleted] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
+  const [placeSet, setPlaceSet] = useState<"night-spots" | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -125,7 +126,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const isBrowsing = constraints.length === 0;
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
-  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}`;
+  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}|${placeSet ?? ""}`;
   const catalogIsCurrent = catalogRequestKey === requestKey;
   const nearbyAnchor = planPlaces[0];
   const selectedPlaceIds = useMemo(() => new Set(planPlaces.map((place) => place.id)), [planPlaces]);
@@ -163,6 +164,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     if (region.trim()) parameters.set("region", region.trim());
     if (categories.length > 0) parameters.set("categories", categories.join(","));
     if (prepFilters.length > 0) parameters.set("prep", prepFilters.join(","));
+    if (placeSet) parameters.set("placeSet", placeSet);
     if (lang !== "ko") parameters.set("lang", lang);
     const catalogUrl = `/api/places?${parameters}`;
     queueMicrotask(() => {
@@ -199,7 +201,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, requestKey, dict]);
+  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, requestKey, dict]);
 
   const inFlightDiscoveryRef = useRef<string | null>(null);
   useEffect(() => {
@@ -351,6 +353,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   };
   const handleApplyTheme = useCallback((theme: ThemePreset) => {
     setActiveThemeId(theme.id);
+    setPlaceSet(theme.placeSet ?? null);
     setPage(1);
     if (theme.petSize) {
       setPetSize(theme.petSize);
@@ -368,6 +371,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   }, []);
   const handleClearTheme = useCallback(() => {
     setActiveThemeId(null);
+    setPlaceSet(null);
     setPage(1);
     setCategories([]);
     setPrepFilters([]);
@@ -408,6 +412,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setPetSize(null);
     setPetWeight("");
     setActiveThemeId(null);
+    setPlaceSet(null);
     setTrails([]);
     setFestivals([]);
     setRuralVillages([]);

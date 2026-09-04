@@ -206,4 +206,30 @@ describe("catalog pagination", () => {
     expect(second.results[0]).not.toBe(first.results[0]);
     expect(getCatalogCacheStats()).toEqual({ preparations: 2, evaluationBuilds: 2 });
   });
+
+  it("restricts results to the curated night-spot place set when requested", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...source, id: "tour-api:1059479", name: "여의도한강공원", address: "서울특별시 영등포구 여의동로 330" },
+        { ...source, id: "catalog-ordinary-1", name: "동네 카페" },
+        { ...source, id: "catalog-ordinary-2", name: "시장" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const unfiltered = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1 });
+    expect(unfiltered.filteredCount).toBe(3);
+
+    const nightPage = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, placeSet: "night-spots" });
+    expect(nightPage.filteredCount).toBe(1);
+    expect(nightPage.results.map((result) => result.place.id)).toEqual(["tour-api:1059479"]);
+    expect(nightPage.results.map((result) => result.place.name)).toEqual(["여의도한강공원"]);
+
+    const combined = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, placeSet: "night-spots", region: "서울" });
+    expect(combined.filteredCount).toBe(1);
+  });
 });
