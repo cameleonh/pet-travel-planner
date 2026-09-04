@@ -594,7 +594,15 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         {petProfile ? (
           <div className="pet-profile-bar" role="region" aria-label="내 반려견 맞춤 설정">
             <div className="pet-profile-info">
-              <span className="pet-profile-avatar">{petProfile.avatar || "🐶"}</span>
+              {petProfile.photo ? (
+                <img
+                  src={petProfile.photo}
+                  alt={petProfile.name}
+                  style={{ width: "2.4em", height: "2.4em", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }}
+                />
+              ) : (
+                <span className="pet-profile-avatar">{petProfile.avatar || "🐶"}</span>
+              )}
               <div>
                 <h3 className="pet-profile-name">{petProfile.name}{petProfile.breed ? ` (${petProfile.breed})` : ""} 맞춤 추천 중 ✨</h3>
                 <p className="pet-profile-meta">{petProfile.weight ? `${petProfile.weight}kg · ` : ""}{petProfile.size === "smallDog" ? "소형견" : petProfile.size === "mediumDog" ? "중형견" : petProfile.size === "largeDog" ? "대형견" : "모든 견종"} 입장 가능 장소 자동 탐색</p>
