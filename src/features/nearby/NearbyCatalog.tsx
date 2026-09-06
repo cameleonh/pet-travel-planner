@@ -7,7 +7,7 @@ import type { PlanPlace } from "@/domain/plan";
 import { useLang } from "@/i18n/LangContext";
 import { t } from "@/i18n/dictionary";
 
-const categoryLabel: Record<AuxiliaryPlace["category"], string> = { museum: "박물관", park: "공원", parking: "주차", veterinary: "동물병원", toilet: "화장실" };
+const categoryKey: Record<AuxiliaryPlace["category"], "auxCatMuseum" | "auxCatPark" | "auxCatParking" | "auxCatVeterinary" | "auxCatToilet"> = { museum: "auxCatMuseum", park: "auxCatPark", parking: "auxCatParking", veterinary: "auxCatVeterinary", toilet: "auxCatToilet" };
 
 type Props = {
   places: AuxiliaryPlace[];
@@ -16,6 +16,15 @@ type Props = {
   selectedPlaceIds: ReadonlySet<string>;
   onTogglePlace: (place: PlanPlace) => void;
 };
+
+function hoursSummary(place: NearbyPlace, dict: { nearbyWeekday: string; nearbySaturday: string; nearbySunday: string; nearbyClosedOn: string }): string {
+  const parts: string[] = [];
+  if (place.weekdayHours) parts.push(`${dict.nearbyWeekday} ${place.weekdayHours}`);
+  if (place.saturdayHours) parts.push(`${dict.nearbySaturday} ${place.saturdayHours}`);
+  if (place.sundayHours) parts.push(`${dict.nearbySunday} ${place.sundayHours}`);
+  if (place.closingDay) parts.push(`${dict.nearbyClosedOn}: ${place.closingDay}`);
+  return parts.join(" · ");
+}
 
 export function NearbyCatalog({ places, fallbackOrigin, referenceName, selectedPlaceIds, onTogglePlace }: Props) {
   const { lang, dict } = useLang();
@@ -41,10 +50,21 @@ export function NearbyCatalog({ places, fallbackOrigin, referenceName, selectedP
       policySourceText: place.evidence.sourceText,
       exact: place.petStatus === "confirmed",
     };
+    const hours = hoursSummary(place, dict);
     return (
       <li key={place.id}>
-        <span>{categoryLabel[place.category]}</span>
-        <div><strong>{place.name}</strong><small>{place.distanceKm.toFixed(1)}km · {place.address}</small></div>
+        <span>{dict[categoryKey[place.category]]}</span>
+        <div>
+          <strong>{place.name}</strong>
+          <small>{place.distanceKm.toFixed(1)}km · {place.address}</small>
+          {place.phone || hours || place.usageFee ? (
+            <small className="nearby-contact">
+              {place.phone ? <a href={`tel:${place.phone.replace(/[^0-9+]/g, "")}`} aria-label={t(lang, "nearbyCall", { name: place.name })}>{place.phone}</a> : null}
+              {hours ? <span>{hours}</span> : null}
+              {place.usageFee ? <span>{dict.nearbyFee}: {place.usageFee}</span> : null}
+            </small>
+          ) : null}
+        </div>
         <button
           type="button"
           className={`nearby-add-button ${isSelected ? "added" : ""}`}

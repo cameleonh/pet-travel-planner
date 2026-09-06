@@ -65,6 +65,12 @@ type AuxiliaryRow = {
   evidence_source_text: string;
   evidence_source_url: string;
   evidence_observed_at: string;
+  phone: string | null;
+  weekday_hours: string | null;
+  saturday_hours: string | null;
+  sunday_hours: string | null;
+  closing_day: string | null;
+  usage_fee: string | null;
 };
 
 export type DatabaseCounts = {
@@ -196,14 +202,17 @@ export class SqlitePlaceRepository {
       const insertAuxiliary = this.db.prepare(`
         INSERT INTO auxiliary_places (
           snapshot_id, place_id, name, category, address, latitude, longitude, pet_status,
-          evidence_label, evidence_source_text, evidence_source_url, evidence_observed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          evidence_label, evidence_source_text, evidence_source_url, evidence_observed_at,
+          phone, weekday_hours, saturday_hours, sunday_hours, closing_day, usage_fee
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const place of places) {
         insertAuxiliary.run(
           snapshotId, place.id, place.name, place.category, place.address,
           place.coordinates.latitude, place.coordinates.longitude, place.petStatus,
           place.evidence.label, place.evidence.sourceText, place.evidence.sourceUrl, place.evidence.observedAt,
+          place.phone ?? null, place.weekdayHours ?? null, place.saturdayHours ?? null,
+          place.sundayHours ?? null, place.closingDay ?? null, place.usageFee ?? null,
         );
       }
       return places.length;
@@ -233,7 +242,8 @@ export class SqlitePlaceRepository {
     const amenitiesByPlace = Map.groupBy(amenities, (row) => row.place_id);
     const auxiliaryRows = this.db.prepare(`
       SELECT place_id, name, category, address, latitude, longitude, pet_status,
-             evidence_label, evidence_source_text, evidence_source_url, evidence_observed_at
+             evidence_label, evidence_source_text, evidence_source_url, evidence_observed_at,
+             phone, weekday_hours, saturday_hours, sunday_hours, closing_day, usage_fee
       FROM auxiliary_places WHERE snapshot_id = ? ORDER BY rowid
     `).all(latest.id) as AuxiliaryRow[];
 
@@ -270,6 +280,12 @@ export class SqlitePlaceRepository {
           sourceUrl: row.evidence_source_url,
           observedAt: row.evidence_observed_at,
         },
+        ...(row.phone ? { phone: row.phone } : {}),
+        ...(row.weekday_hours ? { weekdayHours: row.weekday_hours } : {}),
+        ...(row.saturday_hours ? { saturdayHours: row.saturday_hours } : {}),
+        ...(row.sunday_hours ? { sundayHours: row.sunday_hours } : {}),
+        ...(row.closing_day ? { closingDay: row.closing_day } : {}),
+        ...(row.usage_fee ? { usageFee: row.usage_fee } : {}),
       })),
     });
   }
