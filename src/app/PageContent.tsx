@@ -96,9 +96,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
         >
           <source src={HERO_VIDEO_URL} type="video/mp4" />
         </video>
-        <div style={{ opacity: videoEnded ? 1 : 0, transition: "opacity 2s ease-in" }}>
-          <WeatherHeroCanvas paused={simPaused || !videoEnded} onStateChange={setHeroSim} />
-        </div>
+        <WeatherHeroCanvas paused={simPaused || !videoEnded} onStateChange={setHeroSim} />
         <span className="hero-video-scrim" aria-hidden="true" />
         <div className="intro-copy">
           <p className="eyebrow">{dict.eyebrow}</p>
