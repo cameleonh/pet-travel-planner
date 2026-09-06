@@ -103,6 +103,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
   const [placeSet, setPlaceSet] = useState<"night-spots" | "rural-stays" | null>(null);
   const [todaySafety, setTodaySafety] = useState<"safe" | "caution" | "indoor" | "unknown">("unknown");
+  const [plannerTripDate, setPlannerTripDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -640,7 +641,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         </header>
         <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} todaySafetyLevel={todaySafety} />
         <aside className="filter-panel">
-          <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} onSafetyLevel={setTodaySafety} />
+          <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} targetDate={plannerTripDate ?? undefined} onSafetyLevel={setTodaySafety} />
           <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
@@ -851,7 +852,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             {courseConfirmed && hasPlanItems ? (
               <div ref={plannerDialogRef} tabIndex={-1} className="trip-board-plan" role={plannerOpen ? "dialog" : undefined} aria-modal={plannerOpen ? true : undefined} aria-label={dict.tripBoardTitle}>
                 {plannerOpen ? <div className="mobile-planner-heading"><strong>{dict.tripBoardTitle}</strong><button type="button" autoFocus aria-label={dict.closeTripBoard} onClick={closePlanner}>×</button></div> : null}
-                <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onDwellChange={changePlaceDwell} onClear={clearPlanPlaces} />
+                <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onDwellChange={changePlaceDwell} onTripDateChange={setPlannerTripDate} onClear={clearPlanPlaces} />
               </div>
             ) : null}
           </aside>

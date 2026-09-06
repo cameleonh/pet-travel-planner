@@ -54,16 +54,18 @@ type Props = {
   onRemove: (id: string) => void;
   onRemoveActivity: (id: string) => void;
   onDwellChange: (id: string, minutes: number | null) => void;
+  onTripDateChange?: (date: string) => void;
   onClear: () => void;
 };
 
-export function PlanBuilder({ selectedPlaces, selectedActivities, generateRequest, courseConfirmed, onRemove, onRemoveActivity, onDwellChange, onClear }: Props) {
+export function PlanBuilder({ selectedPlaces, selectedActivities, generateRequest, courseConfirmed, onRemove, onRemoveActivity, onDwellChange, onTripDateChange, onClear }: Props) {
   const { lang, dict } = useLang();
   const [routes, setRoutes] = useState<RouteSegment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [tripDate, setTripDate] = useState(tomorrowInput);
+  useEffect(() => { onTripDateChange?.(tripDate); }, [tripDate, onTripDateChange]);
   const [preferredDeparture, setPreferredDeparture] = useState("09:00");
   const [stayMinutes, setStayMinutes] = useState(90);
   const [departureRecommendation, setDepartureRecommendation] = useState<DepartureRecommendation | null>(null);

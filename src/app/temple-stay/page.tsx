@@ -1,10 +1,4 @@
-import type { Metadata } from "next";
 import Link from "next/link";
-
-export const metadata: Metadata = {
-  title: "댕플스테이 — 반려견 사찰문화 체험 · 같이갈개",
-  description: "반려견과 함께하는 사찰 문화체험 '댕플스테이' — 사전 예약제 프로그램 안내",
-};
 
 const TEMPLES = [
   {
@@ -17,7 +11,7 @@ const TEMPLES = [
     name: "이암사",
     location: "충북 영동",
     programs: "당일형 · 1박 2일",
-    note: "108배 예울, 명상, 점심 공양, 경내 산책",
+    note: "108배 예불, 명상, 점심 공양, 경내 산책",
   },
   {
     name: "미륵사",
@@ -31,6 +25,11 @@ export default function TempleStayPage() {
   return (
     <main style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px 64px", fontFamily: "system-ui, sans-serif", color: "#1e293b" }}>
       <p style={{ fontSize: 13 }}><Link href="/#search" style={{ color: "#2563eb", textDecoration: "none" }}>← 같이갈개</Link></p>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/#search" style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid rgba(0,0,0,.15)", background: "#fff", color: "#334155", borderRadius: 999, padding: "7px 14px", fontSize: 13, textDecoration: "none" }}>
+          ← 목록으로
+        </Link>
+      </div>
       <h1 style={{ fontSize: 26, margin: "10px 0 4px" }}>🧘 댕플스테이</h1>
       <p style={{ fontSize: 15, color: "#475569", margin: "0 0 20px" }}>
         댕댕이 + 템플스테이 — 반려견과 함께 사찰에서 머물며 불교문화를 체험하는 프로그램
@@ -71,12 +70,20 @@ export default function TempleStayPage() {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "24px 0" }}>
         <a
-          href="https://banrye.life"
+          href="https://www.ban-life.com/content/12917"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "#2563eb", textDecoration: "none", border: "1px solid #bfdbfe", borderRadius: 999, padding: "10px 18px", fontSize: 14 }}
         >
-          반려생활에서 예약 확인 →
+          반려생활에서 댕플스테이 확인 →
+        </a>
+        <a
+          href="https://blog.naver.com/banlife_official"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#0369a1", textDecoration: "none", border: "1px solid #bae6fd", borderRadius: 999, padding: "10px 18px", fontSize: 14 }}
+        >
+          예약 일정 안내 (블로그) →
         </a>
       </div>
 
