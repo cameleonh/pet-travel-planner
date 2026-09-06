@@ -193,6 +193,31 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
               </button>
             );
           })}
+          <a
+            href="/temple-stay"
+            className="theme-preset-card"
+            style={{ textDecoration: "none", background: "linear-gradient(135deg, #fef9c3, #fde68a)" }}
+          >
+            <div className="theme-card-top">
+              <span className="theme-card-emoji">🧘</span>
+              <span className="theme-card-badge" style={{ background: "#92400e", color: "#fef9c3" }}>NEW</span>
+            </div>
+            <div className="theme-card-body">
+              <strong className="theme-card-title">
+                {lang === "ko" ? "요즘 뜨는 댕플스테이 🐕🧘" : "Trending: Temple Stay with Dogs"}
+              </strong>
+              <p className="theme-card-desc">
+                {lang === "ko"
+                  ? "사찰에서 반려견과 차담·명상·사찰복 체험 — 예약제 프로그램 안내"
+                  : "Buddhist temple stays with your dog — reservation required, see details"}
+              </p>
+            </div>
+            <div className="theme-card-tags">
+              <span className="theme-tag-pill">#댕플스테이</span>
+              <span className="theme-tag-pill">#예약제</span>
+              <span className="theme-tag-pill">#사찰문화</span>
+            </div>
+          </a>
         </div>
 
         <button
