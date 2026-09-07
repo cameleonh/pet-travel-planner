@@ -110,7 +110,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [nearbyReviewedFor, setNearbyReviewedFor] = useState<string | null>(null);
   const [selectionCompleted, setSelectionCompleted] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
-  const [placeSet, setPlaceSet] = useState<"night-spots" | "rural-stays" | null>(null);
+  const [placeSet, setPlaceSet] = useState<"night-spots" | "rural-stays" | "accessible" | null>(null);
   const [todaySafety, setTodaySafety] = useState<"safe" | "caution" | "indoor" | "unknown">("unknown");
   const [plannerTripDate, setPlannerTripDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");

@@ -82,7 +82,7 @@ export default async function PlaceDetailPage({ params }: { params: Promise<{ id
           {wheelchair ? <p style={{ margin: "2px 0" }}><strong>휠체어</strong> {wheelchair}</p> : null}
           {accessibleRestroom ? <p style={{ margin: "2px 0" }}><strong>장애인 화장실</strong> {accessibleRestroom}</p> : null}
           {accessibleElevator ? <p style={{ margin: "2px 0" }}><strong>엘리베이터</strong> {accessibleElevator}</p> : null}
-          {stroller ? <p style={{ margin: "2px 0" }}><strong>유아차</strong> {stroller}</p> : null}
+          {stroller ? <p style={{ margin: "2px 0" }}><strong>유모차</strong> {stroller}</p> : null}
         </section>
       ) : null}
       {hasHours ? (

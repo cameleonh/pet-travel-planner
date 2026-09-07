@@ -8,7 +8,8 @@ export type ThemePresetId =
   | 'camping-glamping'
   | 'ocean-water'
   | 'rural-stay'
-  | 'night-view';
+  | 'night-view'
+  | 'accessible';
 
 export interface ThemePreset {
   id: ThemePresetId;
@@ -22,7 +23,7 @@ export interface ThemePreset {
   categories: RawPlace['category'][];
   prepFilters: PreparationFilterKey[];
   recommendedTags: string[];
-  placeSet?: 'night-spots' | 'rural-stays';
+  placeSet?: 'night-spots' | 'rural-stays' | 'accessible';
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
@@ -118,5 +119,19 @@ export const THEME_PRESETS: ThemePreset[] = [
     prepFilters: ['leash'],
     recommendedTags: ['야경데이트', '한강야간산책', '케이블카', '새벽일출'],
     placeSet: 'night-spots',
+  },
+  {
+    id: 'accessible',
+    emoji: '♿',
+    badge: '누구나 함께',
+    titleKo: '아이·강아지·휠체어 함께 가요',
+    titleEn: 'Accessible for Everyone',
+    descKo: '유모차·휠체어가 함께 갈 수 있는 곳 — 엘리베이터, 장애인 화장실, 평지 접근로가 확인된 장소',
+    descEn: 'Venues accessible for strollers and wheelchairs — verified elevators, accessible restrooms and step-free routes',
+    petSize: null,
+    categories: [],
+    prepFilters: [],
+    recommendedTags: ['유모차', '휠체어', '아이와강아지', '배리어프리'],
+    placeSet: 'accessible',
   },
 ];

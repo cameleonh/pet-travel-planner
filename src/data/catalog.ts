@@ -3,6 +3,7 @@ import { CAFE_NAME_PATTERN } from "@/domain/categories";
 import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
 import { RURAL_STAY_PLACE_IDS } from "@/domain/rural-stays";
 import { getRegionSearchTerm } from "@/domain/regions";
+import { ACCESSIBLE_PLACE_IDS } from "@/domain/accessible-spots";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
 import { findMinimalRelaxation } from "@/domain/relax";
@@ -42,7 +43,7 @@ export type CatalogQuery = {
   region?: string;
   categories?: RawPlace["category"][];
   preparationFilters?: PreparationFilterKey[];
-  placeSet?: "night-spots" | "rural-stays";
+  placeSet?: "night-spots" | "rural-stays" | "accessible";
 };
 
 const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/];
@@ -194,6 +195,7 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const evaluations = allEvaluations.filter(({ place }) => {
     if (query.placeSet === "night-spots" && !NIGHT_SPOT_PLACE_IDS.has(place.id)) return false;
     if (query.placeSet === "rural-stays" && !RURAL_STAY_PLACE_IDS.has(place.id)) return false;
+    if (query.placeSet === "accessible" && !ACCESSIBLE_PLACE_IDS.has(place.id)) return false;
     const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
     // "cafe" filter spans both source categories: the KTO pet-travel catalog files

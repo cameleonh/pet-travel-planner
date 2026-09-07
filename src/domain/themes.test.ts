@@ -12,6 +12,7 @@ describe("THEME_PRESETS", () => {
       "ocean-water",
       "rural-stay",
       "night-view",
+      "accessible",
     ];
     expect(ids).toEqual(expectedIds);
   });
