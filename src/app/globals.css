@@ -2973,3 +2973,60 @@ footer { max-width: 1240px; }
   cursor: pointer;
 }
 .recently-viewed-remove:hover { color: var(--accent); background: var(--accent-soft); border-radius: 999px; }
+
+/* ── Region course picker ── */
+.region-course-picker {
+  margin: 0 0 1.25rem 0;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4f8 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-lg);
+}
+.region-course-picker-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+.region-course-picker-hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #64748b;
+}
+.region-course-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.region-course-chip {
+  border: 1px solid #93c5fd;
+  background: #fff;
+  color: #1e40af;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.15s;
+}
+.region-course-chip:hover {
+  background: #dbeafe;
+  border-color: #60a5fa;
+}
+.region-course-chip.active {
+  background: #18554d;
+  border-color: #18554d;
+  color: #fff;
+  font-weight: 700;
+}
+.region-course-chip-count {
+  font-size: 0.6875rem;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
