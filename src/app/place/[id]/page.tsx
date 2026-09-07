@@ -7,6 +7,7 @@ import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
 import { formatKtoText, getPlaceHours } from "@/app/api/_shared/place-hours";
 import { UsageBeacon } from "@/features/place/UsageBeacon";
 import { PlaceReviews } from "@/features/place/PlaceReviews";
+import { PlaceDetailBack } from "@/features/place/PlaceDetailBack";
 
 const SITE_URL = "https://gggo.blog";
 
@@ -61,7 +62,7 @@ export default async function PlaceDetailPage({ params }: { params: Promise<{ id
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 64px", fontFamily: "system-ui, sans-serif", color: "#1e293b" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <UsageBeacon kind="place_page_view" detail={place.id} />
-      <p style={{ margin: 0, fontSize: 13 }}><Link href="/" style={{ color: "#2563eb", textDecoration: "none" }}>← 같이갈개</Link></p>
+      <PlaceDetailBack />
       <h1 style={{ margin: "10px 0 4px", fontSize: 26 }}>
         {displayCategoryIcon[display]} {place.name}
         {isNightSpot ? <span style={{ fontSize: 13, background: "#1e2a4a", color: "#dbe4ff", borderRadius: 999, padding: "3px 10px", marginLeft: 8, verticalAlign: "middle", whiteSpace: "nowrap" }}>🌙 야경 명소</span> : null}
