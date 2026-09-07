@@ -31,6 +31,13 @@ const REGION_PREFIXES: readonly [RegExp, string][] = [
 const DISTRICT_SUFFIX = /(?:시|군|구|읍|면)$/u;
 const collator = new Intl.Collator("ko-KR");
 
+export function getRegionPrefix(address: string): string | null {
+  for (const [pattern, prefix] of REGION_PREFIXES) {
+    if (pattern.test(address)) return prefix;
+  }
+  return null;
+}
+
 export function getRegionSearchTerm(area: string): string {
   return REGION_PREFIXES.find(([pattern]) => pattern.test(area))?.[1] ?? area;
 }

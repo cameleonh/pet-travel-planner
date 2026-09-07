@@ -11,7 +11,7 @@ import { LangToggle } from "@/i18n/LangToggle";
 
 const HERO_VIDEO_URL = "/hero-dog-walk.mp4";
 
-export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regionOptions }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[] }) {
+export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regionOptions, placeCounts }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts: Record<string, number> }) {
   const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -104,7 +104,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
       </section>
 
       {notice ? <p role="status" className="notice global-notice">{notice}</p> : null}
-      <SearchExperience initialCatalog={catalog} auxiliaryPlaces={auxiliaryPlaces} regionOptions={regionOptions} />
+      <SearchExperience initialCatalog={catalog} auxiliaryPlaces={auxiliaryPlaces} regionOptions={regionOptions} placeCounts={placeCounts} />
 
       <footer><p>{dict.footerNotice}</p><p>{fetchedAt.slice(0, 10)} {dict.footerBaseDate}</p></footer>
     </main>

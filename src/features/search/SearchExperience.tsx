@@ -29,6 +29,7 @@ import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
+import { RegionCoursePicker } from "@/features/search/RegionCoursePicker";
 import type { ThemePreset, ThemePresetId } from "@/domain/themes";
 import { track } from "@/domain/usage-client";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
@@ -62,7 +63,7 @@ async function fetchCatalog(url: string, signal?: AbortSignal): Promise<CatalogA
 
 type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
 
-export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[] }) {
+export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
   const { lang, dict } = useLang();
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
@@ -640,6 +641,9 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
         <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} todaySafetyLevel={todaySafety} />
+        {placeCounts ? (
+          <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} />
+        ) : null}
         <aside className="filter-panel">
           <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} targetDate={plannerTripDate ?? undefined} onSafetyLevel={setTodaySafety} />
           <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
