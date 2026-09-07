@@ -15,6 +15,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
   const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
 
   // The video plays once (~3s); onEnded triggers the photo transition.
   useEffect(() => {
@@ -58,9 +59,23 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           aria-hidden="true"
           onPlay={() => setVideoPlaying(true)}
           onPause={() => setVideoPlaying(false)}
+          onEnded={() => setVideoEnded(true)}
         >
           <source src={HERO_VIDEO_URL} type="video/mp4" />
         </video>
+        {videoEnded ? (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: -2,
+              background: "#0a0f0a",
+              opacity: 1,
+              transition: "opacity 2.5s ease-in",
+            }}
+          />
+        ) : null}
         <span className="hero-video-scrim" aria-hidden="true" />
         <div className="intro-copy">
           <p className="eyebrow">{dict.eyebrow}</p>
