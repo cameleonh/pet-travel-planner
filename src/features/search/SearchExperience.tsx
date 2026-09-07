@@ -69,7 +69,14 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
   const [dangerousDog, setDangerousDog] = useState(false);
-  const [region, setRegion] = useState("");
+  const [region, setRegion] = useState(() => {
+    try { return sessionStorage.getItem("gggo_region") ?? ""; } catch { return ""; }
+  });
+
+  // Persist region so back-navigation from place pages restores the filter.
+  useEffect(() => {
+    try { sessionStorage.setItem("gggo_region", region); } catch {}
+  }, [region]);
   const [categories, setCategories] = useState<RawPlace["category"][]>([]);
   const [hard, setHard] = useState<ConditionKey[]>([]);
   const [preferences, setPreferences] = useState<ConditionKey[]>([]);

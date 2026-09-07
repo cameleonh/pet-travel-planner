@@ -47,6 +47,11 @@ export default async function PlaceDetailPage({ params }: { params: Promise<{ id
   const parking = formatKtoText(hours?.parking ?? null);
   const infoCenter = formatKtoText(hours?.infoCenter ?? null);
   const hasHours = Boolean(useTime || restDate || parking || infoCenter);
+  const wheelchair = formatKtoText(hours?.wheelchair ?? null);
+  const accessibleRestroom = formatKtoText(hours?.restroom ?? null);
+  const accessibleElevator = formatKtoText(hours?.elevator ?? null);
+  const stroller = formatKtoText(hours?.stroller ?? null);
+  const hasAccess = Boolean(wheelchair || accessibleRestroom || accessibleElevator || stroller);
   const mapLink = `https://map.kakao.com/link/map/${encodeURIComponent(place.name)},${place.coordinates.latitude},${place.coordinates.longitude}`;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -71,6 +76,15 @@ export default async function PlaceDetailPage({ params }: { params: Promise<{ id
       <p style={{ margin: "16px 0", padding: "14px 16px", background: "#f1f5f9", borderRadius: 12, fontSize: 14, lineHeight: 1.6 }}>
         🐕 <strong>반려견 동반:</strong> {place.petPolicy.label} — {place.petPolicy.sourceText}
       </p>
+      {hasAccess ? (
+        <section style={{ margin: "0 0 16px", padding: "14px 16px", background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 12, fontSize: 14, lineHeight: 1.7 }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: 14 }}>♿ 무장애 편의 시설</h2>
+          {wheelchair ? <p style={{ margin: "2px 0" }}><strong>휠체어</strong> {wheelchair}</p> : null}
+          {accessibleRestroom ? <p style={{ margin: "2px 0" }}><strong>장애인 화장실</strong> {accessibleRestroom}</p> : null}
+          {accessibleElevator ? <p style={{ margin: "2px 0" }}><strong>엘리베이터</strong> {accessibleElevator}</p> : null}
+          {stroller ? <p style={{ margin: "2px 0" }}><strong>유아차</strong> {stroller}</p> : null}
+        </section>
+      ) : null}
       {hasHours ? (
         <section style={{ margin: "0 0 24px", padding: "14px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: 14, lineHeight: 1.7 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 14 }}>🕐 이용 안내</h2>
