@@ -28,7 +28,7 @@ describe("THEME_PRESETS", () => {
       expect(preset.descEn).toBeTruthy();
       expect(preset.recommendedTags.length).toBeGreaterThan(0);
       if (preset.placeSet) {
-        expect(["night-spots", "rural-stays"]).toContain(preset.placeSet);
+        expect(["night-spots", "rural-stays", "accessible"]).toContain(preset.placeSet);
       } else {
         expect(preset.categories.length).toBeGreaterThan(0);
       }
