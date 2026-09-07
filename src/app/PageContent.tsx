@@ -15,7 +15,6 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
   const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
-  const [videoEnded, setVideoEnded] = useState(false);
 
   // The video plays once (~3s); onEnded triggers the photo transition.
   useEffect(() => {
@@ -31,7 +30,6 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
   };
 
   const toggleBackdrop = () => {
-    if (videoEnded) return;
     toggleVideo();
   };
   return (
@@ -60,33 +58,9 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           aria-hidden="true"
           onPlay={() => setVideoPlaying(true)}
           onPause={() => setVideoPlaying(false)}
-          onEnded={() => setVideoEnded(true)}
         >
           <source src={HERO_VIDEO_URL} type="video/mp4" />
         </video>
-        {videoEnded ? (
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: -3,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(135deg, #064e3b 0%, #0f766e 50%, #14b8a6 100%)",
-              opacity: 1,
-              transition: "opacity 2s ease-in",
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- static mascot */}
-            <img
-              src="/gachi-galgae-mascot-ribbon.png"
-              alt=""
-              style={{ width: "min(50vw, 300px)", height: "auto", objectFit: "contain", opacity: 0.9 }}
-            />
-          </div>
-        ) : null}
         <span className="hero-video-scrim" aria-hidden="true" />
         <div className="intro-copy">
           <p className="eyebrow">{dict.eyebrow}</p>
