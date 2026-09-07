@@ -46,8 +46,10 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
           <img src="/gachi-galgae-mascot-ribbon.png" alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
         </span>
-        <AccessibilityToggle />
-        <LangToggle />
+        <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <AccessibilityToggle />
+          <LangToggle />
+        </span>
       </header>
 
       <section className="intro" id="top">

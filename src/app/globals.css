@@ -2976,21 +2976,39 @@ footer { max-width: 1240px; }
 
 /* ── Dark mode ── */
 :root[data-theme="dark"] {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-alt: #334155;
+  --bg: #0c1220;
+  --surface: #162032;
+  --surface-alt: #1e2a3f;
   --text: #e2e8f0;
   --text-muted: #94a3b8;
-  --line: #334155;
+  --line: #2a3a52;
   --accent: #34d399;
-  --accent-soft: rgba(52, 211, 153, 0.15);
-  --accent-strong: #6ee7b7;
 }
 
-:root[data-theme="dark"] body {
-  background: var(--bg);
-  color: var(--text);
-}
+:root[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+:root[data-theme="dark"] .topbar { background: var(--surface); color: var(--text); }
+:root[data-theme="dark"] .brand { color: var(--text); }
+:root[data-theme="dark"] main { background: var(--bg); color: var(--text); }
+:root[data-theme="dark"] .intro { background: var(--bg); color: var(--text); }
+:root[data-theme="dark"] .intro-copy h1 { color: var(--text); }
+:root[data-theme="dark"] .intro-copy .lede { color: var(--text-muted); }
+:root[data-theme="dark"] .search-workspace { background: var(--bg); }
+:root[data-theme="dark"] .control-panel { background: var(--surface); border-color: var(--line); color: var(--text); }
+:root[data-theme="dark"] .control-heading h2 { color: var(--text); }
+:root[data-theme="dark"] .control-heading p { color: var(--text-muted); }
+:root[data-theme="dark"] .filter-panel { background: var(--surface); border-color: var(--line); }
+:root[data-theme="dark"] .results-panel { background: var(--surface); border-color: var(--line); }
+:root[data-theme="dark"] .place-card { background: var(--surface-alt); border-color: var(--line); color: var(--text); }
+:root[data-theme="dark"] .place-card .place-name { color: var(--text); }
+:root[data-theme="dark"] .place-card .place-addr { color: var(--text-muted); }
+:root[data-theme="dark"] .plan-add-button { background: var(--surface-alt); color: var(--text); border-color: var(--line); }
+:root[data-theme="dark"] .weather-safe-widget { background: var(--surface-alt); border-color: var(--line); color: var(--text); }
+:root[data-theme="dark"] .theme-preset-card { background: var(--surface-alt); border-color: var(--line); color: var(--text); }
+:root[data-theme="dark"] .region-course-picker { background: var(--surface); border-color: var(--line); }
+:root[data-theme="dark"] .region-course-chip { background: var(--surface-alt); color: var(--text); border-color: var(--line); }
+:root[data-theme="dark"] .filter-condition { background: var(--surface-alt); border-color: var(--line); color: var(--text); }
+:root[data-theme="dark"] .pet-profile-info .pet-profile-name { color: var(--text); }
+:root[data-theme="dark"] footer { background: var(--surface); color: var(--text-muted); }
 
 /* ── Region course picker ── */
 .region-course-picker {
