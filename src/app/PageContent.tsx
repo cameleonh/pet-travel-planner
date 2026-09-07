@@ -8,6 +8,7 @@ import { SearchExperience } from "@/features/search/SearchExperience";
 import { dispatchHeroStrike } from "@/features/weather-hero/hero-events";
 import { useLang } from "@/i18n/LangContext";
 import { LangToggle } from "@/i18n/LangToggle";
+import { AccessibilityToggle } from "@/features/accessibility/AccessibilityToggle";
 
 const HERO_VIDEO_URL = "/hero-dog-walk.mp4";
 
@@ -45,6 +46,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
           <img src="/gachi-galgae-mascot-ribbon.png" alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
         </span>
+        <AccessibilityToggle />
         <LangToggle />
       </header>
 
