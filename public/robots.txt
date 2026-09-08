@@ -1,4 +1,7 @@
+# 콘텐츠 시그널 (Cloudflare Content Signals Policy / EU Directive 2019/790 제4조 TDM 권리 유보)
+# 모든 페이지에 tdm-reservation 메타태그가 병행 선언됨.
 User-agent: *
+Content-Signal: search=yes, ai-train=no, use=reference
 Disallow: /api/
 
 User-agent: GPTBot

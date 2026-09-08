@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: OG_TITLE,
   description: OG_DESCRIPTION,
   applicationName: "같이갈개",
+  // AI 학습·데이터셋 수집 거부 (DeviantArt noai 규약 + EU DSM 지침 제4조 TDM 옵트아웃)
+  robots: "index, follow, noai, noimageai",
+  other: { "tdm-reservation": "1" },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
   openGraph: {
     type: "website",
