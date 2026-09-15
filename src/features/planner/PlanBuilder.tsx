@@ -14,6 +14,7 @@ import { planningRequestFromLegacy } from "@/features/search/planning-request-ad
 import { SmartChecklist } from "@/features/planner/SmartChecklist";
 import { ShareTripModal } from "@/features/planner/ShareTripModal";
 import { TripWeatherCard } from "@/features/weather/TripWeatherCard";
+import { NaviActionButtons } from "@/features/results/NaviActionButtons";
 
 type RouteApiResponse = {
   success: boolean;
@@ -483,9 +484,16 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
         </div>
       ) : null}
 
-      <button type="button" className="plan-generate-button" disabled={selectedPlaces.length < 2 || loading || !courseConfirmed} onClick={handleGenerateClick}>
-        {loading ? dict.planLoading : selectedPlaces.length < 2 ? dict.planNeedMore : !courseConfirmed ? dict.planConfirmCourseFirst : t(lang, "planGenerate", { n: selectedPlaces.length })}
-      </button>
+      {selectedPlaces.length === 1 && courseConfirmed && selectedPlaces[0] ? (
+        <div className="plan-single-navi">
+          <p className="plan-single-navi-note">{t(lang, "planSingleNaviNote")}</p>
+          <NaviActionButtons name={selectedPlaces[0].name} coordinates={selectedPlaces[0].coordinates} />
+        </div>
+      ) : (
+        <button type="button" className="plan-generate-button" disabled={selectedPlaces.length < 1 || loading || !courseConfirmed} onClick={handleGenerateClick}>
+          {loading ? dict.planLoading : selectedPlaces.length < 1 ? dict.planNeedMore : !courseConfirmed ? dict.planConfirmCourseFirst : t(lang, "planGenerate", { n: selectedPlaces.length })}
+        </button>
+      )}
 
       {error ? <p className="plan-error" role="alert">{error}</p> : null}
       {notice ? <p className="plan-notice" role="status">{notice}</p> : null}

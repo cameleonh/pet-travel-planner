@@ -992,6 +992,8 @@ footer p { margin: 0; }
 }
 .plan-generate-button:hover:not(:disabled) { opacity: .9; }
 .plan-generate-button:disabled { opacity: .5; cursor: not-allowed; }
+.plan-single-navi { width: 100%; padding: 14px; border: 1px dashed var(--line-strong); border-radius: 12px; background: var(--brand-soft); }
+.plan-single-navi-note { margin: 0 0 10px; font-size: 12px; font-weight: 700; color: var(--brand-strong); line-height: 1.5; }
 .plan-error, .plan-notice { margin: 10px 0 0; padding: 10px 12px; border-radius: 9px; font-size: 11px; line-height: 1.55; }
 .plan-error { background: var(--accent-soft); color: #9a3412; }
 .plan-notice { background: var(--brand-soft); color: var(--brand-strong); }
@@ -1406,6 +1408,12 @@ footer { max-width: 1240px; }
 }
 
 @media (max-width: 767px) {
+  .theme-curations-container { overflow: hidden; padding: 14px; }
+  .theme-curations-header { align-items: flex-start; flex-wrap: wrap; }
+  .theme-curations-title-wrap { min-width: 0; flex: 1 1 100%; }
+  .theme-header-title, .theme-header-subtitle { overflow-wrap: anywhere; }
+  .theme-arrow-btn { display: none; }
+  .theme-preset-card { flex-basis: min(240px, calc(100vw - 64px)); }
   body { padding-bottom: env(safe-area-inset-bottom); }
   .topbar { width: calc(100% - 20px); min-height: 56px; margin-top: 8px; padding: 8px 10px; border-radius: 15px; }
   .brand { font-size: 13px; }
@@ -1625,6 +1633,7 @@ footer { max-width: 1240px; }
    FEATURE 2: THEME CURATIONS & PERSONA PRESETS
    ========================================================================== */
 .theme-curations-container {
+  min-width: 0;
   margin: 1.25rem 0 1.5rem 0;
   padding: 1.25rem;
   background: linear-gradient(135deg, #ffffff 0%, #f4f8f6 100%);
@@ -1756,6 +1765,7 @@ footer { max-width: 1240px; }
 .theme-cards-scroll {
   display: flex;
   gap: 0.85rem;
+  min-width: 0;
   overflow-x: auto;
   padding: 0.35rem 0.25rem 0.65rem 0.25rem;
   scroll-snap-type: x mandatory;
@@ -1763,6 +1773,7 @@ footer { max-width: 1240px; }
   scroll-behavior: smooth;
   cursor: grab;
   user-select: none;
+  touch-action: pan-x;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
   width: 100%;
@@ -1780,6 +1791,7 @@ footer { max-width: 1240px; }
 
 .theme-preset-card {
   flex: 0 0 240px;
+  min-width: 0;
   scroll-snap-align: start;
   display: flex;
   flex-direction: column;
@@ -1801,8 +1813,9 @@ footer { max-width: 1240px; }
 
 .theme-preset-card.active {
   border-color: var(--brand);
-  background: #f0f7f5;
-  box-shadow: 0 0 0 2px var(--brand);
+  background: #e2f2ed;
+  box-shadow: 0 0 0 3px var(--brand), 0 8px 22px rgba(24, 88, 77, 0.2);
+  transform: translateY(-2px) scale(1.015);
 }
 
 .theme-card-top {
@@ -1823,6 +1836,17 @@ footer { max-width: 1240px; }
   background: var(--brand-soft);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
+}
+
+.theme-card-selected {
+  margin-left: auto;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .theme-card-body {
@@ -1863,9 +1887,18 @@ footer { max-width: 1240px; }
   border-radius: 4px;
 }
 
-/* ==========================================================================
+.theme-result-pulse {
+  animation: theme-result-pulse 900ms ease-out;
+}
+
+@keyframes theme-result-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(24, 88, 77, 0.42); }
+  100% { box-shadow: 0 0 0 14px rgba(24, 88, 77, 0); }
+}
+
+/* ========================================================================
    FEATURE 3: VIEW MODE TOGGLE & INTERACTIVE MAP VIEW
-   ========================================================================== */
+   ======================================================================== */
 .view-mode-toggle-bar {
   display: flex;
   align-items: center;
