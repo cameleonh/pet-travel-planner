@@ -34,7 +34,7 @@ export function CourseBuilder({ selectedPlaces, origin, highlightAction, onApply
     ? originId!
     : includedPlaces[0]?.id ?? "";
   const course = generated?.placeSetKey === placeSetKey(selectedPlaces) ? generated.course : null;
-  const hasEnoughPlaces = includedPlaces.length >= 2;
+  const hasEnoughPlaces = includedPlaces.length >= 1;
 
   const togglePlace = (placeId: string) => {
     setGenerated(null);

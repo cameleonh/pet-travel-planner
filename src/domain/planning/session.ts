@@ -185,7 +185,7 @@ export function applyPlanningEvent(session: PlanningSessionV1, event: PlanningSe
     case "INVALIDATE_NEARBY_REVIEW":
       return { ...session, nearbyReview: null, phase: "supplemental-review" };
     case "CONFIRM_COURSE":
-      if (!allReviewsComplete(session) || session.request.orderedItemIds.length < 2 || session.request.orderedItemIds.length > 12 || session.request.startItemId !== session.request.orderedItemIds[0]) return session;
+      if (!allReviewsComplete(session) || session.request.orderedItemIds.length < 1 || session.request.orderedItemIds.length > 12 || session.request.startItemId !== session.request.orderedItemIds[0]) return session;
       return { ...session, phase: "plan-setup", draft: null };
     case "GENERATION_STARTED":
       if (!["plan-setup", "ready", "partial", "blocked"].includes(session.phase)) return session;

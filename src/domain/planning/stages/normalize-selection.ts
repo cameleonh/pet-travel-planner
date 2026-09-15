@@ -64,7 +64,7 @@ export function normalizeSelection(request: PlanningRequestV1): NormalizedSelect
     }
   }
   if (includedItems.length === 0) issues.push(createPlanIssue("NO_SELECTED_ITEMS", "blocking", "normalize-selection"));
-  if (orderedItems.length < 2) issues.push(createPlanIssue("NOT_ENOUGH_ROUTE_NODES", "blocking", "normalize-selection"));
+  if (orderedItems.length < 1) issues.push(createPlanIssue("NOT_ENOUGH_ROUTE_NODES", "blocking", "normalize-selection"));
   if (orderedItems.length > 12) issues.push(createPlanIssue("TOO_MANY_ROUTE_NODES", "blocking", "normalize-selection", { params: { count: orderedItems.length } }));
   if (normalizedRequest.startItemId === null || normalizedRequest.startItemId !== normalizedRequest.orderedItemIds[0]) {
     issues.push(createPlanIssue("INTERNAL_PLAN_INVARIANT", "blocking", "normalize-selection", { params: { details: "startItemId must be the first ordered item" } }));

@@ -18,11 +18,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const isMouseDownRef = useRef(false);
-  const startXRef = useRef(0);
-  const scrollLeftRef = useRef(0);
+  const [isDragging] = useState(false);
   const hasDraggedRef = useRef(false);
 
   // Check scroll position to update arrow button states
@@ -46,41 +42,15 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
     };
   }, [updateScrollBounds]);
 
+  useEffect(() => {
+    if (!activeThemeId) return;
+    const card = scrollRef.current?.querySelector<HTMLElement>(`[data-theme-id="${activeThemeId}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activeThemeId]);
+
   const scrollByAmount = (amount: number) => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
-  };
-
-  // Mouse Drag to Scroll Handlers
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!scrollRef.current) return;
-    isMouseDownRef.current = true;
-    hasDraggedRef.current = false;
-    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
-    scrollLeftRef.current = scrollRef.current.scrollLeft;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isMouseDownRef.current || !scrollRef.current) return;
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 1.35;
-    if (Math.abs(walk) > 4) {
-      if (!isDragging) setIsDragging(true);
-      hasDraggedRef.current = true;
-      e.preventDefault();
-      scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
-    }
-  };
-
-  const handleMouseUpOrLeave = () => {
-    if (isMouseDownRef.current) {
-      isMouseDownRef.current = false;
-      setIsDragging(false);
-      // Reset hasDragged after a brief delay so onClick handlers can check it
-      setTimeout(() => {
-        hasDraggedRef.current = false;
-      }, 80);
-    }
   };
 
   const handleCardClick = (theme: ThemePreset, isActive: boolean) => {
@@ -134,12 +104,8 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
         <div
           ref={scrollRef}
           className={`theme-cards-scroll ${isDragging ? "is-dragging" : ""}`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
           role="region"
-          aria-label={lang === "ko" ? "테마 코스 목록 (마우스 드래그 이동 가능)" : "Theme courses list (draggable)"}
+          aria-label={lang === "ko" ? "테마 코스 목록 (좌우로 스크롤 가능)" : "Theme courses list (horizontally scrollable)"}
         >
           {THEME_PRESETS.map((theme) => {
             const isActive = activeThemeId === theme.id;
@@ -152,6 +118,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
               <button
                 key={theme.id}
                 type="button"
+                data-theme-id={theme.id}
                 className={`theme-preset-card ${isActive ? "active" : ""}`}
                 onClick={() => handleCardClick(theme, isActive)}
                 aria-pressed={isActive}
@@ -159,6 +126,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
                 <div className="theme-card-top">
                   <span className="theme-card-emoji">{theme.emoji}</span>
                   <span className="theme-card-badge">{theme.badge}</span>
+                  {isActive ? <span className="theme-card-selected">✓ {lang === "ko" ? "선택됨" : "Selected"}</span> : null}
                   {isTodayPick ? (
                     <span
                       style={{

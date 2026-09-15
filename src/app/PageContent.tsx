@@ -21,7 +21,10 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
   // The video plays once (~3s); onEnded triggers the photo transition.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    void videoRef.current?.play().catch(() => setVideoPlaying(false));
+    const timer = window.setTimeout(() => {
+      void videoRef.current?.play().catch(() => setVideoPlaying(false));
+    }, 1200);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const toggleVideo = () => {
@@ -59,7 +62,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           autoPlay
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           aria-hidden="true"
           onPlay={() => setVideoPlaying(true)}
           onPause={() => setVideoPlaying(false)}

@@ -31,7 +31,7 @@ import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
 import { RegionCoursePicker } from "@/features/search/RegionCoursePicker";
-import type { ThemePreset, ThemePresetId } from "@/domain/themes";
+import { THEME_PRESETS, type ThemePreset, type ThemePresetId } from "@/domain/themes";
 import { track } from "@/domain/usage-client";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
 import { FloatingQuickNav } from "@/features/navigation/FloatingQuickNav";
@@ -112,16 +112,28 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
   const [placeSet, setPlaceSet] = useState<"night-spots" | "rural-stays" | "accessible" | null>(null);
   const [todaySafety, setTodaySafety] = useState<"safe" | "caution" | "indoor" | "unknown">("unknown");
+  const [themeResultPulse, setThemeResultPulse] = useState(false);
   const [plannerTripDate, setPlannerTripDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const themeFilterSnapshotRef = useRef<{
+    petSize: ConditionKey | null;
+    petWeight: string;
+    hard: ConditionKey[];
+    preferences: ConditionKey[];
+    categories: RawPlace["category"][];
+    prepFilters: PreparationFilterKey[];
+    placeSet: "night-spots" | "rural-stays" | "accessible" | null;
+  } | null>(null);
   const plannerDialogRef = useRef<HTMLDivElement>(null);
   const tripTrayRef = useRef<HTMLButtonElement>(null);
   const selectionCompleteRef = useRef<HTMLButtonElement>(null);
   const plannerReturnFocusRef = useRef<HTMLElement | null>(null);
   const supplementalChoicesRef = useRef<HTMLElement>(null);
   const resultsPanelRef = useRef<HTMLDivElement>(null);
+  const themeCatalogCacheRef = useRef(new Map<string, CatalogApiData>());
+  const themePrefetchKeyRef = useRef<string | null>(null);
   const constraints = useMemo(() => {
     const seen = new Set<string>();
     const result: SelectedConstraint[] = [];
@@ -168,8 +180,28 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     globalThis.setTimeout(() => (plannerReturnFocusRef.current ?? tripTrayRef.current)?.focus(), 0);
   }, []);
 
+  const getThemeRequestKey = useCallback((theme: ThemePreset) => {
+    return `${theme.petSize ?? ""}||1|${region.trim()}|${theme.categories.join(",")}|${theme.prepFilters.join(",")}|${lang}|${theme.placeSet ?? ""}`;
+  }, [lang, region]);
+
   useEffect(() => {
     const controller = new AbortController();
+    const cachedThemeData = activeThemeId ? themeCatalogCacheRef.current.get(requestKey) : undefined;
+    if (cachedThemeData) {
+      queueMicrotask(() => {
+        if (controller.signal.aborted) return;
+        setCatalog(cachedThemeData.catalog);
+        setCatalogRequestKey(requestKey);
+        setAccessibilityByPlaceId(cachedThemeData.accessibility ?? {});
+        setCampingByPlaceId(cachedThemeData.camping ?? {});
+        setCongestionByPlaceId(cachedThemeData.congestion ?? {});
+        setTranslationByPlaceId(cachedThemeData.translations ?? {});
+        setClosureByPlaceId({});
+        setLoading(false);
+        setErrorMessage(null);
+      });
+      return () => controller.abort();
+    }
     const parameters = new URLSearchParams({ page: String(page) });
     if (hardKeys.length > 0) parameters.set("hard", hardKeys.join(","));
     if (preferenceKeys.length > 0) parameters.set("preferences", preferenceKeys.join(","));
@@ -189,6 +221,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (controller.signal.aborted) return;
         setCatalog(data.catalog);
         setCatalogRequestKey(requestKey);
+        if (activeThemeId) themeCatalogCacheRef.current.set(requestKey, data);
         setAccessibilityByPlaceId(data.accessibility ?? {});
         setCampingByPlaceId(data.camping ?? {});
         setCongestionByPlaceId(data.congestion ?? {});
@@ -213,7 +246,40 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, requestKey, dict]);
+  }, [activeThemeId, hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, requestKey, dict]);
+
+  useEffect(() => {
+    if (activeThemeId || themePrefetchKeyRef.current === `${region.trim()}|${lang}`) return;
+    themePrefetchKeyRef.current = `${region.trim()}|${lang}`;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        for (const theme of THEME_PRESETS) {
+          if (controller.signal.aborted) return;
+          const key = getThemeRequestKey(theme);
+          if (themeCatalogCacheRef.current.has(key)) continue;
+          const parameters = new URLSearchParams({ page: "1" });
+          if (theme.petSize) parameters.set("hard", theme.petSize);
+          if (region.trim()) parameters.set("region", region.trim());
+          if (theme.categories.length > 0) parameters.set("categories", theme.categories.join(","));
+          if (theme.prepFilters.length > 0) parameters.set("prep", theme.prepFilters.join(","));
+          if (theme.placeSet) parameters.set("placeSet", theme.placeSet);
+          if (lang !== "ko") parameters.set("lang", lang);
+          try {
+            const data = await fetchCatalog(`/api/places?${parameters}`, controller.signal);
+            if (!controller.signal.aborted) themeCatalogCacheRef.current.set(key, data);
+          } catch {
+            if (controller.signal.aborted) return;
+          }
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 350));
+        }
+      })();
+    }, 1800);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeThemeId, getThemeRequestKey, lang, region]);
 
   const inFlightDiscoveryRef = useRef<string | null>(null);
   useEffect(() => {
@@ -365,29 +431,45 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   };
   const handleApplyTheme = useCallback((theme: ThemePreset) => {
     track("theme_apply", theme.id);
+    if (!activeThemeId) {
+      themeFilterSnapshotRef.current = {
+        petSize,
+        petWeight,
+        hard: [...hard],
+        preferences: [...preferences],
+        categories: [...categories],
+        prepFilters: [...prepFilters],
+        placeSet,
+      };
+    }
     setActiveThemeId(theme.id);
     setPlaceSet(theme.placeSet ?? null);
     setPage(1);
-    if (theme.petSize) {
-      setPetSize(theme.petSize);
-      setHard((current) => {
-        const withoutSize = current.filter((item) => !conditionKeys.includes(item));
-        return theme.petSize ? [...withoutSize, theme.petSize] : withoutSize;
-      });
-    }
+    setPetSize(theme.petSize);
+    setPetWeight("");
+    setHard(theme.petSize ? [theme.petSize] : []);
+    setPreferences([]);
     setCategories(theme.categories);
     setPrepFilters(theme.prepFilters);
+    setThemeResultPulse(true);
+    globalThis.setTimeout(() => setThemeResultPulse(false), 900);
     globalThis.setTimeout(() => {
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       resultsPanelRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
     }, 80);
-  }, []);
+  }, [activeThemeId, categories, hard, petSize, petWeight, placeSet, preferences, prepFilters]);
   const handleClearTheme = useCallback(() => {
+    const snapshot = themeFilterSnapshotRef.current;
     setActiveThemeId(null);
-    setPlaceSet(null);
     setPage(1);
-    setCategories([]);
-    setPrepFilters([]);
+    setPetSize(snapshot?.petSize ?? null);
+    setPetWeight(snapshot?.petWeight ?? "");
+    setHard(snapshot?.hard ?? []);
+    setPreferences(snapshot?.preferences ?? []);
+    setCategories(snapshot?.categories ?? []);
+    setPrepFilters(snapshot?.prepFilters ?? []);
+    setPlaceSet(snapshot?.placeSet ?? null);
+    themeFilterSnapshotRef.current = null;
   }, []);
 
   const filtersActive = hasActiveFilters({ region, categories, hard, preferences, prepFilters, page });
@@ -427,6 +509,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setPetWeight("");
     setActiveThemeId(null);
     setPlaceSet(null);
+    themeFilterSnapshotRef.current = null;
     setTrails([]);
     setFestivals([]);
     setRuralVillages([]);
@@ -464,7 +547,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setDangerousDog(profile.dangerousDog);
   }, [changeWeight, selectSize]);
 
-  const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
+  const resultCount = isBrowsing ? catalog.filteredCount : catalog.confirmedMatchCount;
 
   const finishChoosing = useCallback(() => {
     if (!hasEnoughPlaces) return;
@@ -659,7 +742,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
       </div>
-      <div ref={resultsPanelRef} className="results-panel interactive-results" aria-busy={loading}>
+      <div ref={resultsPanelRef} className={`results-panel interactive-results ${themeResultPulse ? "theme-result-pulse" : ""}`} aria-busy={loading}>
         <div className={`results-layout ${plannerOpen ? "planner-open" : ""}`}>
           <div className="results-primary">
             <div className="result-heading">

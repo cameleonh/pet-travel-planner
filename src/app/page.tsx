@@ -1,5 +1,5 @@
 import { loadPlaceSnapshot } from "@/data/providers";
-import { buildCatalogPage } from "@/data/catalog";
+import type { CatalogPage } from "@/data/catalog";
 import { PageContent } from "@/app/PageContent";
 import { buildRegionOptions, getRegionPrefix } from "@/domain/regions";
 import { LangProvider } from "@/i18n/LangContext";
@@ -8,7 +8,24 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const { snapshot, notice } = await loadPlaceSnapshot();
-  const catalog = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1 });
+  const catalog: CatalogPage = {
+    sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
+    searchableCount: 0,
+    detailCoverage: 0,
+    pendingDetailCount: 0,
+    failedDetailCount: 0,
+    filteredCount: 0,
+    confirmedMatchCount: 0,
+    confirmedNonMatchCount: 0,
+    unverifiedCount: 0,
+    unknownPlaceCount: 0,
+    preparationFilteredCount: 0,
+    page: 1,
+    pageSize: 50,
+    totalPages: 1,
+    results: [],
+    proposal: null,
+  };
   const regionOptions = buildRegionOptions(snapshot.places);
   const placeCounts: Record<string, number> = {};
   for (const place of snapshot.places) {

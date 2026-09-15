@@ -14,40 +14,26 @@ interface NaviActionButtonsProps {
 }
 
 export function NaviActionButtons({ name, coordinates }: NaviActionButtonsProps) {
-  const handleTmap = () => {
-    const deepLink = getTmapDeepLink(name, coordinates);
-    const webFallback = getKakaoMapWebLink(name, coordinates);
+  const openNavigation = (deepLink: string, webFallback: string) => {
     const start = Date.now();
     window.location.href = deepLink;
     setTimeout(() => {
       if (Date.now() - start < 1500) {
-        window.open(webFallback, "_blank");
+        window.location.href = webFallback;
       }
     }, 1000);
+  };
+
+  const handleTmap = () => {
+    openNavigation(getTmapDeepLink(name, coordinates), getKakaoMapWebLink(name, coordinates));
   };
 
   const handleKakaoNavi = () => {
-    const deepLink = getKakaoNaviDeepLink(name, coordinates);
-    const webFallback = getKakaoMapWebLink(name, coordinates);
-    const start = Date.now();
-    window.location.href = deepLink;
-    setTimeout(() => {
-      if (Date.now() - start < 1500) {
-        window.open(webFallback, "_blank");
-      }
-    }, 1000);
+    openNavigation(getKakaoNaviDeepLink(name, coordinates), getKakaoMapWebLink(name, coordinates));
   };
 
   const handleNaverMap = () => {
-    const deepLink = getNaverMapDeepLink(name, coordinates);
-    const webFallback = getKakaoMapWebLink(name, coordinates);
-    const start = Date.now();
-    window.location.href = deepLink;
-    setTimeout(() => {
-      if (Date.now() - start < 1500) {
-        window.open(webFallback, "_blank");
-      }
-    }, 1000);
+    openNavigation(getNaverMapDeepLink(name, coordinates), getKakaoMapWebLink(name, coordinates));
   };
 
   return (
