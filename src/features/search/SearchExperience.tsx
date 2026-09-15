@@ -169,7 +169,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const nearbyReviewComplete = !nearbyReviewRequired || nearbyReviewedFor === nearbyAnchor?.id;
   const supplementalReviewTotal = Number(regionalReviewRequired) + Number(nearbyReviewRequired);
   const supplementalReviewDone = Number(regionalReviewComplete && regionalReviewRequired) + Number(nearbyReviewComplete && nearbyReviewRequired);
-  const hasEnoughPlaces = planPlaces.length >= 2;
+  const hasEnoughPlaces = planPlaces.length >= 1;
   const visibleResults = catalogIsCurrent ? catalog.results : [];
   const openPlanner = useCallback(() => {
     plannerReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : tripTrayRef.current;
