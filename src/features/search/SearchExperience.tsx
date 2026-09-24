@@ -218,18 +218,31 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
   useEffect(() => {
     let frame = 0;
+    // Once an internal link is clicked the router scrolls the outgoing page to
+    // the top; freezing further writes keeps the pre-navigation position.
+    let frozen = false;
     const persistScroll = () => {
       try { sessionStorage.setItem(SEARCH_SCROLL_KEY, String(Math.round(window.scrollY))); } catch {}
     };
     const onScroll = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => { frame = 0; persistScroll(); });
+      if (frozen || frame) return;
+      frame = window.requestAnimationFrame(() => { frame = 0; if (!frozen) persistScroll(); });
+    };
+    const onDocumentClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest?.("a[href]");
+      const href = anchor?.getAttribute("href") ?? "";
+      if (!href.startsWith("/") || href.startsWith("//")) return;
+      if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
+      persistScroll();
+      frozen = true;
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("click", onDocumentClick, true);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("click", onDocumentClick, true);
       if (frame) window.cancelAnimationFrame(frame);
-      persistScroll();
     };
   }, []);
 
@@ -259,7 +272,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     let savedScroll = 0;
     try { savedScroll = Number(sessionStorage.getItem(SEARCH_SCROLL_KEY) ?? "0"); } catch { savedScroll = 0; }
     if (Number.isFinite(savedScroll) && savedScroll > 0) {
-      globalThis.setTimeout(() => window.scrollTo({ top: savedScroll, behavior: "auto" }), 0);
+      const applyScroll = () => window.scrollTo({ top: savedScroll, behavior: "auto" });
+      globalThis.setTimeout(applyScroll, 0);
+      // Retry once shortly after layout settles, unless the user already
+      // started scrolling somewhere else.
+      globalThis.setTimeout(() => { if (window.scrollY < 24) applyScroll(); }, 350);
     }
   }, [restoredSearchState, catalogIsCurrent, loading]);
   const nearbyAnchor = planPlaces[0];

@@ -139,6 +139,25 @@ test("large-dog theme overrides a persisted small-dog profile", async ({ page })
   await expect(page.getByLabel("중형견")).toBeChecked();
 });
 
+test("back navigation from a place detail restores the previous scroll position", async ({ page }) => {
+  await page.goto("/");
+  const row = page.locator(".place-row").first();
+  await row.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  const scrollBefore = await page.evaluate(() => Math.round(window.scrollY));
+  expect(scrollBefore).toBeGreaterThan(200);
+
+  await row.getByRole("link", { name: /상세/ }).click();
+  await page.waitForURL(/\/place\//);
+  await page.goBack();
+  await page.waitForURL((url) => url.pathname === "/");
+
+  await expect.poll(
+    async () => Math.abs((await page.evaluate(() => Math.round(window.scrollY))) - scrollBefore),
+    { timeout: 10000 },
+  ).toBeLessThan(150);
+});
+
 test("theme selection survives back navigation from a place detail page", async ({ page }) => {
   await page.goto("/");
   const themeCard = page.locator('[data-theme-id="healing-cafe"]');
