@@ -27,6 +27,7 @@ import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { RecentlyViewed } from "@/features/results/RecentlyViewed";
 import { recordViewedPlace, type ViewedPlaceSummary } from "@/domain/viewed-history";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
+import { NearbyOriginPicker, type NearbyOrigin } from "@/features/nearby/NearbyOriginPicker";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
@@ -113,6 +114,17 @@ type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClo
 export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
   const { lang, dict } = useLang();
   const [restoredSearchState] = useState(readPersistedSearchState);
+  // Capture the scroll target at mount: incoming scroll events from the
+  // router's own restoration would otherwise overwrite the stored value.
+  const [restoredScrollTop] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const value = Number(sessionStorage.getItem(SEARCH_SCROLL_KEY) ?? "0");
+      return Number.isFinite(value) && value > 0 ? value : null;
+    } catch {
+      return null;
+    }
+  });
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
   const [dangerousDog, setDangerousDog] = useState(false);
@@ -147,6 +159,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [discoveryLoadedRegion, setDiscoveryLoadedRegion] = useState<string | null>(null);
   const [nearbyActivatedFor, setNearbyActivatedFor] = useState<string | null>(null);
   const [nearbyOpenFor, setNearbyOpenFor] = useState<string | null>(null);
+  // Manual origin (address search or geolocation) applied by the nearby picker.
+  const [nearbyOrigin, setNearbyOrigin] = useState<{ anchorId: string; origin: NearbyOrigin } | null>(null);
   const [regionalReviewedFor, setRegionalReviewedFor] = useState<string | null>(null);
   const [nearbyReviewedFor, setNearbyReviewedFor] = useState<string | null>(null);
   const [selectionCompleted, setSelectionCompleted] = useState(false);
@@ -177,6 +191,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const themePrefetchKeyRef = useRef<string | null>(null);
   const searchStatePersistSkipRef = useRef(false);
   const initialScrollRestoredRef = useRef(false);
+  const scrollRestorePendingRef = useRef(true);
 
   // Apply the restored session after hydration. Doing this in an effect keeps
   // the server-rendered markup identical to the first client render.
@@ -222,6 +237,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     // the top; freezing further writes keeps the pre-navigation position.
     let frozen = false;
     const persistScroll = () => {
+      if (scrollRestorePendingRef.current) return;
       try { sessionStorage.setItem(SEARCH_SCROLL_KEY, String(Math.round(window.scrollY))); } catch {}
     };
     const onScroll = () => {
@@ -233,16 +249,21 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       const anchor = (event.target as Element | null)?.closest?.("a[href]");
       const href = anchor?.getAttribute("href") ?? "";
       if (!href.startsWith("/") || href.startsWith("//")) return;
+      // Navigating away: stop pending restoration and save immediately.
+      scrollRestorePendingRef.current = false;
       if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
       persistScroll();
       frozen = true;
     };
+    // Failsafe: never block scroll persistence if the catalog request stalls.
+    const failsafe = globalThis.setTimeout(() => { scrollRestorePendingRef.current = false; }, 4000);
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("click", onDocumentClick, true);
     return () => {
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("click", onDocumentClick, true);
       if (frame) window.cancelAnimationFrame(frame);
+      globalThis.clearTimeout(failsafe);
     };
   }, []);
 
@@ -267,19 +288,47 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
   // Restore the previous scroll position once the restored results render.
   useEffect(() => {
-    if (!restoredSearchState || initialScrollRestoredRef.current || !catalogIsCurrent || loading) return;
-    initialScrollRestoredRef.current = true;
-    let savedScroll = 0;
-    try { savedScroll = Number(sessionStorage.getItem(SEARCH_SCROLL_KEY) ?? "0"); } catch { savedScroll = 0; }
-    if (Number.isFinite(savedScroll) && savedScroll > 0) {
-      const applyScroll = () => window.scrollTo({ top: savedScroll, behavior: "auto" });
-      globalThis.setTimeout(applyScroll, 0);
-      // Retry once shortly after layout settles, unless the user already
-      // started scrolling somewhere else.
-      globalThis.setTimeout(() => { if (window.scrollY < 24) applyScroll(); }, 350);
+    if (!restoredSearchState) {
+      scrollRestorePendingRef.current = false;
+      return;
     }
-  }, [restoredSearchState, catalogIsCurrent, loading]);
+    if (initialScrollRestoredRef.current || !catalogIsCurrent || loading) return;
+    initialScrollRestoredRef.current = true;
+    if (!restoredScrollTop) {
+      scrollRestorePendingRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    const cancel = () => {
+      cancelled = true;
+      scrollRestorePendingRef.current = false;
+    };
+    const applyScroll = () => {
+      if (cancelled) return;
+      if (Math.abs(window.scrollY - restoredScrollTop) > 24) {
+        window.scrollTo({ top: restoredScrollTop, behavior: "auto" });
+      }
+    };
+    const interactionEvents: Array<keyof WindowEventMap> = ["wheel", "touchstart", "pointerdown", "keydown"];
+    for (const eventName of interactionEvents) window.addEventListener(eventName, cancel, { passive: true, once: true });
+    // The list can grow as data and images settle; keep re-applying the target
+    // until the layout is stable or the user takes over.
+    const timers = [0, 120, 500, 1200].map((delay) => globalThis.setTimeout(() => {
+      applyScroll();
+      if (delay === 1200) scrollRestorePendingRef.current = false;
+    }, delay));
+
+    return () => {
+      cancelled = true;
+      for (const eventName of interactionEvents) window.removeEventListener(eventName, cancel);
+      for (const timer of timers) globalThis.clearTimeout(timer);
+      scrollRestorePendingRef.current = false;
+    };
+  }, [restoredSearchState, restoredScrollTop, catalogIsCurrent, loading]);
   const nearbyAnchor = planPlaces[0];
+  const activeNearbyOrigin = nearbyAnchor && nearbyOrigin?.anchorId === nearbyAnchor.id ? nearbyOrigin.origin : null;
+  const nearbyReferenceName = activeNearbyOrigin?.name ?? nearbyAnchor?.name ?? "";
   const selectedPlaceIds = useMemo(() => new Set(planPlaces.map((place) => place.id)), [planPlaces]);
   const auxiliaryPlaceIds = useMemo(() => new Set(auxiliaryPlaces.map((place) => place.id)), [auxiliaryPlaces]);
   const selectedActivityIds = useMemo(
@@ -1059,8 +1108,13 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                   <details key={nearbyAnchor.id} className="context-disclosure nearby-disclosure" open={nearbyOpenFor === nearbyAnchor.id}>
                     <summary onClick={(event) => { event.preventDefault(); const willOpen = nearbyOpenFor !== nearbyAnchor.id; setNearbyOpenFor(willOpen ? nearbyAnchor.id : null); if (willOpen) setNearbyActivatedFor(nearbyAnchor.id); }}><span><strong>{dict.nearbySaved}</strong><small>{dict.nearbySavedNote}</small>{nearbyReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{nearbyReviewComplete ? "✓" : "＋"}</b></summary>
                     {nearbyActivatedFor === nearbyAnchor.id ? <div className="context-disclosure-body extensions">
-                      {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} /> : null}
-                      <NearbyServices origin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} />
+                      <NearbyOriginPicker
+                        referenceName={nearbyAnchor.name}
+                        activeOrigin={activeNearbyOrigin}
+                        onOriginChange={(origin) => setNearbyOrigin(origin ? { anchorId: nearbyAnchor.id, origin } : null)}
+                      />
+                      {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={activeNearbyOrigin?.coordinates ?? nearbyAnchor.coordinates} referenceName={nearbyReferenceName} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} /> : null}
+                      <NearbyServices origin={activeNearbyOrigin?.coordinates ?? nearbyAnchor.coordinates} referenceName={nearbyReferenceName} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} />
                       <button type="button" className="supplemental-review-button" onClick={completeNearbyReview}>{nearbySelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: nearbySelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div> : null}
                   </details>

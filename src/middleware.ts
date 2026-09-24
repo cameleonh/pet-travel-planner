@@ -26,7 +26,8 @@ export function middleware(request: NextRequest) {
   }
 
   const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || "unknown";
-  if (!limiter.take(ip)) {
+  const rateLimitDisabled = process.env.GG_RATE_LIMIT_DISABLED === "1";
+  if (!rateLimitDisabled && !limiter.take(ip)) {
     return apiError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", { "Retry-After": "30" });
   }
 

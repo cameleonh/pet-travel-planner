@@ -3,6 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
+  workers: 1,
   forbidOnly: true,
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
@@ -17,7 +18,7 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run build && npm run start -- --hostname 127.0.0.1 --port 3100",
-    env: { DATA_PROVIDER: process.env.E2E_DATA_PROVIDER ?? "fixture", GG_RATE_LIMIT_DB_PATH: ":memory:" },
+    env: { DATA_PROVIDER: process.env.E2E_DATA_PROVIDER ?? "fixture", GG_RATE_LIMIT_DB_PATH: ":memory:", GG_RATE_LIMIT_DISABLED: "1" },
     url: "http://127.0.0.1:3100",
     reuseExistingServer: true,
     timeout: 120_000

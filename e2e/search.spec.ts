@@ -41,6 +41,17 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
   await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
 });
 
+test("narrow viewport keeps content inside the viewport width", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await expect(page.locator(".condition-button").first()).toContainText("이동가방 필수");
+  const buttonOverflow = await page.locator(".condition-button").first().evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(buttonOverflow).toBeLessThanOrEqual(1);
+});
+
 test("critical controls are keyboard reachable and expose state", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "소형견 가능" })).toHaveCount(0);

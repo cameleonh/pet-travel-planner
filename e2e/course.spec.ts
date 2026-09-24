@@ -68,10 +68,52 @@ test("a failed nearby service can be retried without reopening the panel", async
   await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   await page.locator(".selection-complete-button").click();
   await page.locator(".nearby-disclosure > summary").click();
-  const veterinaryGroup = page.locator(".nearby-services-grid > div", { has: page.getByRole("heading", { name: "동물병원" }) });
-  await veterinaryGroup.getByRole("button", { name: "다시 불러오기" }).click();
-  await expect(veterinaryGroup.getByText("재시도 동물병원")).toBeVisible();
+  await page.getByRole("tab", { name: /동물병원/ }).click();
+  await page.locator(".nearby-services-panel").getByRole("button", { name: "다시 불러오기" }).click();
+  await expect(page.locator(".nearby-services-panel").getByText("재시도 동물병원")).toBeVisible();
   expect(veterinaryCalls).toBe(2);
+});
+
+test("nearby origin accepts an address and services switch by category tab", async ({ page }) => {
+  await page.route("**/api/geocode?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: { name: "속초역", address: "강원특별자치도 속초시 중앙로", roadAddress: null, latitude: 38.19, longitude: 128.59 }, error: null, meta: {} }),
+    });
+  });
+  const services = [
+    { endpoint: "veterinary", key: "hospitals", name: "테스트 동물병원" },
+    { endpoint: "pet-shops", key: "shops", name: "테스트 펫숍" },
+    { endpoint: "pet-restaurants", key: "restaurants", name: "테스트 식당" },
+  ];
+  for (const service of services) {
+    await page.route(`**/api/${service.endpoint}?*`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, data: { [service.key]: [{ id: `${service.endpoint}-1`, name: service.name, address: "강원특별자치도 속초시", roadAddress: null, phone: null, distance: 500, latitude: 38.2, longitude: 128.59, placeUrl: null }], count: 1 }, error: null }),
+      });
+    });
+  }
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  await page.locator(".selection-complete-button").click();
+  await page.locator(".nearby-disclosure > summary").click();
+
+  await expect(page.getByRole("tab", { name: /동물병원/ })).toBeVisible();
+  await expect(page.getByText("테스트 식당")).toBeVisible();
+  await expect(page.getByText("테스트 동물병원")).toHaveCount(0);
+
+  await page.getByRole("tab", { name: /동물병원/ }).click();
+  await expect(page.getByText("테스트 동물병원")).toBeVisible();
+  await expect(page.getByText("테스트 식당")).toHaveCount(0);
+
+  await page.getByLabel("기준 위치 직접 입력").fill("속초역");
+  await page.getByRole("button", { name: "이 위치로 보기" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "속초역 기준으로" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "저장한 장소 기준으로 되돌리기" })).toBeVisible();
 });
 
 test("course uses only places explicitly saved from browsing", async ({ page }) => {

@@ -41,13 +41,13 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
     <main>
       <header className="topbar">
         <a className="brand" href="#top" aria-label={dict.homeLabel} onClick={() => dispatchHeroStrike()}><span aria-hidden="true">같이</span>갈개</a>
-        <span aria-hidden="true" style={{ display: "inline-flex", gap: 2, alignItems: "center", marginLeft: 6 }}>
+        <span className="topbar-mascots" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
-          <img src="/gachi-galgae-mascot-walk.png" alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+          <img src="/gachi-galgae-mascot-walk.png" alt="" />
           {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
-          <img src="/gachi-galgae-mascot.png" alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+          <img src="/gachi-galgae-mascot.png" alt="" />
           {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
-          <img src="/gachi-galgae-mascot-ribbon.png" alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+          <img src="/gachi-galgae-mascot-ribbon.png" alt="" />
         </span>
         <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
           <AccessibilityToggle />
