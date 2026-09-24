@@ -6,7 +6,7 @@ import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
 import type { RegionOption } from "@/domain/regions";
 import { getRegionSearchTerm } from "@/domain/regions";
-import { conditionKeys, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
+import { conditionKeys, preparationFilterKeys, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
@@ -47,6 +47,52 @@ function selected(key: ConditionKey, kind: SelectedConstraint["kind"], lang: Ret
   return { key, label: t(lang, condLabelKeys[key]), kind, protectedCategory: kind === "hard" ? "admission" : null };
 }
 
+const SEARCH_STATE_KEY = "gggo_search_state_v1";
+const SEARCH_SCROLL_KEY = "gggo_search_scroll_v1";
+const PLACE_CATEGORIES: RawPlace["category"][] = ["attraction", "restaurant", "cafe", "accommodation", "shopping"];
+const THEME_IDS = new Set<string>(THEME_PRESETS.map((theme) => theme.id));
+const PLACE_SET_IDS = new Set<string>(["night-spots", "rural-stays", "accessible"]);
+
+type PersistedSearchState = {
+  region: string;
+  categories: RawPlace["category"][];
+  hard: ConditionKey[];
+  preferences: ConditionKey[];
+  prepFilters: PreparationFilterKey[];
+  petSize: ConditionKey | null;
+  petWeight: string;
+  activeThemeId: ThemePresetId | null;
+  placeSet: "night-spots" | "rural-stays" | "accessible" | null;
+};
+
+// Restore the last search session (theme, filters, scroll) when the user comes
+// back from a place-detail page. Values are validated on read so a stale or
+// corrupted snapshot can never inject unknown filter keys into the UI.
+function readPersistedSearchState(): PersistedSearchState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedSearchState>;
+    if (!parsed || typeof parsed !== "object") return null;
+    const conditions = new Set<string>(conditionKeys);
+    const preparations = new Set<string>(preparationFilterKeys);
+    return {
+      region: typeof parsed.region === "string" ? parsed.region : "",
+      categories: Array.isArray(parsed.categories) ? parsed.categories.filter((category) => PLACE_CATEGORIES.includes(category)) : [],
+      hard: Array.isArray(parsed.hard) ? parsed.hard.filter((key) => conditions.has(key)) : [],
+      preferences: Array.isArray(parsed.preferences) ? parsed.preferences.filter((key) => conditions.has(key)) : [],
+      prepFilters: Array.isArray(parsed.prepFilters) ? parsed.prepFilters.filter((key) => preparations.has(key)) : [],
+      petSize: typeof parsed.petSize === "string" && conditions.has(parsed.petSize) ? parsed.petSize as ConditionKey : null,
+      petWeight: typeof parsed.petWeight === "string" ? parsed.petWeight : "",
+      activeThemeId: typeof parsed.activeThemeId === "string" && THEME_IDS.has(parsed.activeThemeId) ? parsed.activeThemeId as ThemePresetId : null,
+      placeSet: typeof parsed.placeSet === "string" && PLACE_SET_IDS.has(parsed.placeSet) ? parsed.placeSet as PersistedSearchState["placeSet"] : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 type CatalogApiResponse = {
   success: boolean;
   data: { catalog: CatalogPage; placeHours?: Record<string, { useTime: string | null; restDate: string | null; fetchedAt: string | null }>; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData>; translations?: Record<string, TranslationData>; lang?: string } | null;
@@ -66,17 +112,11 @@ type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClo
 
 export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
   const { lang, dict } = useLang();
+  const [restoredSearchState] = useState(readPersistedSearchState);
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
   const [dangerousDog, setDangerousDog] = useState(false);
-  const [region, setRegion] = useState(() => {
-    try { return sessionStorage.getItem("gggo_region") ?? ""; } catch { return ""; }
-  });
-
-  // Persist region so back-navigation from place pages restores the filter.
-  useEffect(() => {
-    try { sessionStorage.setItem("gggo_region", region); } catch {}
-  }, [region]);
+  const [region, setRegion] = useState("");
   const [categories, setCategories] = useState<RawPlace["category"][]>([]);
   const [hard, setHard] = useState<ConditionKey[]>([]);
   const [preferences, setPreferences] = useState<ConditionKey[]>([]);
@@ -135,6 +175,64 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const resultsPanelRef = useRef<HTMLDivElement>(null);
   const themeCatalogCacheRef = useRef(new Map<string, CatalogApiData>());
   const themePrefetchKeyRef = useRef<string | null>(null);
+  const searchStatePersistSkipRef = useRef(false);
+  const initialScrollRestoredRef = useRef(false);
+
+  // Apply the restored session after hydration. Doing this in an effect keeps
+  // the server-rendered markup identical to the first client render.
+  useEffect(() => {
+    if (restoredSearchState) {
+      queueMicrotask(() => {
+        setRegion(restoredSearchState.region);
+        setCategories(restoredSearchState.categories);
+        setHard(restoredSearchState.hard);
+        setPreferences(restoredSearchState.preferences);
+        setPrepFilters(restoredSearchState.prepFilters);
+        setPetSize(restoredSearchState.petSize);
+        setPetWeight(restoredSearchState.petWeight);
+        setActiveThemeId(restoredSearchState.activeThemeId);
+        setPlaceSet(restoredSearchState.placeSet);
+      });
+      return;
+    }
+    try {
+      const legacyRegion = sessionStorage.getItem("gggo_region");
+      if (legacyRegion) queueMicrotask(() => setRegion(legacyRegion));
+    } catch {}
+  }, [restoredSearchState]);
+
+  // Persist the visible search session so browser back from a place page
+  // restores the theme and filters instead of the first-visit defaults.
+  useEffect(() => {
+    if (!searchStatePersistSkipRef.current) {
+      searchStatePersistSkipRef.current = true;
+      if (restoredSearchState) return;
+    }
+    try {
+      sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify({
+        region, categories, hard, preferences, prepFilters, petSize, petWeight, activeThemeId, placeSet,
+      } satisfies PersistedSearchState));
+      sessionStorage.setItem("gggo_region", region);
+    } catch {}
+  }, [region, categories, hard, preferences, prepFilters, petSize, petWeight, activeThemeId, placeSet, restoredSearchState]);
+
+  useEffect(() => {
+    let frame = 0;
+    const persistScroll = () => {
+      try { sessionStorage.setItem(SEARCH_SCROLL_KEY, String(Math.round(window.scrollY))); } catch {}
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => { frame = 0; persistScroll(); });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+      persistScroll();
+    };
+  }, []);
+
   const constraints = useMemo(() => {
     const seen = new Set<string>();
     const result: SelectedConstraint[] = [];
@@ -153,6 +251,17 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
   const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}|${placeSet ?? ""}`;
   const catalogIsCurrent = catalogRequestKey === requestKey;
+
+  // Restore the previous scroll position once the restored results render.
+  useEffect(() => {
+    if (!restoredSearchState || initialScrollRestoredRef.current || !catalogIsCurrent || loading) return;
+    initialScrollRestoredRef.current = true;
+    let savedScroll = 0;
+    try { savedScroll = Number(sessionStorage.getItem(SEARCH_SCROLL_KEY) ?? "0"); } catch { savedScroll = 0; }
+    if (Number.isFinite(savedScroll) && savedScroll > 0) {
+      globalThis.setTimeout(() => window.scrollTo({ top: savedScroll, behavior: "auto" }), 0);
+    }
+  }, [restoredSearchState, catalogIsCurrent, loading]);
   const nearbyAnchor = planPlaces[0];
   const selectedPlaceIds = useMemo(() => new Set(planPlaces.map((place) => place.id)), [planPlaces]);
   const auxiliaryPlaceIds = useMemo(() => new Set(auxiliaryPlaces.map((place) => place.id)), [auxiliaryPlaces]);
@@ -422,12 +531,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     const weight = Number(value);
     const newSize: ConditionKey | null = !value || !Number.isFinite(weight) || weight <= 0 ? null : weight < 10 ? "smallDog" : weight < 25 ? "mediumDog" : "largeDog";
     setHard((current) => {
-      const withoutOld = petSize && petSize !== newSize ? current.filter((item) => item !== petSize) : current;
-      const next = newSize && !withoutOld.includes(newSize) ? [...withoutOld, newSize] : withoutOld;
-      return [...new Set(next)];
+      const withoutSize = current.filter((item) => !conditionKeys.includes(item));
+      return newSize ? [...withoutSize, newSize] : withoutSize;
     });
     setPetSize(newSize);
-  }, [petSize]);
+  }, []);
   const toggleCategory = (category: RawPlace["category"]) => {
     setPage(1);
     setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
@@ -529,16 +637,20 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     if (!saved) return;
     queueMicrotask(() => {
       setPetProfile(saved);
-      if (saved.weight) {
-        changeWeight(saved.weight);
-      } else if (saved.size) {
-        selectSize(saved.size);
+      // A restored session keeps the theme/manual size the user left behind;
+      // the saved profile only prefills a fresh visit.
+      if (!restoredSearchState) {
+        if (saved.weight) {
+          changeWeight(saved.weight);
+        } else if (saved.size) {
+          selectSize(saved.size);
+        }
       }
       if (saved.dangerousDog) {
         setDangerousDog(true);
       }
     });
-  }, [changeWeight, selectSize]);
+  }, [changeWeight, selectSize, restoredSearchState]);
 
   const handleSavePetProfile = useCallback((profile: PetProfile) => {
     setPetProfile(profile);

@@ -111,6 +111,53 @@ test("manual size selection replaces the size inferred from weight", async ({ pa
   await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
 });
 
+test("large-dog theme overrides a persisted small-dog profile", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pet_travel_profile_v1", JSON.stringify({
+      name: "보리",
+      avatar: "🐶",
+      breed: "말티즈",
+      weight: "8.5",
+      size: "smallDog",
+      dangerousDog: false,
+    }));
+  });
+  await page.goto("/");
+  await expect(page.getByLabel("소형견")).toBeChecked();
+  await page.locator('[data-theme-id="large-dog-free"]').click();
+
+  await expect(page.getByLabel("대형견")).toBeChecked();
+  await expect(page.getByLabel("소형견")).not.toBeChecked();
+  await expect(page.locator('[data-theme-id="large-dog-free"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".active-query")).toContainText("대형견");
+
+  await page.locator(".size-grid").getByLabel("중형견").check();
+  await expect(page.getByLabel("중형견")).toBeChecked();
+  await expect(page.getByLabel("대형견")).not.toBeChecked();
+  await expect(page.locator(".active-query")).toContainText("중형견");
+  await page.waitForTimeout(400);
+  await expect(page.getByLabel("중형견")).toBeChecked();
+});
+
+test("theme selection survives back navigation from a place detail page", async ({ page }) => {
+  await page.goto("/");
+  const themeCard = page.locator('[data-theme-id="healing-cafe"]');
+  await themeCard.click();
+  await expect(themeCard).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".active-query")).toContainText("실내 동반");
+  await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
+
+  await page.locator(".place-row").first().getByRole("link", { name: /상세/ }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("파도끝 테라스");
+  await page.goBack();
+
+  await expect(themeCard).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".active-query")).toContainText("실내 동반");
+  await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
+});
+
 test("a pending filter request never labels stale browsing rows as filtered results", async ({ page }) => {
   await page.goto("/");
   let releaseRequest!: () => void;
