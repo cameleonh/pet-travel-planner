@@ -15,7 +15,7 @@ test("nearby catalog separates status and location denial falls back", async ({ 
   await page.goto("/");
   await page.getByLabel("지역").selectOption("강원");
   await page.getByRole("button", { name: /여행에 담기/ }).first().click();
-  await expect(page.getByRole("button", { name: "내 여행 · 1개 저장" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "장소 선택 완료 · 추가 선택", exact: true })).toBeEnabled();
   await page.getByLabel("시·군·구").selectOption("강원 속초시");
   expect(nearbyServiceRequests).toEqual([]);
   await page.getByText("저장한 장소 주변", { exact: true }).click();
@@ -64,8 +64,8 @@ test("a failed nearby service can be retried without reopening the panel", async
   }
 
   await page.goto("/");
-  await page.locator(".plan-add-button").first().click();
-  await page.locator(".plan-add-button").nth(1).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   await page.locator(".selection-complete-button").click();
   await page.locator(".nearby-disclosure > summary").click();
   const veterinaryGroup = page.locator(".nearby-services-grid > div", { has: page.getByRole("heading", { name: "동물병원" }) });
@@ -84,9 +84,9 @@ test("course uses only places explicitly saved from browsing", async ({ page }) 
   });
   await page.goto("/");
   await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
-  const addButtons = page.locator(".plan-add-button");
+  const addButtons = page.getByRole("button", { name: /여행에 담기/ });
   await addButtons.nth(0).click();
-  await addButtons.nth(1).click();
+  await addButtons.nth(0).click();
   await page.locator(".selection-complete-button").click();
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   await expect(courseBuilder.getByRole("checkbox")).toHaveCount(2);
@@ -108,7 +108,7 @@ test("course uses only places explicitly saved from browsing", async ({ page }) 
 test("mobile trip drawer traps focus and restores it after Escape", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /여행에 담기/ }).first().click();
-  await page.locator(".plan-add-button").nth(1).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
   await page.getByRole("button", { name: /2곳 코스 만들기/ }).click();
@@ -137,8 +137,8 @@ test("mobile PDF alertdialog keeps the trip drawer open and traps focus", async 
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: routeData, error: null }) });
   });
   await page.goto("/");
-  await page.locator(".plan-add-button").nth(0).click();
-  await page.locator(".plan-add-button").nth(1).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).nth(0).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
   await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
@@ -164,9 +164,9 @@ test("mobile PDF alertdialog keeps the trip drawer open and traps focus", async 
 test("desktop course confirmation follows the user to the travel plan", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  const addButtons = page.locator(".plan-add-button");
+  const addButtons = page.getByRole("button", { name: /여행에 담기/ });
   await addButtons.nth(0).click();
-  await addButtons.nth(1).click();
+  await addButtons.nth(0).click();
   await page.locator(".selection-complete-button").click();
 
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
@@ -187,9 +187,9 @@ test("route provider failure falls back to a usable straight-line plan", async (
     });
   });
   await page.goto("/");
-  const addButtons = page.locator(".plan-add-button");
+  const addButtons = page.getByRole("button", { name: /여행에 담기/ });
   await addButtons.nth(0).click();
-  await addButtons.nth(1).click();
+  await addButtons.nth(0).click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
   await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
@@ -216,9 +216,9 @@ test("print layout contains only the selected travel plan", async ({ page }) => 
     });
   });
   await page.goto("/");
-  const addButtons = page.locator(".plan-add-button");
+  const addButtons = page.getByRole("button", { name: /여행에 담기/ });
   await addButtons.nth(0).click();
-  await addButtons.nth(1).click();
+  await addButtons.nth(0).click();
   await page.locator(".selection-complete-button").click();
   await finishNearbyReview(page);
   await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();

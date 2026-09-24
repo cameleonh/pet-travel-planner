@@ -24,8 +24,8 @@ test("official database snapshot supports mobile destination, profile, proof, an
   await expect(page.getByLabel("소형견")).toBeChecked();
   await expect(page.getByRole("heading", { name: /현재 \d+곳에서 가능을 확인했어요/ })).toBeVisible();
 
-  await page.locator(".plan-add-button").nth(0).click();
-  await page.locator(".plan-add-button").nth(1).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).nth(0).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   const regionalReview = page.locator(".supplemental-choices .context-disclosure").first();
   await regionalReview.locator("summary").click();
   await regionalReview.locator(".supplemental-review-button").click();

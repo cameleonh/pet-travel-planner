@@ -1,8 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+const browserFetchHeaders = {
+  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7827.55 Safari/537.36",
+  "sec-fetch-mode": "cors",
+  "sec-fetch-dest": "empty",
+  "sec-fetch-site": "same-origin",
+};
+
 test("API rejects malformed and duplicate condition queries with a safe envelope", async ({ request }) => {
   for (const conditions of ["not-a-condition", "leash,leash"]) {
-    const response = await request.get(`/api/places?conditions=${conditions}`);
+    const response = await request.get(`/api/places?conditions=${conditions}`, { headers: browserFetchHeaders });
     expect(response.status()).toBe(400);
     expect(response.headers()["content-language"]).toBe("ko");
     expect(response.headers()["x-request-id"]).toBeTruthy();
@@ -25,7 +32,7 @@ test("application responses expose the locked security headers", async ({ reques
 });
 
 test("catalog API returns global metadata with a bounded result page", async ({ request }) => {
-  const response = await request.get("/api/places?page=1");
+  const response = await request.get("/api/places?page=1", { headers: browserFetchHeaders });
   expect(response.status()).toBe(200);
   expect(response.headers()["cache-control"]).toBe("private, max-age=60, stale-while-revalidate=300");
   const body = await response.json();
@@ -35,7 +42,7 @@ test("catalog API returns global metadata with a bounded result page", async ({ 
 });
 
 test("directions API rejects malformed future departure times", async ({ request }) => {
-  const response = await request.get("/api/directions?origin=127.0,37.0&destination=127.1,37.1&departureTime=tomorrow");
+  const response = await request.get("/api/directions?origin=127.0,37.0&destination=127.1,37.1&departureTime=tomorrow", { headers: browserFetchHeaders });
   expect(response.status()).toBe(400);
   const body = await response.json();
   expect(body).toMatchObject({ success: false, data: null, error: { code: "INVALID_QUERY" } });

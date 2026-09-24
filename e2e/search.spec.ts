@@ -154,7 +154,7 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   const addActivity = page.getByRole("button", { name: "코스 경유지로 담기" }).last();
   await addActivity.click();
   await expect(page.getByRole("button", { name: "코스 경유지에 담았어요" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "내 여행 · 1개 저장" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "장소 선택 완료 · 추가 선택", exact: true })).toBeEnabled();
   await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
   await discoverySummary.click();
   await discoverySummary.click();
@@ -165,7 +165,7 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   const nearbyReview = page.locator(".nearby-disclosure");
   if (await nearbyReview.getAttribute("open") === null) await nearbyReview.locator("summary").click();
   await nearbyReview.locator(".supplemental-review-button").click();
-  await page.locator(".plan-add-button").first().click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   await page.locator(".selection-complete-button").click();
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   await expect(courseBuilder.getByRole("checkbox", { name: /반려견 숲 축제/ })).toBeChecked();
@@ -181,8 +181,8 @@ test("selection completion moves to supplemental choices and only course confirm
     await route.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ success: false, data: null, error: { code: "PROVIDER_UNAVAILABLE", message: "경로 제공자 지연" } }) });
   });
   await page.goto("/");
-  await page.locator(".plan-add-button").first().click();
-  await page.locator(".plan-add-button").nth(1).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   const complete = page.locator(".selection-complete-button");
   await complete.click();
   const supplemental = page.getByRole("region", { name: "축제·산책과 주변 장소도 살펴보세요" });
@@ -201,24 +201,27 @@ test("selection completion moves to supplemental choices and only course confirm
   await expect(page.locator(".course-card .course-button")).toBeFocused();
 });
 
-test("one saved place keeps the next step available without exposing a blocked planner", async ({ page }) => {
+test("one saved place enables direct completion and a one-place course", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  await page.locator(".plan-add-button").first().click();
-  const tray = page.getByRole("button", { name: "내 여행 · 1개 저장" });
-  await expect(tray).toBeDisabled();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  const tray = page.getByRole("button", { name: "장소 선택 완료 · 추가 선택", exact: true });
+  await expect(tray).toBeEnabled();
   await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
   await expect(page.locator(".trip-board-plan")).toHaveCount(0);
-  await expect(page.locator(".selection-complete-button")).toBeDisabled();
-  await expect(page.locator(".selection-complete-button")).toContainText("한 곳 더 저장해 주세요");
+  await page.locator(".selection-complete-button").click();
+  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
+  await expect(courseBuilder.getByRole("checkbox")).toHaveCount(1);
+  await expect(courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 1곳 코스 만들기" })).toBeEnabled();
+  await expect(page.locator(".trip-board-plan")).toHaveCount(0);
 });
 
 test("saving a place preserves the current viewport and button focus", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
 
-  const addButton = page.locator(".plan-add-button").first();
+  const addButton = page.locator(".place-row").first().locator("button.plan-add-button");
   await addButton.scrollIntoViewIfNeeded();
   await addButton.focus();
   const beforeY = await page.evaluate(() => window.scrollY);
