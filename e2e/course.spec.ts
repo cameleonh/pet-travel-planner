@@ -196,6 +196,8 @@ test("route provider failure falls back to a usable straight-line plan", async (
   await expect(page.locator(".plan-notice")).toContainText("직선거리");
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
   await expect(page.locator(".plan-route-segment")).toContainText("도로 경로 응답 지연");
+  await expect(page.locator(".plan-visit-check")).toHaveCount(2);
+  await expect(page.locator(".plan-visit-check").first()).toContainText("운영시간 정보만으로 일정 가능 여부를 판단하지 못했어요");
 
   await page.getByRole("button", { name: "계획서 인쇄 / PDF 저장" }).click();
   const printDialog = page.getByRole("alertdialog", { name: "아직 시간이 비어 있는 구간이 있어요" });
@@ -205,6 +207,45 @@ test("route provider failure falls back to a usable straight-line plan", async (
   await expect(printDialog.getByRole("button", { name: "현재 내용으로 PDF 저장" })).toBeVisible();
   await printDialog.getByRole("button", { name: "닫기" }).click();
   await expect(printDialog).toBeHidden();
+});
+
+test("trip sharing labels approximate legs and retries a failed share-link request", async ({ page }) => {
+  let shareRequests = 0;
+  await page.route("**/api/directions?*", async (route) => {
+    await route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ success: false, data: null, error: { code: "NO_ROUTE", message: "경로를 찾을 수 없습니다." } }),
+    });
+  });
+  await page.route("**/api/plans/share", async (route) => {
+    shareRequests += 1;
+    if (shareRequests === 1) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ success: false }) });
+      return;
+    }
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: { code: "abc234", url: "/p/abc234" } }) });
+  });
+
+  await page.goto("/");
+  const addButtons = page.getByRole("button", { name: /여행에 담기/ });
+  await addButtons.nth(0).click();
+  await addButtons.nth(0).click();
+  await page.locator(".selection-complete-button").click();
+  await finishNearbyReview(page);
+  await page.getByRole("button", { name: "추가 선택은 선택 사항 · 2곳 코스 만들기" }).click();
+  await expect(page.locator(".plan-route-segment")).toContainText("직선거리");
+  await page.locator(".plan-actions .btn-save").click();
+
+  const modal = page.getByRole("dialog", { name: "여행 코스 공유하기" });
+  await expect(modal.getByRole("status")).toContainText("공유 링크를 만들지 못했어요");
+  await expect(modal.getByRole("button", { name: "링크 복사" })).toHaveCount(0);
+  await expect(modal.locator(".share-trip-meta")).toContainText("이동시간 확인 필요");
+  await expect(modal.locator(".share-trip-meta")).not.toContainText("0분");
+  await modal.getByRole("button", { name: "링크 다시 만들기" }).click();
+  await expect(modal.getByText(/\/p\/abc234$/)).toBeVisible();
+  await expect(modal.getByRole("button", { name: "링크 복사" })).toBeVisible();
+  expect(shareRequests).toBe(2);
 });
 
 test("print layout contains only the selected travel plan", async ({ page }) => {

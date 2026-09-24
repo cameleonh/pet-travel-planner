@@ -23,6 +23,19 @@ test("official database snapshot supports mobile destination, profile, proof, an
   await page.locator(".weight-input input").fill("8.5");
   await expect(page.getByLabel("소형견")).toBeChecked();
   await expect(page.getByRole("heading", { name: /현재 \d+곳에서 가능을 확인했어요/ })).toBeVisible();
+  const readCount = async () => Number((await page.locator(".result-count").textContent())?.replace(/[^\d]/g, ""));
+  const smallDogCount = await readCount();
+  await page.getByRole("button", { name: "이동가방 필수" }).click();
+  await expect.poll(readCount).toBeLessThan(smallDogCount);
+  await page.locator(".category-grid").getByRole("button", { name: /관광지/ }).click();
+  await expect(page.getByRole("heading", { name: "해운대 블루라인파크" })).toBeVisible();
+  const carrierEvidence = page.locator(".preparation-list li").filter({ has: page.locator("strong", { hasText: "이동가방" }) }).locator("details.preparation-proof");
+  await expect(carrierEvidence).toHaveCount(1);
+  await carrierEvidence.locator("summary").click();
+  await expect(carrierEvidence).toContainText("관광공사 정보 관측일");
+  await expect(carrierEvidence.getByRole("link", { name: "관광공사 원문 보기 ↗" })).toHaveAttribute("href", "https://www.data.go.kr/data/15135102/openapi.do");
+  await page.locator(".category-grid").getByRole("button", { name: /관광지/ }).click();
+  await expect.poll(readCount).toBeGreaterThan(1);
 
   await page.getByRole("button", { name: /여행에 담기/ }).nth(0).click();
   await page.getByRole("button", { name: /여행에 담기/ }).first().click();
@@ -38,6 +51,8 @@ test("official database snapshot supports mobile destination, profile, proof, an
   await courseButton.click();
   await expect(page.getByRole("dialog", { name: "03 · 내 여행 보드" })).toBeVisible();
   await expect(page.locator(".plan-route-segment")).toHaveCount(1);
+  await expect(page.locator(".plan-hours-disclosure")).toContainText("장소별 이용시간과 휴무 정보도 확인");
+  await expect(page.locator(".plan-place-list .plan-operating-hours").first()).toContainText("휴무");
   await expect(page.locator(".route-links a").first()).toHaveAttribute("href", /map\.kakao\.com/);
 
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/icon.svg");

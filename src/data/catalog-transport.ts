@@ -8,7 +8,16 @@ export function compactCatalogForTransport(catalog: CatalogPage) {
       return {
         place: {
           ...publicPlace,
-          requiredPreparations: place.requiredPreparations.map(({ key, label, scope }) => ({ key, label, scope })),
+          requiredPreparations: place.requiredPreparations.map(({ key, label, scope, evidence }) => ({
+            key,
+            label,
+            scope,
+            evidence: {
+              excerpt: evidence.excerpt,
+              sourceUrl: evidence.sourceUrl,
+              observedAt: evidence.observedAt,
+            },
+          })),
         },
         exact,
         status,

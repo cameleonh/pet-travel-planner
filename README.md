@@ -10,7 +10,11 @@ The product name is `같이갈개`; `pet-travel-planner` remains the repository 
 
 ## Current State
 
-The repository contains a runnable Next.js 16 mobile-first PWA, strict tri-state AND matcher, source proof, preference-only recovery, separated nearby catalog, exact-only approximate course, provider-neutral `/api/places` contract, complete official base-catalog synchronization into SQLite, deterministic sanitized fixtures, security headers, and offline shell. With no filter selected, it reports the complete stored count and serves 50-place pages; each selected condition is evaluated against the complete stored snapshot before the server returns the matching page.
+The service supports a full, account-free discovery-to-day-plan flow: pet profile and region/type filters; strict tri-state AND matching with source proof; list/map and place-detail views; separate regional and nearby discoveries; and a trip board with saved stops, date, departure, dwell time, routed or explicitly approximate legs, weather/traffic context, a packing checklist, navigation links, print/PDF, and shareable plan pages. Owner-submitted closure notices and traveler reviews supplement the official catalog without changing its admission evidence.
+
+Place cards and trip plans keep data provenance visible. Stored opening hours and closing days are shown when available, but arrival times are estimates and do not prove a venue will be open; venue hours and pet rules should be reconfirmed before departure. If a road-route provider is unavailable, shared plans label direct-line distances and withhold an incomplete total travel-time estimate.
+
+The provider-neutral `/api/places` contract reads validated SQLite snapshots, evaluates selected filters across the stored catalog, and returns bounded 50-place pages. The app also includes deterministic sanitized fixtures, security headers, and an offline shell.
 
 See [STATUS.md](STATUS.md) for evidence-backed status and the exact next action.
 

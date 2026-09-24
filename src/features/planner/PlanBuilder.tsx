@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { PlanActivity, PlanPlace, RouteSegment } from "@/domain/plan";
 import { distanceKm } from "@/domain/geo";
-import { buildDepartureCandidates, buildTravelSchedule, formatClock, formatDateInput } from "@/domain/travel-schedule";
+import { buildDepartureCandidates, buildTravelSchedule, formatClock, formatDateInput, parseLocalDateTime } from "@/domain/travel-schedule";
+import { assessVenueVisitWindow } from "@/domain/venue-hours";
 import { DepartureTimePicker } from "@/features/planner/DepartureTimePicker";
 import { track } from "@/domain/usage-client";
 import { useLang } from "@/i18n/LangContext";
@@ -251,6 +252,17 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
     () => buildTravelSchedule(routes, tripDate, plannedDeparture, stayMinutes, departureRecommendation?.durationMinutes, dwellByPlaceId),
     [routes, tripDate, plannedDeparture, stayMinutes, departureRecommendation?.durationMinutes, dwellByPlaceId],
   );
+  const plannedPlaces = useMemo(() => selectedPlaces.map((place, index) => {
+    const arrivalAt = index === 0 ? parseLocalDateTime(tripDate, plannedDeparture) : schedule[index - 1]?.arrivalAt ?? null;
+    const assessment = assessVenueVisitWindow({
+      tripDate,
+      arrivalAt,
+      dwellMinutes: dwellByPlaceId[place.id] ?? stayMinutes,
+      useTime: place.operatingHours?.useTime ?? null,
+      restDate: place.operatingHours?.restDate ?? null,
+    });
+    return { ...place, plannedVisitAt: formatClock(arrivalAt), visitWindowStatus: assessment.status, closingDayChecked: assessment.closingDayChecked };
+  }), [selectedPlaces, tripDate, plannedDeparture, schedule, dwellByPlaceId, stayMinutes]);
   const tripDateLabel = useMemo(() => {
     const date = new Date(`${tripDate}T12:00:00`);
     return Number.isNaN(date.getTime())
@@ -359,6 +371,11 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
           </label>
         </div>
       </section>
+      <p className="plan-hours-disclosure">
+        {lang === "ko"
+          ? "방문 시각은 이동·체류시간 기준 예상입니다. 장소별 이용시간과 휴무 정보도 확인하고, 당일 운영 여부와 반려견 동반 정책은 방문 전에 다시 확인해 주세요."
+          : "Arrival times are estimates from travel and stay durations. Check each venue's hours and closing days, and reconfirm current operation and pet policy before visiting."}
+      </p>
 
       {courseConfirmed && routes.length > 0 ? (
         <section className={`departure-recommendation ${departureRecommendation ? "forecast" : "selected-time"}`} aria-label={departureRecommendation ? dict.planTrafficRecommendation : dict.planPlannedDeparture}>
@@ -434,13 +451,29 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
 
       <h3 className="plan-stops-title">{dict.courseChooseStops}</h3>
       <ol className="plan-place-list">
-        {selectedPlaces.map((place, idx) => (
+        {plannedPlaces.map((place, idx) => {
+          const visitWindowCopy = place.visitWindowStatus === "within-hours"
+            ? place.closingDayChecked ? "예상 방문·체류 시간이 기재된 이용시간 안에 있어요 · 당일 확인 권장" : "이용시간에는 맞지만 휴무일 정보는 확인되지 않았어요"
+            : place.visitWindowStatus === "outside-hours"
+              ? "예상 방문·체류 시간이 기재된 이용시간을 벗어나요"
+              : place.visitWindowStatus === "closed-day"
+                ? "여행 날짜가 등록된 정기 휴무일이에요"
+                : "운영시간 정보만으로 일정 가능 여부를 판단하지 못했어요";
+          return (
           <li key={place.id}>
             <span className="plan-order">{idx + 1}</span>
             <div className="plan-place-info">
               <strong>{place.name}</strong>
               <small>{place.address}</small>
+              <small className="plan-visit-time">예상 방문 {place.plannedVisitAt ?? "시간 미확인"}</small>
               {place.policySourceText ? <small className="plan-policy">{place.policySourceText.slice(0, 60)}</small> : null}
+              {place.policySourceUrl ? <small className="plan-policy-source">KTO 정보 {place.policyObservedAt?.slice(0, 10) ?? "관측일 미확인"} · <a href={place.policySourceUrl} target="_blank" rel="noreferrer">출처 보기</a></small> : null}
+              <small className="plan-operating-hours">
+                {place.operatingHours?.useTime ? `이용시간 ${place.operatingHours.useTime}` : "이용시간 정보 없음"}
+                {place.operatingHours?.restDate ? ` · 휴무 ${place.operatingHours.restDate}` : " · 휴무 정보 없음"}
+                {place.operatingHours?.fetchedAt ? ` · 관광공사 상세 수집 ${place.operatingHours.fetchedAt.slice(0, 10)}` : " · 방문 전 확인 필요"}
+              </small>
+              <small className={`plan-visit-check ${place.visitWindowStatus}`}>{visitWindowCopy}</small>
             </div>
             <label
               className="plan-dwell-control"
@@ -465,7 +498,8 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
             </label>
             <button type="button" className="remove-button" aria-label={t(lang, "planRemoveNamed", { name: place.name })} onClick={() => onRemove(place.id)}>✕</button>
           </li>
-        ))}
+          );
+        })}
       </ol>
 
       {selectedActivities.length > 0 ? (
@@ -556,7 +590,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
           <ShareTripModal
             isOpen={shareDialogOpen}
             onClose={() => setShareDialogOpen(false)}
-            places={selectedPlaces}
+            places={plannedPlaces}
             routes={routes}
             tripDate={tripDate}
             departureTime={departureRecommendation?.time ?? preferredDeparture}

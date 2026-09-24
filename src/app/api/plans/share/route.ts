@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { enforceRateLimit } from "@/app/api/_shared/rate-limit";
 import { saveSharedPlan } from "@/app/api/_shared/shared-plans";
-
-const bodySchema = z.object({
-  plan: z.record(z.string(), z.unknown()),
-});
+import { sharedPlanRequestSchema } from "@/app/api/_shared/shared-plan-schema";
 
 export async function POST(request: Request) {
   const limited = enforceRateLimit(request);
   if (limited) return limited;
-  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  const parsed = sharedPlanRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ success: false, data: null, error: { code: "INVALID_QUERY", message: "계획 데이터 형식을 확인해 주세요." }, meta: {} }, { status: 400 });
   }

@@ -9,6 +9,7 @@ import { compactCatalogForTransport } from "@/data/catalog-transport";
 import { rawPlaceSchema } from "@/data/contracts";
 import { conditionKeys, preparationFilterKeys, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { SqlitePlaceRepository, resolveDatabasePath } from "@/data/database/repository";
+import { getPlaceHoursBatch } from "@/app/api/_shared/place-hours";
 
 const conditionSchema = z.enum(conditionKeys);
 const categorySchema = rawPlaceSchema.shape.category;
@@ -76,6 +77,7 @@ export async function GET(request: Request) {
         provider: snapshot.provider,
         fetchedAt: snapshot.fetchedAt,
         catalog: compactCatalogForTransport(catalog),
+        placeHours: getPlaceHoursBatch(placeIds),
         accessibility: accessibilityMap,
         camping: campingMap,
         congestion: congestionMap,

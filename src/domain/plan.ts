@@ -7,7 +7,17 @@ export type PlanPlace = {
   category: string;
   coordinates: Coordinates;
   policySourceText: string;
+  policySourceUrl?: string | null;
+  policyObservedAt?: string | null;
   exact: boolean;
+  operatingHours?: {
+    useTime: string | null;
+    restDate: string | null;
+    fetchedAt: string | null;
+  } | null;
+  plannedVisitAt?: string | null;
+  visitWindowStatus?: "within-hours" | "outside-hours" | "closed-day" | "unknown";
+  closingDayChecked?: boolean;
   /** Per-place dwell override in minutes; null/undefined falls back to the global stay length. */
   dwellMinutes?: number | null;
 };

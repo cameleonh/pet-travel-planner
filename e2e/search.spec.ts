@@ -13,6 +13,12 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
   await page.getByLabel("소형견").check();
   await page.getByRole("button", { name: "이동가방 필수" }).click();
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
+  const carrierProof = page.locator(".preparation-list li").filter({ has: page.locator("strong", { hasText: "이동가방" }) }).locator("details.preparation-proof");
+  await expect(carrierProof).toHaveCount(1);
+  await carrierProof.locator("summary").click();
+  await expect(carrierProof).toContainText("이동가방 사용 시 실내 가능");
+  await expect(carrierProof).toContainText("관광공사 정보 관측일");
+  await expect(carrierProof).toContainText("시연용 데이터 근거");
   await expect(page.getByLabel("가능 명시 확인")).toContainText("가능 명시 확인1");
   await expect(page.getByLabel("가능 명시 확인")).toContainText("정보 미확인0");
   await expect(page.locator(".result-count")).toHaveText("1곳");

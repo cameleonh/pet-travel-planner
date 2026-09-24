@@ -489,8 +489,14 @@ h1 {
 .proof-preview span { padding: 5px 8px; border-radius: 7px; background: var(--brand-soft); color: var(--brand-strong); font-size: 11px; font-weight: 700; }
 .preparation-list { margin-top: 14px; padding: 11px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
 .preparation-list > strong { color: #74301f; font-size: 12px; }
-.preparation-list ul { display: flex; margin: 7px 0 0; padding: 0; flex-wrap: wrap; gap: 6px; list-style: none; }
-.preparation-list li { padding: 4px 7px; border-radius: 6px; background: white; color: #74301f; font-size: 11px; font-weight: 700; }
+.preparation-list ul { display: grid; margin: 7px 0 0; padding: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 6px; list-style: none; }
+.preparation-list li { display: grid; min-width: 0; padding: 7px 9px; gap: 5px; border-radius: 8px; background: white; color: #74301f; font-size: 11px; font-weight: 700; }
+.preparation-proof { color: #74301f; font-size: 10px; font-weight: 600; }
+.preparation-proof summary { width: fit-content; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.preparation-proof-body { display: grid; margin-top: 6px; gap: 4px; color: #475569; font-weight: 500; line-height: 1.5; }
+.preparation-proof-body p { margin: 0; }
+.preparation-proof-body small { color: #64748b; }
+.preparation-proof-body a { width: fit-content; color: #18584d; text-decoration: underline; text-underline-offset: 2px; }
 .proof-details { border-top: 1px solid var(--line); padding-top: 11px; }
 .proof-details summary { width: fit-content; min-height: 44px; padding: 10px 0; color: var(--brand); cursor: pointer; font-size: 13px; font-weight: 800; }
 .proof-details ul { display: grid; margin: 8px 0 0; padding: 0; gap: 12px; list-style: none; }
@@ -982,6 +988,14 @@ footer p { margin: 0; }
 .plan-place-info strong { display: block; font-size: 13px; margin-bottom: 2px; }
 .plan-place-info small { display: block; font-size: 11px; color: var(--muted); }
 .plan-policy { font-size: 10px !important; color: var(--ink-subtle); margin-top: 2px; }
+.plan-policy-source { font-size: 10px !important; margin-top: 2px; }
+.plan-policy-source a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
+.plan-operating-hours { margin-top: 3px; line-height: 1.45; }
+.plan-visit-time, .plan-visit-check { margin-top: 3px; line-height: 1.45; }
+.plan-visit-check.within-hours { color: #28734f; }
+.plan-visit-check.outside-hours, .plan-visit-check.closed-day { color: #b42318; }
+.plan-visit-check.unknown { color: var(--muted); }
+.plan-hours-disclosure { margin: 0 0 14px; padding: 9px 11px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-strong); font-size: 10px; line-height: 1.55; }
 .remove-button { flex: 0 0 auto; padding: 4px 8px; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px; border-radius: 4px; }
 .remove-button:hover { color: #8d3826; background: var(--accent-soft); }
 .clear-button { padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); font-size: 11px; font-weight: 700; cursor: pointer; color: var(--muted); }
@@ -1331,6 +1345,10 @@ body {
 .trip-board-plan .plan-order { background: var(--lime); color: var(--night); }
 .trip-board-plan .plan-place-info strong { color: white; }
 .trip-board-plan .plan-place-info small { color: #b7cbc4; }
+.trip-board-plan .plan-visit-check.within-hours { color: #a7f3d0; }
+.trip-board-plan .plan-visit-check.outside-hours, .trip-board-plan .plan-visit-check.closed-day { color: #fca5a5; }
+.trip-board-plan .plan-policy-source a { color: var(--lime); }
+.trip-board-plan .plan-hours-disclosure { background: rgb(167 243 208 / 10%); color: #d1fae5; }
 .trip-board-plan .remove-button { color: #b7cbc4; }
 .plan-activities { margin: 14px 0; padding-top: 14px; border-top: 1px solid rgb(255 255 255 / 14%); }
 .plan-activities > h3 { margin: 0; color: white; font-size: 13px; }

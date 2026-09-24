@@ -49,7 +49,7 @@ function selected(key: ConditionKey, kind: SelectedConstraint["kind"], lang: Ret
 
 type CatalogApiResponse = {
   success: boolean;
-  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData>; translations?: Record<string, TranslationData>; lang?: string } | null;
+  data: { catalog: CatalogPage; placeHours?: Record<string, { useTime: string | null; restDate: string | null; fetchedAt: string | null }>; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData>; translations?: Record<string, TranslationData>; lang?: string } | null;
   error: { message: string } | null;
 };
 
@@ -87,6 +87,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
+  const [placeHoursById, setPlaceHoursById] = useState<NonNullable<CatalogApiData["placeHours"]>>({});
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
   const [congestionByPlaceId, setCongestionByPlaceId] = useState<Record<string, CongestionData>>({});
@@ -192,6 +193,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (controller.signal.aborted) return;
         setCatalog(cachedThemeData.catalog);
         setCatalogRequestKey(requestKey);
+        setPlaceHoursById(cachedThemeData.placeHours ?? {});
         setAccessibilityByPlaceId(cachedThemeData.accessibility ?? {});
         setCampingByPlaceId(cachedThemeData.camping ?? {});
         setCongestionByPlaceId(cachedThemeData.congestion ?? {});
@@ -221,6 +223,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (controller.signal.aborted) return;
         setCatalog(data.catalog);
         setCatalogRequestKey(requestKey);
+        setPlaceHoursById(data.placeHours ?? {});
         if (activeThemeId) themeCatalogCacheRef.current.set(requestKey, data);
         setAccessibilityByPlaceId(data.accessibility ?? {});
         setCampingByPlaceId(data.camping ?? {});
@@ -601,7 +604,10 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       category: place.category,
       coordinates: place.coordinates,
       policySourceText: place.policySource.sourceText,
+      policySourceUrl: place.policySource.sourceUrl,
+      policyObservedAt: place.policySource.observedAt,
       exact: result.exact,
+      operatingHours: placeHoursById[place.id] ?? null,
     };
     if (isRemovingNearbyAnchor) { setNearbyActivatedFor(null); setNearbyOpenFor(null); setNearbyReviewedFor(null); }
     if (isRemovingLastPlace) {
@@ -610,7 +616,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setSelectionCompleted(false);
     setCourseConfirmed(false);
     setPlanPlaces((current) => current.some((p) => p.id === place.id) ? current.filter((p) => p.id !== place.id) : [...current, planPlace]);
-  }, [planPlaces, planActivities.length, closePlanner]);
+  }, [planPlaces, planActivities.length, closePlanner, placeHoursById]);
 
   const removePlanPlace = useCallback((id: string) => {
     if (planPlaces[0]?.id === id) { setNearbyActivatedFor(null); setNearbyOpenFor(null); setNearbyReviewedFor(null); }
