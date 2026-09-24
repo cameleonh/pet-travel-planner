@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildCatalogPage, CATALOG_PAGE_SIZE, clearCatalogCache, getCatalogCacheStats } from "@/data/catalog";
+import { buildCatalogPage, CATALOG_PAGE_SIZE, clearCatalogCache, getCatalogCacheStats, getCatalogCoverage } from "@/data/catalog";
 import { FixturePlaceProvider } from "@/data/providers/fixture-provider";
 import type { ProviderSnapshot } from "@/data/contracts";
 import type { SelectedConstraint } from "@/domain/types";
@@ -27,6 +27,17 @@ async function largeSnapshot(): Promise<ProviderSnapshot> {
 
 describe("catalog pagination", () => {
   beforeEach(() => clearCatalogCache());
+
+  it("summarizes completeness from the full downloaded snapshot, not a page or a placeholder", async () => {
+    const snapshot = await largeSnapshot();
+    expect(getCatalogCoverage(snapshot)).toEqual({
+      sourceTotalCount: 120,
+      searchableCount: 60,
+      detailCoverage: 60,
+      pendingDetailCount: 60,
+      failedDetailCount: 0,
+    });
+  });
 
   it("reports the global total while returning only one 50-row page", async () => {
     const page = buildCatalogPage(await largeSnapshot(), { hard: [], preferences: [], page: 1 });

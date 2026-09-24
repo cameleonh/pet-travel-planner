@@ -1,5 +1,5 @@
 import { loadPlaceSnapshot } from "@/data/providers";
-import type { CatalogPage } from "@/data/catalog";
+import { getCatalogCoverage, type CatalogPage } from "@/data/catalog";
 import { PageContent } from "@/app/PageContent";
 import { buildRegionOptions, getRegionPrefix } from "@/domain/regions";
 import { LangProvider } from "@/i18n/LangContext";
@@ -9,11 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const { snapshot, notice } = await loadPlaceSnapshot();
   const catalog: CatalogPage = {
-    sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
-    searchableCount: 0,
-    detailCoverage: 0,
-    pendingDetailCount: 0,
-    failedDetailCount: 0,
+    ...getCatalogCoverage(snapshot),
     filteredCount: 0,
     confirmedMatchCount: 0,
     confirmedNonMatchCount: 0,

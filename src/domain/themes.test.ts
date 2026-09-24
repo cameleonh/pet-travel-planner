@@ -40,7 +40,7 @@ describe("THEME_PRESETS", () => {
     expect(nightPreset).toBeDefined();
     expect(nightPreset?.placeSet).toBe("night-spots");
     expect(nightPreset?.categories).toEqual([]);
-    expect(nightPreset?.prepFilters).toContain("leash");
+    expect(nightPreset?.prepFilters).toContain("outdoor");
   });
 
   it("configures the rural stay preset to drive results via the curated place set", () => {

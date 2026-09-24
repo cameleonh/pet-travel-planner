@@ -63,7 +63,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     descEn: 'Scenic pet-friendly brunch cafes & photo spots for relaxing outings',
     petSize: null,
     categories: ['cafe', 'restaurant'],
-    prepFilters: ['leash'],
+    prepFilters: ['indoor'],
     recommendedTags: ['인스타감성', '브런치카페', '포토존', '댕댕이동반'],
   },
   {
@@ -89,7 +89,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     descEn: 'Refreshing coastal drives, sea breeze walks & ocean-view spots',
     petSize: null,
     categories: ['attraction', 'cafe'],
-    prepFilters: ['leash'],
+    prepFilters: ['outdoor'],
     recommendedTags: ['바다산책', '오션뷰', '해안도로', '물놀이'],
   },
   {
@@ -116,7 +116,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     descEn: 'Sunset river walks, cable cars, observatories and lighthouses to enjoy after dark with your dog',
     petSize: null,
     categories: [],
-    prepFilters: ['leash'],
+    prepFilters: ['outdoor'],
     recommendedTags: ['야경데이트', '한강야간산책', '케이블카', '새벽일출'],
     placeSet: 'night-spots',
   },

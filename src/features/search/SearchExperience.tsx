@@ -83,8 +83,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [prepFilters, setPrepFilters] = useState<PreparationFilterKey[]>([]);
   const [page, setPage] = useState(1);
   const [catalog, setCatalog] = useState(initialCatalog);
-  const [catalogRequestKey, setCatalogRequestKey] = useState("||1||||ko");
-  const [loading, setLoading] = useState(false);
+  const [catalogRequestKey, setCatalogRequestKey] = useState("");
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
@@ -735,8 +735,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         {placeCounts ? (
           <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} />
         ) : null}
+        <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} targetDate={plannerTripDate ?? undefined} onSafetyLevel={setTodaySafety} />
         <aside className="filter-panel">
-          <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} targetDate={plannerTripDate ?? undefined} onSafetyLevel={setTodaySafety} />
           <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
@@ -746,7 +746,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         <div className={`results-layout ${plannerOpen ? "planner-open" : ""}`}>
           <div className="results-primary">
             <div className="result-heading">
-              <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{!catalogIsCurrent ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
+              <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{errorMessage ? dict.loadingErrorTitle : !catalogIsCurrent ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
               {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>{dict.places}</span></p> : null}
             </div>
             <div className="view-mode-toggle-bar">

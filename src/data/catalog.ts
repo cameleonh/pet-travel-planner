@@ -36,6 +36,8 @@ export type CatalogPage = {
   proposal: CatalogRelaxation | null;
 };
 
+export type CatalogCoverage = Pick<CatalogPage, "sourceTotalCount" | "searchableCount" | "detailCoverage" | "pendingDetailCount" | "failedDetailCount">;
+
 export type CatalogQuery = {
   hard: SelectedConstraint[];
   preferences: SelectedConstraint[];
@@ -153,6 +155,17 @@ function prepareCatalog(snapshot: ProviderSnapshot): PreparedCatalog {
   return prepared;
 }
 
+export function getCatalogCoverage(snapshot: ProviderSnapshot): CatalogCoverage {
+  const prepared = prepareCatalog(snapshot);
+  return {
+    sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
+    searchableCount: prepared.places.length,
+    detailCoverage: prepared.detailCoverage,
+    pendingDetailCount: prepared.pendingDetailCount,
+    failedDetailCount: prepared.failedDetailCount,
+  };
+}
+
 function constraintCacheKey(constraints: SelectedConstraint[]): string {
   return JSON.stringify(constraints.map(({ key, label, kind, protectedCategory }) => [key, label, kind, protectedCategory]));
 }
@@ -234,11 +247,8 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
     : null;
 
   return {
-    sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
+    ...getCatalogCoverage(snapshot),
     searchableCount: places.length,
-    detailCoverage: prepared.detailCoverage,
-    pendingDetailCount: prepared.pendingDetailCount,
-    failedDetailCount: prepared.failedDetailCount,
     filteredCount: candidates.length,
     confirmedMatchCount,
     confirmedNonMatchCount,

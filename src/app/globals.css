@@ -243,6 +243,7 @@ h1 {
 .filter-panel {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
   border-top: 1px solid var(--line);
   background: var(--surface-subtle);
 }

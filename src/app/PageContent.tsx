@@ -113,7 +113,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
       {notice ? <p role="status" className="notice global-notice">{notice}</p> : null}
       <SearchExperience initialCatalog={catalog} auxiliaryPlaces={auxiliaryPlaces} regionOptions={regionOptions} placeCounts={placeCounts} />
 
-      <footer><p>{dict.footerNotice}</p><p>{fetchedAt.slice(0, 10)} {dict.footerBaseDate}</p></footer>
+      <footer><p>{dict.footerNotice}</p><p>{dict.footerBaseDate} {fetchedAt.slice(0, 10)}</p></footer>
     </main>
   );
 }
