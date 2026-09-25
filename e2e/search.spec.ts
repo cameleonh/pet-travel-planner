@@ -52,6 +52,22 @@ test("narrow viewport keeps content inside the viewport width", async ({ page })
   expect(buttonOverflow).toBeLessThanOrEqual(1);
 });
 
+test("map view renders real map markers and links back to the list", async ({ page }) => {
+  await page.route(/tile\.openstreetmap\.org/, (route) => route.fulfill({ status: 204, body: "" }));
+  await page.goto("/");
+  await page.getByRole("tab", { name: /지도에서 탐색/ }).click();
+  await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".map-pin-content")).toHaveCount(2);
+
+  await page.locator(".map-pin-content").first().click();
+  const sheet = page.locator(".map-place-sheet");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("link", { name: /카카오맵 보기/ })).toHaveAttribute("href", /map\.kakao\.com/);
+
+  await sheet.getByRole("button", { name: /상세 증빙 보기/ }).click();
+  await expect(page.locator(".place-row").first()).toBeVisible();
+});
+
 test("critical controls are keyboard reachable and expose state", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "소형견 가능" })).toHaveCount(0);
