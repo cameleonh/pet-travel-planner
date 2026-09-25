@@ -60,6 +60,28 @@ describe("geocode API", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("prefers the closest keyword name over Kakao's default ranking", async () => {
+    process.env.KAKAO_REST_API_KEY = "test-key";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const target = String(input);
+      if (target.includes("/search/address.json")) return jsonResponse({ documents: [] });
+      return jsonResponse({
+        documents: [
+          { place_name: "강토탈 속초역주유소", address_name: "강원특별자치도 속초시", road_address_name: null, y: "38.19", x: "128.59" },
+          { place_name: "속초역", address_name: "강원특별자치도 속초시", road_address_name: "강원특별자치도 속초시 중앙로 1", y: "38.188", x: "128.588" },
+        ],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(new Request("http://localhost/api/geocode?q=%EC%86%8D%EC%B4%88%EC%97%AD"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.name).toBe("속초역");
+    expect(body.data.latitude).toBe(38.188);
+  });
+
   it("returns NOT_FOUND when neither lookup matches", async () => {
     process.env.KAKAO_REST_API_KEY = "test-key";
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ documents: [] })));

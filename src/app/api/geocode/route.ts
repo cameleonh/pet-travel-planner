@@ -33,6 +33,21 @@ function toNumberOrNull(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeName(value: string): string {
+  return value.replace(/\s+/g, "").toLowerCase();
+}
+
+// Kakao's keyword ranking can surface a nearby business (e.g. "속초역주유소")
+// before the place the user typed; prefer the closest name match.
+function pickKeywordDocument<T extends { place_name: string }>(documents: T[], query: string): T | undefined {
+  const normalizedQuery = normalizeName(query);
+  if (!normalizedQuery) return documents[0];
+  return documents.find((document) => normalizeName(document.place_name) === normalizedQuery)
+    ?? documents.find((document) => normalizeName(document.place_name).startsWith(normalizedQuery))
+    ?? documents.find((document) => normalizeName(document.place_name).includes(normalizedQuery))
+    ?? documents[0];
+}
+
 export async function GET(request: Request) {
   const requestId = randomUUID();
   try {
@@ -77,11 +92,11 @@ export async function GET(request: Request) {
 
     const keywordUrl = new URL(KEYWORD_API);
     keywordUrl.searchParams.set("query", q);
-    keywordUrl.searchParams.set("size", "1");
+    keywordUrl.searchParams.set("size", "5");
     const keywordResponse = await fetchKakaoLocal(keywordUrl, apiKey, request.signal, { timeoutMs: 1_800, maxAttempts: 1 });
     if (keywordResponse.ok) {
       const parsed = keywordResponseSchema.safeParse(await keywordResponse.json());
-      const document = parsed.success ? parsed.data.documents[0] : undefined;
+      const document = parsed.success ? pickKeywordDocument(parsed.data.documents, q) : undefined;
       const latitude = document ? toNumberOrNull(document.y) : null;
       const longitude = document ? toNumberOrNull(document.x) : null;
       if (document && latitude !== null && longitude !== null) {
