@@ -64,7 +64,8 @@ function escapeHtml(value) {
 }
 
 /* 3D 지도 위에 장소 위치를 핀으로 표시한다. VWorld createMarker(name, x, y, popupHtml, icon, w, h, height).
-   위젯 초기화 직후에는 POI 그룹이 아직 준비되지 않을 수 있어 몇 번 재시도한다. */
+   위젯이 막 준비된 시점에는 POI 그룹이 없어 조용히 실패하므로, 잠시 뒤에 호출하고
+   실패 시 몇 번 재시도한다. 이전 시도의 잔여 마커는 먼저 제거한다. */
 function add3dMarker(attempt) {
   attempt = attempt || 0;
   var p = window.__NV;
@@ -75,9 +76,13 @@ function add3dMarker(attempt) {
   var popup = "<div style='font:13px/1.5 system-ui,sans-serif;color:#111'>"
     + "<strong>" + escapeHtml(p.name) + "</strong><br/>선택한 장소</div>";
   try {
+    var supervisor = window.vw && window.vw.ObjectSuperviser;
+    if (supervisor && supervisor.getById && supervisor.getById(p.name)) supervisor.removeById(p.name);
+  } catch (e) {}
+  try {
     window.map3d.createMarker(p.name, p.lng, p.lat, popup, icon, 240, 90, 30);
   } catch (e) {
-    if (attempt < 6) setTimeout(function () { add3dMarker(attempt + 1); }, 500);
+    if (attempt < 5) setTimeout(function () { add3dMarker(attempt + 1); }, 700);
   }
 }
 
@@ -140,7 +145,7 @@ window.addEventListener("load", function () {
     })
     .then(function () {
       window.__nvMode = "3d";
-      add3dMarker();
+      setTimeout(function () { add3dMarker(0); }, 1800);
       try { navigator.sendBeacon("/api/usage", new Blob([JSON.stringify({ kind: "place_3d_open", detail: (window.__NV.name || "").slice(0, 40) })], { type: "application/json" })); } catch (e) {}
       setTimeout(hideLoading, 1500);
     })
