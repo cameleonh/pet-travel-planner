@@ -8,15 +8,20 @@ type FontSize = (typeof FONT_SIZES)[number];
 const FONT_SCALE: Record<FontSize, number> = { small: 0.9, normal: 1, large: 1.2 };
 
 export function AccessibilityToggle() {
-  const [fontSize, setFontSize] = useState<FontSize>(() => {
-    try {
-      const saved = localStorage.getItem("gggo_font_size") as FontSize | null;
-      return saved && FONT_SIZES.includes(saved) ? saved : "normal";
-    } catch { return "normal"; }
-  });
-  const [dark, setDark] = useState(() => {
-    try { return localStorage.getItem("gggo_dark") === "1"; } catch { return false; }
-  });
+  // Defaults first: reading localStorage during render makes the server and
+  // client markup diverge (e.g. the moon/sun emoji), so restore after mount.
+  const [fontSize, setFontSize] = useState<FontSize>("normal");
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const saved = localStorage.getItem("gggo_font_size") as FontSize | null;
+        if (saved && FONT_SIZES.includes(saved)) setFontSize(saved);
+        if (localStorage.getItem("gggo_dark") === "1") setDark(true);
+      } catch {}
+    });
+  }, []);
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${16 * FONT_SCALE[fontSize]}px`;

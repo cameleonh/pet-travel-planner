@@ -52,7 +52,9 @@ export function loadSharedPlan(code: string): SharedPlan | null {
   const database = getDb();
   if (!database) return null;
   try {
-    const row = database.prepare("SELECT code, plan_json, created_at FROM shared_plans WHERE code = ?").get(code) as SharedPlan | undefined;
+    const row = database
+      .prepare("SELECT code, plan_json AS planJson, created_at AS createdAt FROM shared_plans WHERE code = ?")
+      .get(code) as SharedPlan | undefined;
     return row ?? null;
   } catch {
     return null;
