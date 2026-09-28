@@ -46,6 +46,9 @@ export type CatalogQuery = {
   categories?: RawPlace["category"][];
   preparationFilters?: PreparationFilterKey[];
   placeSet?: "night-spots" | "rural-stays" | "accessible";
+  // Live accessibility coverage from the database; the static seed is only a
+  // fixture/dev fallback.
+  accessiblePlaceIds?: ReadonlySet<string>;
 };
 
 const indoorAllowPatterns = [/실내.{0,16}(?:가능|동반|출입|허용)/, /(?:내부|매장\s?내|실내\s?공간|건물\s?내).{0,14}(?:가능|동반|출입|허용)/];
@@ -230,7 +233,7 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const evaluations = allEvaluations.filter(({ place }) => {
     if (query.placeSet === "night-spots" && !isNightSpot(place)) return false;
     if (query.placeSet === "rural-stays" && !RURAL_STAY_PLACE_IDS.has(place.id)) return false;
-    if (query.placeSet === "accessible" && !ACCESSIBLE_PLACE_IDS.has(place.id)) return false;
+    if (query.placeSet === "accessible" && !(query.accessiblePlaceIds ?? ACCESSIBLE_PLACE_IDS).has(place.id)) return false;
     const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
     // "cafe" filter spans both source categories: the KTO pet-travel catalog files

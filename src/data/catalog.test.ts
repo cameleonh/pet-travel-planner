@@ -237,6 +237,30 @@ describe("catalog pagination", () => {
     expect(page.results.map((result) => result.place.id).sort()).toEqual(["attraction-explicit", "cafe-whole"]);
   });
 
+  it("uses live accessibility ids for the accessible place set when provided", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...source, id: "acc-live", name: "실제 접근성 장소" },
+        { ...source, id: "acc-other", name: "일반 장소" },
+        { ...source, id: "acc-third", name: "다른 장소" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, {
+      hard: [],
+      preferences: [],
+      page: 1,
+      placeSet: "accessible",
+      accessiblePlaceIds: new Set(["acc-live"]),
+    });
+    expect(page.results.map((result) => result.place.id)).toEqual(["acc-live"]);
+  });
+
   it("adds name-matched night landmarks and ignores mall tower shops", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
     const source = fixture.places[0]!;

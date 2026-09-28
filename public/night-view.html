@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3D 뷰어 — 같이갈개</title>
+<link rel="preconnect" href="https://map.vworld.kr" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
 <style>
   html, body { margin: 0; height: 100%; background: #0b1220; overflow: hidden; font-family: system-ui, sans-serif; }
   #vmap3d { position: absolute; inset: 0; }
@@ -105,7 +108,7 @@ function waitFor(fn, ms, what) {
 
 window.addEventListener("load", function () {
   var p = window.__NV;
-  waitFor(function () { return typeof vw !== "undefined" && vw.Map; }, 8000, "3D API 미승인")
+  waitFor(function () { return typeof vw !== "undefined" && vw.Map; }, 6000, "3D API 미승인")
     .then(function () {
       var bm = (vw.BasemapType && vw.BasemapType.PHOTO !== undefined) ? vw.BasemapType.PHOTO : vw.BasemapType.GRAPHIC;
       var start = new vw.CameraPosition(new vw.CoordZ(p.lng, p.lat, 1500), new vw.Direction(0, -42, 0));

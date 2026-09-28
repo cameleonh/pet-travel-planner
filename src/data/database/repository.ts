@@ -364,6 +364,13 @@ export class SqlitePlaceRepository {
     return result.count;
   }
 
+  // Only rows with at least one stored field exist in this table, so every
+  // distinct place_id is a place with verified accessibility detail.
+  listAccessiblePlaceIds(): string[] {
+    const rows = this.db.prepare("SELECT DISTINCT place_id AS placeId FROM place_accessibility").all() as { placeId: string }[];
+    return rows.map((row) => row.placeId);
+  }
+
   getLatestSnapshotId(): number | null {
     const row = this.db.prepare(
       `SELECT s.id FROM sync_runs r JOIN source_snapshots s ON s.id = r.snapshot_id WHERE r.status = 'success' ORDER BY r.finished_at DESC, r.id DESC LIMIT 1`,
