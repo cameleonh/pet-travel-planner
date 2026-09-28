@@ -246,6 +246,7 @@ describe("catalog pagination", () => {
       places: [
         { ...source, id: "night-beach", name: "광안리해수욕장", category: "attraction" },
         { ...source, id: "night-tower-shop", name: "올리브영 타워팰리스점", category: "shopping" },
+        { ...source, id: "night-beach-shop", name: "다비치안경 해운대해수욕장입구점", category: "shopping" },
         { ...source, id: "night-ordinary", name: "동네 식당", category: "restaurant" },
         { ...source, id: "night-curated", name: "여의도한강공원", category: "attraction" },
       ],
