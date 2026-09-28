@@ -2171,6 +2171,12 @@ footer { max-width: 1240px; }
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
+/* With dozens of markers the always-on labels turn the map into a pile of
+   overlapping text; reveal only the hovered or selected one. */
+.map-pin-content .pin-label-text { display: none; }
+.map-pin-content:hover .pin-label-text,
+.map-pin-content.selected .pin-label-text { display: block; }
+
 .map-place-sheet {
   padding: 1.25rem;
   background: var(--surface);
