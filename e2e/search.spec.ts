@@ -190,7 +190,7 @@ test("theme selection survives back navigation from a place detail page", async 
   const themeCard = page.locator('[data-theme-id="healing-cafe"]');
   await themeCard.click();
   await expect(themeCard).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".active-query")).toContainText("실내 동반");
+  await expect(page.locator(".active-query")).toContainText("cafe");
   await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
 
@@ -199,7 +199,7 @@ test("theme selection survives back navigation from a place detail page", async 
   await page.goBack();
 
   await expect(themeCard).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".active-query")).toContainText("실내 동반");
+  await expect(page.locator(".active-query")).toContainText("cafe");
   await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
 });

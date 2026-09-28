@@ -50,6 +50,13 @@ describe("THEME_PRESETS", () => {
     expect(ruralPreset?.categories).toEqual([]);
   });
 
+  it("keeps the cafe preset from requiring an explicit indoor claim", () => {
+    const cafePreset = THEME_PRESETS.find((p) => p.id === "healing-cafe");
+    expect(cafePreset).toBeDefined();
+    expect(cafePreset?.categories).toEqual(["cafe", "restaurant"]);
+    expect(cafePreset?.prepFilters).toEqual([]);
+  });
+
   it("configures large dog free preset with largeDog requirement", () => {
     const largePreset = THEME_PRESETS.find((p) => p.id === "large-dog-free");
     expect(largePreset).toBeDefined();

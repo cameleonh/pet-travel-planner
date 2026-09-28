@@ -63,7 +63,8 @@ export const THEME_PRESETS: ThemePreset[] = [
     descEn: 'Scenic pet-friendly brunch cafes & photo spots for relaxing outings',
     petSize: null,
     categories: ['cafe', 'restaurant'],
-    prepFilters: ['indoor'],
+    // Cafés rarely state "실내" explicitly; requiring it hid almost every café.
+    prepFilters: [],
     recommendedTags: ['인스타감성', '브런치카페', '포토존', '댕댕이동반'],
   },
   {
