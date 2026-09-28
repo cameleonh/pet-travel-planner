@@ -218,6 +218,24 @@ describe("catalog pagination", () => {
     expect(getCatalogCacheStats()).toEqual({ preparations: 2, evaluationBuilds: 2 });
   });
 
+  it("treats a whole-area admission statement as indoor-allowed", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...source, id: "explicit-indoor", petPolicy: { ...source.petPolicy, sourceText: "이동가방 사용 시 실내 가능." } },
+        { ...source, id: "whole-area", petPolicy: { ...source.petPolicy, sourceText: "동반 유형: 전구역 동반가능" } },
+        { ...source, id: "partial-area", petPolicy: { ...source.petPolicy, sourceText: "동반 유형: 일부구역 동반가능" } },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, preparationFilters: ["indoor"] });
+    expect(page.results.map((result) => result.place.id).sort()).toEqual(["explicit-indoor", "whole-area"]);
+  });
+
   it("restricts results to the curated night-spot place set when requested", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
     const source = fixture.places[0]!;

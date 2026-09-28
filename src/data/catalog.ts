@@ -48,7 +48,7 @@ export type CatalogQuery = {
   placeSet?: "night-spots" | "rural-stays" | "accessible";
 };
 
-const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/];
+const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/, /전구역.{0,12}(가능|동반)/];
 const outdoorPatterns = [/야외.{0,12}(가능|동반|출입|허용)/, /일부\s?구역.{0,12}(가능|동반)/, /전구역.{0,12}(가능|동반)/];
 
 const noiseNamePatterns = [
