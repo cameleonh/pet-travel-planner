@@ -23,20 +23,30 @@ export function AccessibilityToggle() {
     });
   }, []);
 
+  // Apply-only effects: persisting here would overwrite the stored choice with
+  // the default before the restore above has read it.
   useEffect(() => {
     document.documentElement.style.fontSize = `${16 * FONT_SCALE[fontSize]}px`;
-    try { localStorage.setItem("gggo_font_size", fontSize); } catch {}
   }, [fontSize]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    try { localStorage.setItem("gggo_dark", dark ? "1" : "0"); } catch {}
   }, [dark]);
 
   const cycleSize = useCallback(() => {
     setFontSize((current) => {
       const idx = FONT_SIZES.indexOf(current);
-      return FONT_SIZES[(idx + 1) % FONT_SIZES.length] ?? "normal";
+      const next = FONT_SIZES[(idx + 1) % FONT_SIZES.length] ?? "normal";
+      try { localStorage.setItem("gggo_font_size", next); } catch {}
+      return next;
+    });
+  }, []);
+
+  const toggleDark = useCallback(() => {
+    setDark((current) => {
+      const next = !current;
+      try { localStorage.setItem("gggo_dark", next ? "1" : "0"); } catch {}
+      return next;
     });
   }, []);
 
@@ -62,7 +72,7 @@ export function AccessibilityToggle() {
       <span style={{ opacity: 0.3, fontSize: 12 }}>|</span>
       <button
         type="button"
-        onClick={() => setDark(!dark)}
+        onClick={toggleDark}
         aria-label={dark ? "라이트 모드" : "다크 모드"}
         style={{
           border: "none",
