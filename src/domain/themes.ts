@@ -97,7 +97,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     id: 'rural-stay',
     emoji: '🌾',
     badge: '촌캉스 힐링',
-    titleKo: '반려견 동반 펜션·한옥·민박 37곳',
+    titleKo: '반려견 동반 펜션·한옥·민박',
     titleEn: 'Pet-Friendly Stays: Pensions, Hanok & Farmhouses',
     descKo: '강아지랑 같이 자러 가요 — 검증된 반려견 동반 펜션·한옥·게스트하우스 큐레이션',
     descEn: 'Verified pet-friendly pensions, hanok guesthouses and farm stays across Korea',

@@ -218,6 +218,44 @@ describe("catalog pagination", () => {
     expect(getCatalogCacheStats()).toEqual({ preparations: 2, evaluationBuilds: 2 });
   });
 
+  it("infers indoor admission for indoor venues with whole-area admission", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 4,
+      places: [
+        { ...source, id: "cafe-whole", category: "cafe", petPolicy: { ...source.petPolicy, sourceText: "동반 유형: 전구역 동반가능" } },
+        { ...source, id: "attraction-whole", category: "attraction", petPolicy: { ...source.petPolicy, sourceText: "동반 유형: 전구역 동반가능" } },
+        { ...source, id: "attraction-explicit", category: "attraction", petPolicy: { ...source.petPolicy, sourceText: "실내 동반 가능" } },
+        { ...source, id: "attraction-restricted", category: "attraction", petPolicy: { ...source.petPolicy, sourceText: "실내 전시관은 출입 제한. 야외 공간은 동반 가능." } },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, preparationFilters: ["indoor"] });
+    expect(page.results.map((result) => result.place.id).sort()).toEqual(["attraction-explicit", "cafe-whole"]);
+  });
+
+  it("adds name-matched night landmarks and ignores mall tower shops", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 4,
+      places: [
+        { ...source, id: "night-beach", name: "광안리해수욕장", category: "attraction" },
+        { ...source, id: "night-tower-shop", name: "올리브영 타워팰리스점", category: "shopping" },
+        { ...source, id: "night-ordinary", name: "동네 식당", category: "restaurant" },
+        { ...source, id: "night-curated", name: "여의도한강공원", category: "attraction" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, placeSet: "night-spots" });
+    expect(page.results.map((result) => result.place.id).sort()).toEqual(["night-beach", "night-curated"]);
+  });
+
   it("restricts results to the curated night-spot place set when requested", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
     const source = fixture.places[0]!;

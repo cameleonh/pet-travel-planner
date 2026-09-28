@@ -1,6 +1,6 @@
 import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
 import { CAFE_NAME_PATTERN } from "@/domain/categories";
-import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
+import { isNightSpot } from "@/domain/night-spots";
 import { RURAL_STAY_PLACE_IDS } from "@/domain/rural-stays";
 import { getRegionSearchTerm } from "@/domain/regions";
 import { ACCESSIBLE_PLACE_IDS } from "@/domain/accessible-spots";
@@ -48,8 +48,27 @@ export type CatalogQuery = {
   placeSet?: "night-spots" | "rural-stays" | "accessible";
 };
 
-const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/];
-const outdoorPatterns = [/야외.{0,12}(가능|동반|출입|허용)/, /일부\s?구역.{0,12}(가능|동반)/, /전구역.{0,12}(가능|동반)/];
+const indoorAllowPatterns = [/실내.{0,16}(?:가능|동반|출입|허용)/, /(?:내부|매장\s?내|실내\s?공간|건물\s?내).{0,14}(?:가능|동반|출입|허용)/];
+const outdoorAllowPatterns = [/야외.{0,16}(?:가능|동반|출입|허용)/, /일부\s?구역.{0,16}(?:가능|동반)/, /전구역.{0,16}(?:가능|동반)/];
+const wholeAreaPattern = /전구역.{0,16}(?:가능|동반)/;
+// Cafés, restaurants and stays are indoor venues: a whole-area admission
+// statement includes the indoor space. Attractions and shopping rows stay
+// strict because the same wording can describe an outdoor venue or a single
+// brand counter inside a mall.
+const indoorInferredCategories = new Set<RawPlace["category"]>(["cafe", "restaurant", "accommodation"]);
+const restrictionPattern = /(?:제한|불가|금지|불허|안\s?됨|어려움)/;
+
+function clauseAllows(text: string, pattern: RegExp): boolean {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  for (const match of text.matchAll(new RegExp(pattern.source, flags))) {
+    const index = match.index ?? 0;
+    const rest = text.slice(index + match[0].length);
+    const boundary = rest.search(/[.;!?\n]/);
+    const clause = text.slice(index, index + match[0].length + (boundary === -1 ? rest.length : boundary));
+    if (!restrictionPattern.test(clause)) return true;
+  }
+  return false;
+}
 
 const noiseNamePatterns = [
   /약국/,
@@ -191,8 +210,11 @@ function matchesPreparationFilter(evaluation: MatchEvaluation, filters: Preparat
   const hasPreparation = (key: PreparationFilterKey) => {
     if (key === "leash") return evaluation.place.requiredPreparations.some((p) => p.key === "leash");
     if (key === "carrier") return evaluation.place.requiredPreparations.some((p) => p.key === "carrier");
-    if (key === "indoor") return indoorPatterns.some((p) => p.test(text));
-    if (key === "outdoor") return outdoorPatterns.some((p) => p.test(text));
+    if (key === "indoor") {
+      if (indoorAllowPatterns.some((pattern) => clauseAllows(text, pattern))) return true;
+      return indoorInferredCategories.has(evaluation.place.category) && clauseAllows(text, wholeAreaPattern);
+    }
+    if (key === "outdoor") return outdoorAllowPatterns.some((pattern) => clauseAllows(text, pattern));
     return false;
   };
   return filters.every(hasPreparation);
@@ -206,7 +228,7 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const constraints = [...query.hard, ...query.preferences];
   const allEvaluations = evaluatePreparedCatalog(prepared, constraints);
   const evaluations = allEvaluations.filter(({ place }) => {
-    if (query.placeSet === "night-spots" && !NIGHT_SPOT_PLACE_IDS.has(place.id)) return false;
+    if (query.placeSet === "night-spots" && !isNightSpot(place)) return false;
     if (query.placeSet === "rural-stays" && !RURAL_STAY_PLACE_IDS.has(place.id)) return false;
     if (query.placeSet === "accessible" && !ACCESSIBLE_PLACE_IDS.has(place.id)) return false;
     const searchText = prepared.searchTextById.get(place.id) ?? "";
