@@ -3452,3 +3452,9 @@ footer { max-width: 1240px; }
   .mobile-panel-nav { display: block; padding: 2px 0 12px; }
   .mobile-panel-back { min-height: 42px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 800; cursor: pointer; }
 }
+
+/* ── Nearby catalog "show more" paging ── */
+.nearby-more-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.nearby-more-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nearby-more-button { min-height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 800; cursor: pointer; }
+.nearby-more-button:hover { border-color: var(--brand); color: var(--brand-strong); }
