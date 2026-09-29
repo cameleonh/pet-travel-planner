@@ -1043,7 +1043,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
                               >
                                 🏙️ {lang === "ko" ? "3D 보기" : "3D View"}
                               </Link>
-                              <Link className="plan-add-button" href={`/place/${encodeURIComponent(result.place.id)}`} title={lang === "ko" ? "장소 상세 정보" : "Place details"} style={{ textDecoration: "none", textAlign: "center", background: "#fff", color: "#334155" }}>🔎 {lang === "ko" ? "상세" : "Info"}</Link>
+                              <Link className="plan-add-button secondary" href={`/place/${encodeURIComponent(result.place.id)}`} title={lang === "ko" ? "장소 상세 정보" : "Place details"}>🔎 {lang === "ko" ? "상세" : "Info"}</Link>
                               <button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button>
                             </div>
                             {isSaved ? (

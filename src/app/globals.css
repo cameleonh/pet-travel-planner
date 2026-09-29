@@ -1333,9 +1333,13 @@ body {
   color: white;
   font-size: 13px;
   font-weight: 850;
+  text-decoration: none;
 }
 .plan-add-button:hover { background: var(--brand); }
 .plan-add-button.added { background: var(--lime); color: var(--night); }
+/* Secondary action (e.g. 상세) needs a visible box, not a borderless white fill. */
+.plan-add-button.secondary { border: 1px solid var(--line-strong); background: #fff; color: var(--ink); }
+.plan-add-button.secondary:hover { background: var(--surface-subtle); }
 .plan-add-button > span { font-size: 17px; line-height: 1; }
 .catalog-pagination button { border-color: var(--line-strong); border-radius: 13px; background: white; }
 .result-actions { display: grid; margin-top: 16px; grid-template-columns: 1fr; gap: 10px; }
