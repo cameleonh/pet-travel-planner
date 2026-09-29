@@ -95,6 +95,48 @@ describe("policy normalization", () => {
     const place = normalizePlace(rawPlace("주차 20대 가능. 대형견 동반 가능."));
     expect(place.facts.largeDog.value).toBe("true");
   });
+
+  it("treats a generic admission phrase as proof for the small band only", () => {
+    const place = normalizePlace(rawPlace("목줄 착용 후 동반 가능합니다."));
+    expect(place.facts.smallDog.value).toBe("true");
+    expect(place.facts.mediumDog.value).toBe("unknown");
+    expect(place.facts.largeDog.value).toBe("unknown");
+  });
+
+  it("maps an over-weight admission ban to the excluded bands", () => {
+    const place = normalizePlace(rawPlace("15Kg이상 동반 불가"));
+    expect(place.facts.smallDog.value).toBe("true");
+    expect(place.facts.mediumDog.value).toBe("unknown");
+    expect(place.facts.largeDog.value).toBe("false");
+  });
+
+  it("maps 중소형견 to the small and medium bands only", () => {
+    const place = normalizePlace(rawPlace("중소형견 동반 가능"));
+    expect(place.facts.smallDog.value).toBe("true");
+    expect(place.facts.mediumDog.value).toBe("true");
+    expect(place.facts.largeDog.value).toBe("false");
+  });
+
+  it("admits the small band under a small-dog weight cap", () => {
+    const place = normalizePlace(rawPlace("5kg 이하 동반 가능"));
+    expect(place.facts.smallDog.value).toBe("true");
+    expect(place.facts.mediumDog.value).toBe("false");
+    expect(place.facts.largeDog.value).toBe("false");
+  });
+
+  it("promotes every smaller band when a larger band is allowed", () => {
+    const place = normalizePlace(rawPlace("대형견 동반 가능"));
+    expect(place.facts.smallDog.value).toBe("true");
+    expect(place.facts.mediumDog.value).toBe("true");
+    expect(place.facts.largeDog.value).toBe("true");
+  });
+
+  it("forbids every band when the smallest band is forbidden", () => {
+    const place = normalizePlace(rawPlace("소형견 동반 불가"));
+    expect(place.facts.smallDog.value).toBe("false");
+    expect(place.facts.mediumDog.value).toBe("false");
+    expect(place.facts.largeDog.value).toBe("false");
+  });
 });
 
 describe("strict AND matching", () => {

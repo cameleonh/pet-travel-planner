@@ -11,15 +11,6 @@ import {
   type TriState,
 } from "@/domain/types";
 
-type Rule = { key: ConditionKey; value: Exclude<TriState, "unknown">; patterns: RegExp[] };
-
-const rules: Rule[] = [
-  { key: "largeDog", value: "false", patterns: [/대형견.{0,8}(불가|제한)/] },
-  { key: "smallDog", value: "true", patterns: [/소형견.{0,12}(가능|허용)/, /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/] },
-  { key: "mediumDog", value: "true", patterns: [/중형견.{0,12}(가능|허용)/, /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/] },
-  { key: "largeDog", value: "true", patterns: [/대형견.{0,12}(가능|허용)/, /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/] }
-];
-
 function evidenceFor(place: RawPlace, excerpt: string, evidenceClass: ConditionEvidence["evidenceClass"]): ConditionEvidence {
   return { sourceText: place.petPolicy.sourceText, sourceUrl: place.petPolicy.sourceUrl, observedAt: place.petPolicy.observedAt, excerpt, evidenceClass };
 }
@@ -34,9 +25,39 @@ function fact(
 }
 
 const dogSizeKeys = new Set<ConditionKey>(["smallDog", "mediumDog", "largeDog"]);
-const allBreedsPattern = /(전\s*견종|모든\s*크기.{0,8}반려견).{0,12}(동반|출입)\s*(가능|허용)/;
+
+// Size bands match the weight thresholds used across the catalog:
+// small ≤ 10kg, medium 10–25kg, large > 25kg.
+const SMALL_MAX_KG = 10;
+const MEDIUM_MAX_KG = 25;
+
+// "전 견종"/"모든 견종" — the source explicitly admits every breed, so every band.
+const allBreedsPattern = /(?:전\s*견종|전견종|모든\s*견종|모든\s*크기(?:\s*의)?\s*반려견)[^.!?;\n]{0,16}(?:동반|출입|입장|반입)[^.!?;\n]{0,8}(?:가능|허용)/;
+
+const sizeAllowPatterns: { key: ConditionKey; pattern: RegExp }[] = [
+  { key: "smallDog", pattern: /소형견[^.!?;\n]{0,12}(?:가능|허용)/ },
+  { key: "mediumDog", pattern: /중형견[^.!?;\n]{0,12}(?:가능|허용)/ },
+  { key: "largeDog", pattern: /대형견[^.!?;\n]{0,12}(?:가능|허용)/ },
+];
+// "중소형견" is the source's way of admitting small and medium bands only.
+const smallToMediumAllowPattern = /중소형견[^.!?;\n]{0,10}(?:가능|허용)/;
+const sizeDenyPatterns: { key: ConditionKey; pattern: RegExp }[] = [
+  { key: "smallDog", pattern: /소형견[^.!?;\n]{0,10}(?:불가|제한|금지|불허)/ },
+  { key: "mediumDog", pattern: /중형견[^.!?;\n]{0,10}(?:불가|제한|금지|불허)/ },
+  { key: "largeDog", pattern: /대형견[^.!?;\n]{0,10}(?:불가|제한|금지|불허)/ },
+];
+
+// A size claim that also carries a weight/age qualifier ("15kg 이하 대형견 가능")
+// cannot prove the whole band, so the explicit size word is not trusted alone.
 const sizeQualifierPattern = /(?:\d+(?:\.\d+)?\s*(?:kg|㎏|킬로그램)|\d+\s*(?:개월|살|세))/i;
 const ageQualifierPattern = /\d+\s*(?:개월|살|세)/;
+const sizeSpecifiedPattern = /(?:소형견|중형견|대형견|중소형견|전\s*견종|전견종|모든\s*견종|모든\s*크기|체고|\d+(?:\.\d+)?\s*(?:kg|㎏|킬로그램))/i;
+const generalAdmissionPattern = /동반\s*가능/;
+
+// A weight cap (max allowed weight) expressed either positively ("Nkg 이하 동반
+// 가능") or negatively ("Nkg 이상 동반 불가").
+const weightAllowancePattern = /(\d+(?:\.\d+)?)\s*(?:kg|㎏|킬로그램)\s*(미만|이하)[^.!?;\n]{0,32}(?:입장|출입|동반)[^.!?;\n]{0,10}(?:가능|허용)/i;
+const weightRestrictionPattern = /(\d+(?:\.\d+)?)\s*(?:kg|㎏|킬로그램)\s*(이상|초과)[^.!?;\n]{0,32}(?:불가|제한|금지|불허)/i;
 
 const preparationRules: {
   key: PreparationKey;
@@ -80,72 +101,102 @@ function extractPreparations(place: RawPlace, text: string): PreparationRequirem
   return [...requirements.values()];
 }
 
-function applyWeightAllowance(place: RawPlace, text: string, facts: Record<ConditionKey, ConditionFact>): void {
-  const match = text.match(/(\d+(?:\.\d+)?)\s*(?:kg|㎏|킬로그램)\s*(미만|이하).{0,32}(입장|출입|동반).{0,10}(가능|허용)/i);
-  if (!match || ageQualifierPattern.test(containingClaim(text, match.index ?? 0))) return;
-  const limit = Number(match[1]);
-  if (!Number.isFinite(limit)) return;
-  const qualifier = match[2];
-  const evidence = evidenceFor(place, match[0], "source-derived");
-  if (limit >= 10) facts.smallDog = fact("smallDog", "true", evidence);
-  if ((qualifier === "미만" && limit <= 10) || (qualifier === "이하" && limit < 10)) {
-    facts.mediumDog = fact("mediumDog", "false", evidence);
+type SizeFacts = Record<ConditionKey, ConditionFact>;
+
+// Positive facts never override an explicit restriction; restrictions always win.
+function setSizeTrue(place: RawPlace, facts: SizeFacts, key: ConditionKey, excerpt: string): void {
+  if (facts[key].value === "false") return;
+  facts[key] = fact(key, "true", evidenceFor(place, excerpt, "source-derived"));
+}
+
+function setSizeFalse(place: RawPlace, facts: SizeFacts, key: ConditionKey, excerpt: string): void {
+  facts[key] = fact(key, "false", evidenceFor(place, excerpt, "source-derived"));
+}
+
+function applyWeightCap(place: RawPlace, facts: SizeFacts, limit: number, qualifier: "미만" | "이하", excerpt: string): void {
+  if (!Number.isFinite(limit) || limit <= 0) return;
+  // Any positive weight cap admits at least the small band.
+  setSizeTrue(place, facts, "smallDog", excerpt);
+  const mediumExcluded = (qualifier === "미만" && limit <= SMALL_MAX_KG) || (qualifier === "이하" && limit < SMALL_MAX_KG);
+  const mediumIncluded = (qualifier === "미만" && limit > MEDIUM_MAX_KG) || (qualifier === "이하" && limit >= MEDIUM_MAX_KG);
+  if (mediumExcluded) setSizeFalse(place, facts, "mediumDog", excerpt);
+  else if (mediumIncluded) setSizeTrue(place, facts, "mediumDog", excerpt);
+  const largeExcluded = (qualifier === "미만" && limit <= MEDIUM_MAX_KG) || (qualifier === "이하" && limit < MEDIUM_MAX_KG);
+  if (largeExcluded) setSizeFalse(place, facts, "largeDog", excerpt);
+}
+
+function applyWeightRules(place: RawPlace, text: string, facts: SizeFacts): void {
+  const allowance = text.match(weightAllowancePattern);
+  if (allowance && !ageQualifierPattern.test(containingClaim(text, allowance.index ?? 0))) {
+    applyWeightCap(place, facts, Number(allowance[1]), allowance[2] as "미만" | "이하", allowance[0]);
   }
-  if ((qualifier === "미만" && limit <= 25) || (qualifier === "이하" && limit < 25)) {
-    facts.largeDog = fact("largeDog", "false", evidence);
-  }
-  if ((qualifier === "미만" && limit > 25) || (qualifier === "이하" && limit >= 25)) {
-    facts.mediumDog = fact("mediumDog", "true", evidence);
+  const restriction = text.match(weightRestrictionPattern);
+  if (restriction && !ageQualifierPattern.test(containingClaim(text, restriction.index ?? 0))) {
+    // "Nkg 이상 불가" ⇒ below N allowed ("미만"); "Nkg 초과 불가" ⇒ N or below allowed ("이하").
+    applyWeightCap(place, facts, Number(restriction[1]), restriction[2] === "이상" ? "미만" : "이하", restriction[0]);
   }
 }
 
-const generalAdmissionPattern = /동반\s*가능/;
-const explicitSizeFalsePattern = /(?:소형견|중형견|대형견).{0,8}(불가|제한|금지)/;
-const weightOrAgeLimitPattern = /(?:\d+(?:\.\d+)?\s*(?:kg|㎏|킬로그램))|(?:\d+\s*(?:개월|살|세))/i;
+function enforceSizeMonotonicity(place: RawPlace, facts: SizeFacts): void {
+  // A larger band being allowed implies every smaller band is allowed...
+  if (facts.largeDog.value === "true") {
+    setSizeTrue(place, facts, "mediumDog", "대형견 가능 → 중형견·소형견 가능");
+    setSizeTrue(place, facts, "smallDog", "대형견 가능 → 중형견·소형견 가능");
+  }
+  if (facts.mediumDog.value === "true") {
+    setSizeTrue(place, facts, "smallDog", "중형견 가능 → 소형견 가능");
+  }
+  // ...and a smaller band being forbidden implies every larger band is forbidden.
+  if (facts.smallDog.value === "false") {
+    setSizeFalse(place, facts, "mediumDog", "소형견 불가 → 중형견·대형견 불가");
+    setSizeFalse(place, facts, "largeDog", "소형견 불가 → 중형견·대형견 불가");
+  } else if (facts.mediumDog.value === "false") {
+    setSizeFalse(place, facts, "largeDog", "중형견 불가 → 대형견 불가");
+  }
+}
 
-function applyGeneralAdmissionFallback(place: RawPlace, text: string, facts: Record<ConditionKey, ConditionFact>): void {
-  if (!generalAdmissionPattern.test(text)) return;
-  if (explicitSizeFalsePattern.test(text)) return;
-  if (weightOrAgeLimitPattern.test(text)) return;
-  for (const key of dogSizeKeys) {
-    if (facts[key].value === "unknown") {
-      facts[key] = fact(
-        key,
-        "true",
-        evidenceFor(place, "반려동물 동반 가능 명시 (전 견종 제한 없음)", "inferred-from-general-admission"),
-      );
-    }
+function applyDogSizeRules(place: RawPlace, text: string, facts: SizeFacts): void {
+  const allBreeds = text.match(allBreedsPattern);
+  if (allBreeds) {
+    for (const key of dogSizeKeys) setSizeTrue(place, facts, key, allBreeds[0]);
+  }
+
+  for (const { key, pattern } of sizeAllowPatterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const claim = containingClaim(text, match.index ?? 0);
+    if (sizeQualifierPattern.test(claim) && !allBreedsPattern.test(match[0])) continue;
+    setSizeTrue(place, facts, key, match[0]);
+  }
+
+  const smallToMedium = text.match(smallToMediumAllowPattern);
+  if (smallToMedium) {
+    setSizeTrue(place, facts, "smallDog", smallToMedium[0]);
+    setSizeTrue(place, facts, "mediumDog", smallToMedium[0]);
+    setSizeFalse(place, facts, "largeDog", smallToMedium[0]);
+  }
+
+  for (const { key, pattern } of sizeDenyPatterns) {
+    const match = text.match(pattern);
+    if (match) setSizeFalse(place, facts, key, match[0]);
+  }
+
+  applyWeightRules(place, text, facts);
+  enforceSizeMonotonicity(place, facts);
+
+  // Only fall back to generic admission when the source says nothing size-specific:
+  // "동반 가능" alone proves the small band, not medium or large. Whole-band proof
+  // comes from an explicit all-breeds phrase, which is handled above.
+  if (!sizeSpecifiedPattern.test(text) && generalAdmissionPattern.test(text)) {
+    setSizeTrue(place, facts, "smallDog", "동반 가능 명시 (크기 미지정)");
   }
 }
 
 export function normalizePlace(place: RawPlace): NormalizedPlace {
-  const facts = Object.fromEntries(conditionKeys.map((key) => [key, fact(key, "unknown", null)])) as Record<ConditionKey, ConditionFact>;
+  const facts = Object.fromEntries(conditionKeys.map((key) => [key, fact(key, "unknown", null)])) as SizeFacts;
   const text = place.petPolicy.sourceText.replace(/\r?\n+/g, ". ").replace(/[\t ]+/g, " ").trim();
   const requiredPreparations = extractPreparations(place, text);
-
-  for (const rule of rules) {
-    const match = rule.patterns.map((pattern) => text.match(pattern)).find(Boolean);
-    if (!match) continue;
-    const qualifiedSizeClaim = rule.value === "true"
-      && dogSizeKeys.has(rule.key)
-      && !allBreedsPattern.test(match[0])
-      && sizeQualifierPattern.test(containingClaim(text, match.index ?? 0));
-    if (qualifiedSizeClaim) continue;
-    const current = facts[rule.key];
-    if (current.value !== "unknown" && current.value !== rule.value) {
-      facts[rule.key] = fact(rule.key, "unknown", null);
-      continue;
-    }
-    const requirements: PreparationKey[] = [];
-    facts[rule.key] = fact(rule.key, rule.value, evidenceFor(place, match[0], "source-derived"), requirements);
-  }
-
-  applyWeightAllowance(place, text, facts);
-
-  // Fallback: if no specific size rule matched but the source explicitly states
-  // general pet admission (e.g., "동반 가능", "출입 가능"), promote unknown dog-size
-  // facts to true. Explicit false values (e.g., "대형견 불가") are preserved.
-  applyGeneralAdmissionFallback(place, text, facts);
+  applyDogSizeRules(place, text, facts);
 
   const { petPolicy, ...placeFields } = place;
   return { ...placeFields, policySource: petPolicy, facts, requiredPreparations };
