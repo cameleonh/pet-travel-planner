@@ -128,7 +128,7 @@ export function WeatherSafeWidget({ region, themeActive, petName, targetDate, on
           const daySafety = classifyDogWalkSafety(day);
           return (
             <div key={day.date} className={`weather-day ${daySafety.level}`} role="listitem">
-              <small>{new Date(`${day.date}T12:00:00`).toLocaleDateString(lang === "en" ? "en-US" : lang === "zh" ? "zh-CN" : "ko-KR", { weekday: "short" })}</small>
+              <small>{new Date(`${day.date}T12:00:00`).toLocaleDateString(lang === "en" ? "en-US" : lang === "zh" ? "zh-CN" : "ko-KR", { month: "short", day: "numeric", weekday: "short" })}</small>
               <span aria-hidden="true">{dayCondition.icon}</span>
               <b>{t(lang, "weatherTempMinMax", { min: day.tempMin, max: day.tempMax })}</b>
             </div>
