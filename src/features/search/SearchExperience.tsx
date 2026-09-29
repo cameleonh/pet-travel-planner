@@ -237,7 +237,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
       return;
     }
     try {
-      const legacyRegion = sessionStorage.getItem("gggo_region");
+      const legacyRegion = sessionStorage.getItem("gggo_region") || localStorage.getItem("gggo_region_last");
       if (legacyRegion) queueMicrotask(() => setRegion(legacyRegion));
     } catch {}
   }, [restoredSearchState]);
@@ -254,6 +254,8 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
         region, categories, hard, preferences, prepFilters, petSize, petWeight, activeThemeId, placeSet,
       } satisfies PersistedSearchState));
       sessionStorage.setItem("gggo_region", region);
+      // Remember the last region across sessions (a fresh tab has no session state).
+      if (region.trim()) localStorage.setItem("gggo_region_last", region);
     } catch {}
   }, [region, categories, hard, preferences, prepFilters, petSize, petWeight, activeThemeId, placeSet, restoredSearchState]);
 
