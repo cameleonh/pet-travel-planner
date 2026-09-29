@@ -10,10 +10,11 @@ interface ThemeCurationsProps {
   activeThemeId: ThemePresetId | null;
   onApplyTheme: (theme: ThemePreset) => void;
   onClearTheme: () => void;
+  onBuildCourse: (theme: ThemePreset) => void;
   todaySafetyLevel?: TodaySafetyLevel;
 }
 
-export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, todaySafetyLevel }: ThemeCurationsProps) {
+export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBuildCourse, todaySafetyLevel }: ThemeCurationsProps) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -115,8 +116,8 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
               && (todaySafetyLevel === "caution" || todaySafetyLevel === "indoor");
             const todayPickLabel = lang === "ko" ? "오늘 추천" : lang === "zh" ? "今日推荐" : "Today's pick";
             return (
+              <div className="theme-card-wrap" key={theme.id}>
               <button
-                key={theme.id}
                 type="button"
                 data-theme-id={theme.id}
                 className={`theme-preset-card ${isActive ? "active" : ""}`}
@@ -159,6 +160,10 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
                   ))}
                 </div>
               </button>
+              <button type="button" className="theme-course-btn" onClick={() => onBuildCourse(theme)}>
+                🎯 {lang === "ko" ? "추천 코스" : lang === "zh" ? "推荐路线" : "Suggested course"}
+              </button>
+              </div>
             );
           })}
           <a

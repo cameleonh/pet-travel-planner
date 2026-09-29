@@ -30,6 +30,9 @@ import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
 import { NearbyOriginPicker, type NearbyOrigin } from "@/features/nearby/NearbyOriginPicker";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
+import { RecommendedCourseCard } from "@/features/course/RecommendedCourseCard";
+import { buildRecommendedCourse, type RecommendedCourseResult } from "@/domain/course";
+import { regionCenter } from "@/domain/weather";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
 import { RegionCoursePicker } from "@/features/search/RegionCoursePicker";
 import { THEME_PRESETS, type ThemePreset, type ThemePresetId } from "@/domain/themes";
@@ -177,6 +180,12 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
   // they stay out of the initial HTML/RSC payload.
   const [auxiliaryPlaces, setAuxiliaryPlaces] = useState<AuxiliaryPlace[]>(initialAuxiliaryPlaces ?? []);
   const [auxiliaryLoaded, setAuxiliaryLoaded] = useState(Boolean(initialAuxiliaryPlaces && initialAuxiliaryPlaces.length));
+  // "Recommended course": auto-picks 3 places for a theme, shown as a preview.
+  const [recommendedCourse, setRecommendedCourse] = useState<RecommendedCourseResult | null>(null);
+  const [recommendedResults, setRecommendedResults] = useState<MatchEvaluation[]>([]);
+  const [recommendedTheme, setRecommendedTheme] = useState<ThemePreset | null>(null);
+  const [recommendedRotate, setRecommendedRotate] = useState(0);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
   const themeFilterSnapshotRef = useRef<{
     petSize: ConditionKey | null;
     petWeight: string;
@@ -675,6 +684,80 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     themeFilterSnapshotRef.current = null;
   }, []);
 
+  const toPlanPlaceFromResult = useCallback((result: MatchEvaluation): PlanPlace => ({
+    id: result.place.id,
+    name: result.place.name,
+    address: result.place.address,
+    category: result.place.category,
+    coordinates: result.place.coordinates,
+    policySourceText: result.place.policySource.sourceText,
+    policySourceUrl: result.place.policySource.sourceUrl,
+    policyObservedAt: result.place.policySource.observedAt,
+    exact: result.exact,
+    operatingHours: placeHoursById[result.place.id] ?? null,
+  }), [placeHoursById]);
+
+  const handleBuildRecommendedCourse = useCallback(async (theme: ThemePreset, rotate = 0) => {
+    setRecommendedTheme(theme);
+    setRecommendedRotate(rotate);
+    setRecommendedCourse(null);
+    if (!region.trim()) {
+      setRecommendedResults([]);
+      setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "지역을 먼저 선택하면 그 지역에서 코스를 골라드려요." });
+      return;
+    }
+    setRecommendedLoading(true);
+    try {
+      const parameters = new URLSearchParams({ page: "1", region: region.trim() });
+      if (theme.petSize) parameters.set("hard", theme.petSize);
+      if (theme.categories.length > 0) parameters.set("categories", theme.categories.join(","));
+      if (theme.prepFilters.length > 0) parameters.set("prep", theme.prepFilters.join(","));
+      if (theme.placeSet) parameters.set("placeSet", theme.placeSet);
+      const data = await fetchCatalog(`/api/places?${parameters}`);
+      const candidates = data.catalog.results;
+      const origin = regionCenter(region) ?? candidates[0]?.place.coordinates ?? null;
+      if (!origin) {
+        setRecommendedResults([]);
+        setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "이 지역의 좌표를 찾지 못했어요." });
+        return;
+      }
+      const result = buildRecommendedCourse(
+        candidates.map((candidate) => ({ id: candidate.place.id, name: candidate.place.name, category: candidate.place.category, coordinates: candidate.place.coordinates })),
+        origin,
+        { maxStops: 3, rotate },
+      );
+      setRecommendedCourse(result);
+      setRecommendedResults(result.success ? result.stops.map((stop) => candidates.find((candidate) => candidate.place.id === stop.placeId)).filter((candidate): candidate is MatchEvaluation => Boolean(candidate)) : []);
+    } catch {
+      setRecommendedResults([]);
+      setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "추천 코스를 불러오지 못했어요." });
+    } finally {
+      setRecommendedLoading(false);
+    }
+  }, [region]);
+
+  const startRecommendedCourse = useCallback((theme: ThemePreset) => {
+    handleApplyTheme(theme);
+    void handleBuildRecommendedCourse(theme, 0);
+  }, [handleApplyTheme, handleBuildRecommendedCourse]);
+
+  const addRecommendedToPlan = useCallback(() => {
+    setPlanPlaces((current) => {
+      const ids = new Set(current.map((place) => place.id));
+      const additions = recommendedResults.filter((result) => !ids.has(result.place.id)).map(toPlanPlaceFromResult);
+      return [...current, ...additions];
+    });
+    setSelectionCompleted(false);
+    setCourseConfirmed(false);
+  }, [recommendedResults, toPlanPlaceFromResult]);
+
+  const buildPlanFromRecommended = useCallback(() => {
+    addRecommendedToPlan();
+    openPlanner();
+  }, [addRecommendedToPlan, openPlanner]);
+
+  const recommendedAddedCount = recommendedResults.filter((result) => planPlaces.some((place) => place.id === result.place.id)).length;
+
   const filtersActive = hasActiveFilters({ region, categories, hard, preferences, prepFilters, page });
   const recordView = useCallback((place: Pick<RawPlace, "id" | "name" | "address" | "category">) => {
     track("place_view", place.id);
@@ -941,7 +1024,17 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
           <div><p className="section-kicker section-step">{dict.stepSearch}</p><h2>{dict.searchHeading}</h2></div>
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
-        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} todaySafetyLevel={todaySafety} />
+        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} onBuildCourse={startRecommendedCourse} todaySafetyLevel={todaySafety} />
+        <RecommendedCourseCard
+          course={recommendedCourse}
+          loading={recommendedLoading}
+          themeTitle={recommendedTheme ? (lang === "ko" ? recommendedTheme.titleKo : recommendedTheme.titleEn) : ""}
+          addedCount={recommendedAddedCount}
+          onAdd={addRecommendedToPlan}
+          onBuildPlan={buildPlanFromRecommended}
+          onRetry={() => { if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate + 1); }}
+          onClose={() => { setRecommendedCourse(null); setRecommendedResults([]); }}
+        />
         {placeCounts ? (
           <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} />
         ) : null}
