@@ -24,11 +24,22 @@ function routeIssue(code: RouteIssueCode): PlanIssue["code"] {
   return code;
 }
 
+// Kakao map/navi links must use the place NAMES, not the internal item ids
+// (e.g. "tour-api:127778"), otherwise the map shows the raw id.
+function kakaoLinks(from: PlanningItemSnapshot, to: PlanningItemSnapshot): { mapLink: string; naviLink: string } {
+  const label = (item: PlanningItemSnapshot) => encodeURIComponent(item.name);
+  const coords = (item: PlanningItemSnapshot) => item.coordinates ? `,${item.coordinates.latitude},${item.coordinates.longitude}` : "";
+  return {
+    mapLink: `https://map.kakao.com/link/from/${label(from)}${coords(from)}/to/${label(to)}${coords(to)}`,
+    naviLink: `https://map.kakao.com/?sName=${label(from)}&eName=${label(to)}`,
+  };
+}
+
 function fallbackLeg(pair: RoutePair, issueCode: RouteIssueCode): RouteLeg | null {
   if (!pair.from.coordinates || !pair.to.coordinates) return null;
   const id = `${pair.from.id}->${pair.to.id}`;
   const distance = Math.round(distanceKm(pair.from.coordinates, pair.to.coordinates) * 100) / 100;
-  const mapLink = `https://map.kakao.com/link/from/${encodeURIComponent(pair.from.id)}/to/${encodeURIComponent(pair.to.id)}`;
+  const { mapLink, naviLink } = kakaoLinks(pair.from, pair.to);
   return {
     id,
     fromItemId: pair.from.id,
@@ -44,7 +55,7 @@ function fallbackLeg(pair: RoutePair, issueCode: RouteIssueCode): RouteLeg | nul
     congestedRoads: [],
     cost: { taxiFareKrw: null, tollFeeKrw: null },
     mapLink,
-    naviLink: mapLink,
+    naviLink,
     issueCode,
   };
 }
@@ -103,7 +114,9 @@ export async function buildRouteLegs(input: {
           to: pair.to.coordinates,
           departureAt: null,
         }, input.signal);
-        legsById.set(leg.id, leg);
+        // Providers key the map link by item id; replace it with a name-based one.
+        const { mapLink, naviLink } = kakaoLinks(pair.from, pair.to);
+        legsById.set(leg.id, { ...leg, mapLink, naviLink });
       } catch (error) {
         const code = asErrorCode(error);
         const fallback = fallbackLeg(pair, code);
