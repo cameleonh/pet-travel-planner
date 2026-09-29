@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "댕플스테이 — 반려견과 함께하는 템플스테이 · 같이갈개",
+  description: "반려견과 함께 사찰에서 머물며 불교문화를 체험하는 댕플스테이 프로그램 3곳을 소개합니다.",
+  alternates: { canonical: "/temple-stay" },
+};
 
 const TEMPLES = [
   {

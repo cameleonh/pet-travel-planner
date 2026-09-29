@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AuxiliaryPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
 import type { RegionOption } from "@/domain/regions";
 import { SearchExperience } from "@/features/search/SearchExperience";
@@ -12,7 +11,7 @@ import { AccessibilityToggle } from "@/features/accessibility/AccessibilityToggl
 
 const HERO_VIDEO_URL = "/hero-dog-walk.mp4";
 
-export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regionOptions, placeCounts }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts: Record<string, number> }) {
+export function PageContent({ catalog, notice, fetchedAt, regionOptions, placeCounts }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; regionOptions: RegionOption[]; placeCounts: Record<string, number> }) {
   const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -111,7 +110,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
       </section>
 
       {notice ? <p role="status" className="notice global-notice">{notice}</p> : null}
-      <SearchExperience initialCatalog={catalog} auxiliaryPlaces={auxiliaryPlaces} regionOptions={regionOptions} placeCounts={placeCounts} />
+      <SearchExperience initialCatalog={catalog} regionOptions={regionOptions} placeCounts={placeCounts} />
 
       <footer><p>{dict.footerNotice}</p><p>{dict.footerBaseDate} {fetchedAt.slice(0, 10)}</p></footer>
     </main>

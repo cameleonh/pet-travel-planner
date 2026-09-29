@@ -111,7 +111,7 @@ async function fetchCatalog(url: string, signal?: AbortSignal): Promise<CatalogA
 
 type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
 
-export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
+export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; initialAuxiliaryPlaces?: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
   const { lang, dict } = useLang();
   const [restoredSearchState] = useState(readPersistedSearchState);
   // Capture the scroll target at mount: incoming scroll events from the
@@ -172,6 +172,11 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  // The ~1k nearby auxiliary places are not needed for first paint; they are
+  // fetched from /api/auxiliary the first time the nearby panel is opened so
+  // they stay out of the initial HTML/RSC payload.
+  const [auxiliaryPlaces, setAuxiliaryPlaces] = useState<AuxiliaryPlace[]>(initialAuxiliaryPlaces ?? []);
+  const [auxiliaryLoaded, setAuxiliaryLoaded] = useState(Boolean(initialAuxiliaryPlaces && initialAuxiliaryPlaces.length));
   const themeFilterSnapshotRef = useRef<{
     petSize: ConditionKey | null;
     petWeight: string;
@@ -266,6 +271,27 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       globalThis.clearTimeout(failsafe);
     };
   }, []);
+
+  // Load nearby auxiliary places on demand (first nearby activation) so the
+  // initial RSC payload stays small. A failure simply leaves the nearby list
+  // empty, which the existing zero-state copy already covers.
+  useEffect(() => {
+    if (!nearbyActivatedFor || auxiliaryLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/auxiliary");
+        const body = await response.json() as { success: boolean; data: AuxiliaryPlace[] | null };
+        if (!cancelled && response.ok && body.success && Array.isArray(body.data)) {
+          setAuxiliaryPlaces(body.data);
+          setAuxiliaryLoaded(true);
+        }
+      } catch {
+        // Keep the panel usable; a later activation retries.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nearbyActivatedFor, auxiliaryLoaded]);
 
   const constraints = useMemo(() => {
     const seen = new Set<string>();

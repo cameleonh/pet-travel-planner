@@ -1,10 +1,18 @@
+import type { Metadata } from "next";
 import { loadPlaceSnapshot } from "@/data/providers";
 import { getCatalogCoverage, type CatalogPage } from "@/data/catalog";
 import { PageContent } from "@/app/PageContent";
 import { buildRegionOptions, getRegionPrefix } from "@/domain/regions";
 import { LangProvider } from "@/i18n/LangContext";
 
-export const dynamic = "force-dynamic";
+// Regenerate the shell hourly instead of opt-ing out of caching entirely. The
+// page keeps reading the live DB snapshot on each revalidation, but repeat
+// visitors now get a cacheable HTML response instead of `no-store`.
+export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function HomePage() {
   const { snapshot, notice } = await loadPlaceSnapshot();
@@ -30,7 +38,7 @@ export default async function HomePage() {
   }
   return (
     <LangProvider initialLang="ko">
-      <PageContent catalog={catalog} notice={notice} fetchedAt={snapshot.fetchedAt} auxiliaryPlaces={snapshot.auxiliaryPlaces} regionOptions={regionOptions} placeCounts={placeCounts} />
+      <PageContent catalog={catalog} notice={notice} fetchedAt={snapshot.fetchedAt} regionOptions={regionOptions} placeCounts={placeCounts} />
     </LangProvider>
   );
 }

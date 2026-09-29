@@ -8,8 +8,9 @@ const STATIC_ROUTES: MetadataRoute.Sitemap = [
   { url: `${SITE_URL}/temple-stay`, changeFrequency: "weekly", priority: 0.7 },
 ];
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Rebuild at most once a day instead of on every request: the full catalog
+// sitemap is ~9.7k URLs and is expensive to regenerate for each crawler hit.
+export const revalidate = 86400;
 
 export function buildSitemapEntries(places: readonly RawPlace[], dataSource: DataSource): MetadataRoute.Sitemap {
   const entries = [...STATIC_ROUTES];
