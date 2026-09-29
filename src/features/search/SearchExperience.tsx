@@ -736,10 +736,12 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     }
   }, [region]);
 
+  // Role separation: the theme card filters the list; this button builds a
+  // separate course from the theme's conditions WITHOUT selecting the theme, so
+  // the two are clearly different outcomes (list vs. route).
   const startRecommendedCourse = useCallback((theme: ThemePreset) => {
-    handleApplyTheme(theme);
     void handleBuildRecommendedCourse(theme, 0);
-  }, [handleApplyTheme, handleBuildRecommendedCourse]);
+  }, [handleBuildRecommendedCourse]);
 
   const addRecommendedToPlan = useCallback(() => {
     setPlanPlaces((current) => {
