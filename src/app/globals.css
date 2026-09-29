@@ -2566,19 +2566,18 @@ footer { max-width: 1240px; }
 }
 
 .navi-btn {
+  display: inline-flex;
+  align-items: center;
   padding: 0.25rem 0.55rem;
+  border: none;
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;
-  border: none;
+  line-height: 1.2;
+  text-decoration: none;
   cursor: pointer;
   min-height: auto;
   transition: all 0.15s ease;
-}
-
-.navi-btn.tmap {
-  background: #c0003e;
-  color: white;
 }
 
 .navi-btn.kakao {
