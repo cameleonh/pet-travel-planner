@@ -826,8 +826,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
 
   // Inline region choice inside the recommended-course card: apply the region
   // (same resets as the region picker) and immediately build the course.
-  const selectRecommendedRegion = useCallback((value: string) => {
-    setRecommendedNeedsRegion(false);
+  const handleRegionChange = useCallback((value: string) => {
     setPage(1);
     track("region_search", value);
     setRegion(value);
@@ -840,8 +839,13 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     setDiscoveryOpen(false);
     setRegionalReviewedFor(null);
     setCourseConfirmed(false);
+  }, []);
+
+  const selectRecommendedRegion = useCallback((value: string) => {
+    setRecommendedNeedsRegion(false);
+    handleRegionChange(value);
     if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate, value);
-  }, [recommendedTheme, recommendedRotate, handleBuildRecommendedCourse]);
+  }, [handleRegionChange, recommendedTheme, recommendedRotate, handleBuildRecommendedCourse]);
 
   const recommendedAddedCount = recommendedResults.filter((result) => planPlaces.some((place) => place.id === result.place.id)).length;
 
@@ -1112,6 +1116,9 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
           <div><p className="section-kicker section-step">{dict.stepSearch}</p><h2>{dict.searchHeading}</h2></div>
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
+        {placeCounts ? (
+          <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={handleRegionChange} />
+        ) : null}
         <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} onBuildCourse={startRecommendedCourse} onShowResults={showResultsPanel} todaySafetyLevel={todaySafety} />
         <RecommendedCourseCard
           course={recommendedCourse}
@@ -1126,12 +1133,9 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
           onRetry={() => { if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate + 1); }}
           onClose={() => { setRecommendedCourse(null); setRecommendedResults([]); setRecommendedNeedsRegion(false); }}
         />
-        {placeCounts ? (
-          <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} />
-        ) : null}
         <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} targetDate={plannerTripDate ?? undefined} onSafetyLevel={setTodaySafety} />
         <aside className="filter-panel">
-          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
+          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={handleRegionChange} onTogglePrepFilter={togglePrepFilter} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
