@@ -92,6 +92,28 @@ describe("catalog pagination", () => {
     expect(page.confirmedMatchCount + page.confirmedNonMatchCount + page.unverifiedCount).toBe(3);
   });
 
+  it("sorts the whole result set by name, distance and rating", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const base = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...base, id: "p-c", name: "다나", coordinates: { latitude: 37.6, longitude: 127.0 }, petDetailStatus: "fetched", petPolicy: { ...base.petPolicy, sourceText: "동반 가능" } },
+        { ...base, id: "p-a", name: "가나", coordinates: { latitude: 37.5, longitude: 127.0 }, petDetailStatus: "fetched", petPolicy: { ...base.petPolicy, sourceText: "동반 가능" } },
+        { ...base, id: "p-b", name: "나다", coordinates: { latitude: 37.55, longitude: 127.0 }, petDetailStatus: "fetched", petPolicy: { ...base.petPolicy, sourceText: "동반 가능" } },
+      ],
+      auxiliaryPlaces: [],
+    };
+    const browsing = { hard: [], preferences: [], page: 1 };
+
+    expect(buildCatalogPage(snapshot, { ...browsing, sort: "name" }).results.map((r) => r.place.id)).toEqual(["p-a", "p-b", "p-c"]);
+    expect(buildCatalogPage(snapshot, { ...browsing, sort: "distance", origin: { latitude: 37.5, longitude: 127.0 } }).results.map((r) => r.place.id)).toEqual(["p-a", "p-b", "p-c"]);
+
+    const ratings = new Map([["p-b", { count: 3, average: 5 }], ["p-c", { count: 1, average: 4 }]]);
+    expect(buildCatalogPage(snapshot, { ...browsing, sort: "rating", ratings }).results.map((r) => r.place.id)).toEqual(["p-b", "p-c", "p-a"]);
+  });
+
   it("includes café-named restaurants when the cafe category is selected", async () => {
     const fixture = await new FixturePlaceProvider().getSnapshot();
     const source = fixture.places[0]!;

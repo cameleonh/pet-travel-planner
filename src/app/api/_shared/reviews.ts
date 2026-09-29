@@ -69,6 +69,23 @@ export function upsertReview(placeId: string, reviewerId: string, rating: number
   }
 }
 
+// Whole-table aggregate so the catalog can sort by rating without a query per
+// place. The table only holds user-submitted reviews, so it stays small.
+export function allRatingSummaries(): Map<string, { count: number; average: number | null }> {
+  const database = getDb();
+  const result = new Map<string, { count: number; average: number | null }>();
+  if (!database) return result;
+  try {
+    const rows = database.prepare("SELECT place_id, COUNT(*) AS count, AVG(rating) AS average FROM place_reviews GROUP BY place_id").all() as Array<{ place_id: string; count: number; average: number | null }>;
+    for (const row of rows) {
+      result.set(row.place_id, { count: row.count, average: row.average == null ? null : Math.round(row.average * 10) / 10 });
+    }
+  } catch {
+    // Reviews are optional; sorting by rating simply treats everything as unrated.
+  }
+  return result;
+}
+
 export function normalizeReviewerId(reviewerId: string): string {
   const trimmed = reviewerId.trim();
   return trimmed.length >= 8 && trimmed.length <= 64 ? trimmed : randomUUID();

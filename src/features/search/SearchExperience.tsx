@@ -137,6 +137,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
   const [preferences, setPreferences] = useState<ConditionKey[]>([]);
   const [prepFilters, setPrepFilters] = useState<PreparationFilterKey[]>([]);
   const [page, setPage] = useState(1);
+  const [sortMode, setSortMode] = useState<"recommended" | "name" | "distance" | "rating">("recommended");
   const [catalog, setCatalog] = useState(initialCatalog);
   const [catalogRequestKey, setCatalogRequestKey] = useState("");
   const [loading, setLoading] = useState(true);
@@ -318,7 +319,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
   const isBrowsing = constraints.length === 0;
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
-  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}|${placeSet ?? ""}`;
+  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}|${placeSet ?? ""}|${sortMode}`;
   const catalogIsCurrent = catalogRequestKey === requestKey;
 
   // Restore the previous scroll position once the restored results render.
@@ -421,6 +422,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     if (categories.length > 0) parameters.set("categories", categories.join(","));
     if (prepFilters.length > 0) parameters.set("prep", prepFilters.join(","));
     if (placeSet) parameters.set("placeSet", placeSet);
+    if (sortMode !== "recommended") parameters.set("sort", sortMode);
     if (lang !== "ko") parameters.set("lang", lang);
     const catalogUrl = `/api/places?${parameters}`;
     queueMicrotask(() => {
@@ -459,7 +461,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [activeThemeId, hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, requestKey, dict]);
+  }, [activeThemeId, hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, sortMode, requestKey, dict]);
 
   useEffect(() => {
     if (activeThemeId || themePrefetchKeyRef.current === `${region.trim()}|${lang}`) return;
@@ -1090,6 +1092,16 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
             <div className="match-bar-row">
               <div className="match-bar"><strong>{isBrowsing ? dict.browsingFilter : dict.allApplied}</strong><div className="active-query" aria-label={dict.currentConditions}>{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">{dict.allPlaces}</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>{dict.preference}</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{t(lang, prepFilterKeys[key])}</span>)}</div>{filtersActive ? <button type="button" className="filter-reset-button" onClick={handleResetFilters}>⟲ <span>{dict.resetFilters}</span></button> : null}</div>
               <RecentlyViewed onOpen={handleOpenViewed} />
+            </div>
+            <div className="sort-control" role="group" aria-label={lang === "ko" ? "정렬" : lang === "zh" ? "排序" : "Sort"}>
+              {([
+                ["recommended", lang === "ko" ? "추천순" : lang === "zh" ? "推荐" : "Recommended"],
+                ["name", lang === "ko" ? "이름순" : lang === "zh" ? "名称" : "Name"],
+                ["distance", lang === "ko" ? "거리순" : lang === "zh" ? "距离" : "Distance"],
+                ["rating", lang === "ko" ? "별표순" : lang === "zh" ? "评分" : "Rating"],
+              ] as const).map(([value, label]) => (
+                <button key={value} type="button" className={`sort-chip ${sortMode === value ? "active" : ""}`} aria-pressed={sortMode === value} onClick={() => { setSortMode(value); setPage(1); }}>{label}</button>
+              ))}
             </div>
             {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">{dict.loadingMessage}</p> : null}
             {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}

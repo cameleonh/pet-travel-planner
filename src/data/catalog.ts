@@ -4,6 +4,7 @@ import { isNightSpot } from "@/domain/night-spots";
 import { RURAL_STAY_PLACE_IDS } from "@/domain/rural-stays";
 import { getRegionSearchTerm } from "@/domain/regions";
 import { ACCESSIBLE_PLACE_IDS } from "@/domain/accessible-spots";
+import { distanceKm, type Coordinates } from "@/domain/geo";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
 import { findMinimalRelaxation } from "@/domain/relax";
@@ -49,6 +50,10 @@ export type CatalogQuery = {
   // Live accessibility coverage from the database; the static seed is only a
   // fixture/dev fallback.
   accessiblePlaceIds?: ReadonlySet<string>;
+  // Whole-result sorting (applied before paging so it is consistent across pages).
+  sort?: "recommended" | "name" | "distance" | "rating";
+  origin?: Coordinates;
+  ratings?: ReadonlyMap<string, { count: number; average: number | null }>;
 };
 
 const indoorAllowPatterns = [/실내.{0,16}(?:가능|동반|출입|허용)/, /(?:내부|매장\s?내|실내\s?공간|건물\s?내).{0,14}(?:가능|동반|출입|허용)/];
@@ -253,6 +258,32 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const exactMatches = browsing ? [] : evaluations.filter((evaluation) => evaluation.exact);
   const prepFilteredExact = exactMatches.filter((evaluation) => matchesPreparationFilter(evaluation, prepFilters));
   const candidates = browsing ? evaluations.filter((evaluation) => matchesPreparationFilter(evaluation, prepFilters)) : prepFilteredExact;
+  const sortMode = query.sort ?? "recommended";
+  if (sortMode !== "recommended") {
+    const byName = (a: MatchEvaluation, b: MatchEvaluation) => a.place.name.localeCompare(b.place.name, "ko");
+    const ratingOf = (id: string) => query.ratings?.get(id) ?? { count: 0, average: null as number | null };
+    if (sortMode === "distance" && query.origin) {
+      const origin = query.origin;
+      candidates.sort((a, b) => distanceKm(origin, a.place.coordinates) - distanceKm(origin, b.place.coordinates) || byName(a, b));
+    } else if (sortMode === "rating") {
+      candidates.sort((a, b) => {
+        const ra = ratingOf(a.place.id);
+        const rb = ratingOf(b.place.id);
+        const aRated = ra.average != null;
+        const bRated = rb.average != null;
+        if (aRated !== bRated) return aRated ? -1 : 1; // rated places first
+        if (aRated && bRated) {
+          const byRating = (rb.average as number) - (ra.average as number);
+          if (byRating !== 0) return byRating;
+          const byCount = rb.count - ra.count;
+          if (byCount !== 0) return byCount;
+        }
+        return byName(a, b);
+      });
+    } else {
+      candidates.sort(byName);
+    }
+  }
   const confirmedMatchCount = browsing ? 0 : prepFilteredExact.length;
   const confirmedNonMatchCount = browsing ? 0 : evaluations.filter((result) => {
     if (result.status !== "confirmed-non-match") return false;

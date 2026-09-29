@@ -3429,3 +3429,9 @@ footer { max-width: 1240px; }
 .recommended-course-retry { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-subtle); color: var(--muted); font-weight: 700; cursor: pointer; }
 .recommended-course-empty { margin-top: 10px; }
 .recommended-course-empty p { margin: 0 0 8px; color: var(--danger); font-size: 13px; }
+
+/* ── Result sort control ── */
+.sort-control { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.sort-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+.sort-chip:hover { border-color: var(--brand); color: var(--brand-strong); }
+.sort-chip.active { background: var(--brand); color: var(--bg); border-color: var(--brand); }
