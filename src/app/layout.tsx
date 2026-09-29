@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import Script from "next/script";
 import { PwaRegistration } from "@/app/pwa-registration";
 import "@fontsource/noto-sans-kr/400.css";
 import "@fontsource/noto-sans-kr/500.css";
@@ -37,8 +38,13 @@ export const viewport: Viewport = { themeColor: "#18584d", width: "device-width"
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        {/* Runs before paint: resolves the saved/OS theme so first paint is never
+            the wrong theme (no light flash on a dark-mode device). */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(function(){try{var s=localStorage.getItem('gggo_dark');var dark=s==='1'?true:(s==='0'?false:!!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches));document.documentElement.setAttribute('data-theme',dark?'dark':'light');}catch(e){}})();`}
+        </Script>
         <a className="skip-link" href="#search">검색으로 바로가기 / Skip to search</a>
         <PwaRegistration />
         {children}

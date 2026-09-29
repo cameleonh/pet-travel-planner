@@ -12,15 +12,30 @@ export function AccessibilityToggle() {
   // client markup diverge (e.g. the moon/sun emoji), so restore after mount.
   const [fontSize, setFontSize] = useState<FontSize>("normal");
   const [dark, setDark] = useState(false);
+  const [themeReady, setThemeReady] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => {
       try {
         const saved = localStorage.getItem("gggo_font_size") as FontSize | null;
         if (saved && FONT_SIZES.includes(saved)) setFontSize(saved);
-        if (localStorage.getItem("gggo_dark") === "1") setDark(true);
+        const stored = localStorage.getItem("gggo_dark");
+        if (stored === "1") setDark(true);
+        else if (stored === "0") setDark(false);
+        else setDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
       } catch {}
+      setThemeReady(true);
     });
+  }, []);
+
+  // Follow the OS setting, but only while the user has no explicit choice saved.
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) => {
+      try { if (localStorage.getItem("gggo_dark") === null) setDark(event.matches); } catch {}
+    };
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
   }, []);
 
   // Apply-only effects: persisting here would overwrite the stored choice with
@@ -29,9 +44,12 @@ export function AccessibilityToggle() {
     document.documentElement.style.fontSize = `${16 * FONT_SCALE[fontSize]}px`;
   }, [fontSize]);
 
+  // Skipped until the restore above has read the stored choice, so this never
+  // clobbers the correct pre-paint theme with the SSR default.
   useEffect(() => {
+    if (!themeReady) return;
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-  }, [dark]);
+  }, [dark, themeReady]);
 
   const cycleSize = useCallback(() => {
     setFontSize((current) => {

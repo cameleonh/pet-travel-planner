@@ -1155,6 +1155,8 @@ footer p { margin: 0; }
   --muted: #475569;
   --lime: #a7f3d0;
   --night: #172554;
+  --info: #2563eb;
+  --danger: #dc2626;
   --shadow-sm: 0 12px 36px rgb(15 23 42 / 8%);
 }
 
@@ -3111,6 +3113,19 @@ footer { max-width: 1240px; }
   --danger: #F87171;
   --warning: #FBBF24;
   --info: #60A5FA;
+
+  /* Alias the light-theme semantic tokens so any component that references
+     them flips automatically, instead of needing a per-component override. */
+  --ink: #E4E9F0;
+  --ink-subtle: #A3AFBF;
+  --muted: #A3AFBF;
+  --canvas: #0E1217;
+  --surface: #151B22;
+  --surface-subtle: #1C242E;
+  --line: #253041;
+  --line-strong: #334155;
+  --night: #101826;
+  --warning-soft: rgba(251, 191, 36, 0.12);
 
   color-scheme: dark;
 }

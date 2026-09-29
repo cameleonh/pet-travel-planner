@@ -30,21 +30,21 @@ const TEMPLES = [
 
 export default function TempleStayPage() {
   return (
-    <main style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px 64px", fontFamily: "system-ui, sans-serif", color: "#1e293b" }}>
-      <p style={{ fontSize: 13 }}><Link href="/#search" style={{ color: "#2563eb", textDecoration: "none" }}>← 같이갈개</Link></p>
+    <main style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px 64px", fontFamily: "system-ui, sans-serif", color: "var(--ink)" }}>
+      <p style={{ fontSize: 13 }}><Link href="/#search" style={{ color: "var(--info)", textDecoration: "none" }}>← 같이갈개</Link></p>
       <div style={{ marginBottom: 12 }}>
-        <Link href="/#search" style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid rgba(0,0,0,.15)", background: "#fff", color: "#334155", borderRadius: 999, padding: "7px 14px", fontSize: 13, textDecoration: "none" }}>
+        <Link href="/#search" style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--muted)", borderRadius: 999, padding: "7px 14px", fontSize: 13, textDecoration: "none" }}>
           ← 목록으로
         </Link>
       </div>
       <h1 style={{ fontSize: 26, margin: "10px 0 4px" }}>🧘 댕플스테이</h1>
-      <p style={{ fontSize: 15, color: "#475569", margin: "0 0 20px" }}>
+      <p style={{ fontSize: 15, color: "var(--muted)", margin: "0 0 20px" }}>
         댕댕이 + 템플스테이 — 반려견과 함께 사찰에서 머물며 불교문화를 체험하는 프로그램
       </p>
 
       <div style={{ padding: "16px 20px", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 12, margin: "0 0 24px" }}>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-          ⚠️ <strong>상시 운영이 아닙니다.</strong> 회차별 모집·조기 마감되는 예약제 프로그램입니다.
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#78350f" }}>
+          ⚠️ <strong style={{ color: "#78350f" }}>상시 운영이 아닙니다.</strong> 회차별 모집·조기 마감되는 예약제 프로그램입니다.
           방문 전 반드시 아래 연락처로 일정·모집 여부를 확인하세요.
         </p>
       </div>
@@ -52,17 +52,17 @@ export default function TempleStayPage() {
       <h2 style={{ fontSize: 18, margin: "0 0 12px" }}>운영 사찰</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {TEMPLES.map((temple) => (
-          <div key={temple.name} style={{ padding: "16px 20px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12 }}>
+          <div key={temple.name} style={{ padding: "16px 20px", background: "var(--surface-subtle)", border: "1px solid var(--line)", borderRadius: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <strong style={{ fontSize: 16 }}>{temple.name}</strong>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>{temple.location}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>{temple.location}</p>
               </div>
-              <span style={{ fontSize: 12, background: "#e0f2fe", color: "#0369a1", borderRadius: 999, padding: "4px 10px", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, background: "var(--surface-subtle)", color: "var(--info)", border: "1px solid var(--line-strong)", borderRadius: 999, padding: "4px 10px", whiteSpace: "nowrap" }}>
                 {temple.programs}
               </span>
             </div>
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#475569", lineHeight: 1.5 }}>🐕 {temple.note}</p>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>🐕 {temple.note}</p>
           </div>
         ))}
       </div>
@@ -80,7 +80,7 @@ export default function TempleStayPage() {
           href="https://www.ban-life.com/content/12917"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "#2563eb", textDecoration: "none", border: "1px solid #bfdbfe", borderRadius: 999, padding: "10px 18px", fontSize: 14 }}
+          style={{ color: "var(--info)", textDecoration: "none", border: "1px solid var(--line-strong)", borderRadius: 999, padding: "10px 18px", fontSize: 14 }}
         >
           반려생활에서 댕플스테이 확인 →
         </a>
@@ -88,13 +88,13 @@ export default function TempleStayPage() {
           href="https://blog.naver.com/banlife_official"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "#0369a1", textDecoration: "none", border: "1px solid #bae6fd", borderRadius: 999, padding: "10px 18px", fontSize: 14 }}
+          style={{ color: "var(--info)", textDecoration: "none", border: "1px solid var(--line-strong)", borderRadius: 999, padding: "10px 18px", fontSize: 14 }}
         >
           예약 일정 안내 (블로그) →
         </a>
       </div>
 
-      <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6, marginTop: 24 }}>
+      <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6, marginTop: 24 }}>
         출처: 연합뉴스 2026-09-05 「강아지도 사찰복 입고 스님과 차담…댕플스테이 인기」 ·
         2026 대한민국불교문화엑스포(대구)에서도 반려동물 친화 프로그램 운영 예정
       </p>
