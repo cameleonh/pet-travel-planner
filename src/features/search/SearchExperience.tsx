@@ -195,6 +195,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
   const [recommendedTheme, setRecommendedTheme] = useState<ThemePreset | null>(null);
   const [recommendedRotate, setRecommendedRotate] = useState(0);
   const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedNeedsRegion, setRecommendedNeedsRegion] = useState(false);
   const themeFilterSnapshotRef = useRef<{
     petSize: ConditionKey | null;
     petWeight: string;
@@ -760,25 +761,27 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     operatingHours: placeHoursById[result.place.id] ?? null,
   }), [placeHoursById]);
 
-  const handleBuildRecommendedCourse = useCallback(async (theme: ThemePreset, rotate = 0) => {
+  const handleBuildRecommendedCourse = useCallback(async (theme: ThemePreset, rotate = 0, regionOverride?: string) => {
     setRecommendedTheme(theme);
     setRecommendedRotate(rotate);
     setRecommendedCourse(null);
-    if (!region.trim()) {
+    const targetRegion = (regionOverride ?? region).trim();
+    if (!targetRegion) {
       setRecommendedResults([]);
-      setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "지역을 먼저 선택하면 그 지역에서 코스를 골라드려요." });
+      setRecommendedNeedsRegion(true);
       return;
     }
+    setRecommendedNeedsRegion(false);
     setRecommendedLoading(true);
     try {
-      const parameters = new URLSearchParams({ page: "1", region: region.trim() });
+      const parameters = new URLSearchParams({ page: "1", region: targetRegion });
       if (theme.petSize) parameters.set("hard", theme.petSize);
       if (theme.categories.length > 0) parameters.set("categories", theme.categories.join(","));
       if (theme.prepFilters.length > 0) parameters.set("prep", theme.prepFilters.join(","));
       if (theme.placeSet) parameters.set("placeSet", theme.placeSet);
       const data = await fetchCatalog(`/api/places?${parameters}`);
       const candidates = data.catalog.results;
-      const origin = regionCenter(region) ?? candidates[0]?.place.coordinates ?? null;
+      const origin = regionCenter(targetRegion) ?? candidates[0]?.place.coordinates ?? null;
       if (!origin) {
         setRecommendedResults([]);
         setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "이 지역의 좌표를 찾지 못했어요." });
@@ -820,6 +823,25 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     addRecommendedToPlan();
     openPlanner();
   }, [addRecommendedToPlan, openPlanner]);
+
+  // Inline region choice inside the recommended-course card: apply the region
+  // (same resets as the region picker) and immediately build the course.
+  const selectRecommendedRegion = useCallback((value: string) => {
+    setRecommendedNeedsRegion(false);
+    setPage(1);
+    track("region_search", value);
+    setRegion(value);
+    setTrails([]);
+    setFestivals([]);
+    setRuralVillages([]);
+    setRuralFarmstays([]);
+    setPetCafes([]);
+    setDiscoveryLoadedRegion(null);
+    setDiscoveryOpen(false);
+    setRegionalReviewedFor(null);
+    setCourseConfirmed(false);
+    if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate, value);
+  }, [recommendedTheme, recommendedRotate, handleBuildRecommendedCourse]);
 
   const recommendedAddedCount = recommendedResults.filter((result) => planPlaces.some((place) => place.id === result.place.id)).length;
 
@@ -1096,10 +1118,13 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
           loading={recommendedLoading}
           themeTitle={recommendedTheme ? (lang === "ko" ? recommendedTheme.titleKo : recommendedTheme.titleEn) : ""}
           addedCount={recommendedAddedCount}
+          needsRegion={recommendedNeedsRegion}
+          regionOptions={regionOptions}
+          onSelectRegion={selectRecommendedRegion}
           onAdd={addRecommendedToPlan}
           onBuildPlan={buildPlanFromRecommended}
           onRetry={() => { if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate + 1); }}
-          onClose={() => { setRecommendedCourse(null); setRecommendedResults([]); }}
+          onClose={() => { setRecommendedCourse(null); setRecommendedResults([]); setRecommendedNeedsRegion(false); }}
         />
         {placeCounts ? (
           <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} />

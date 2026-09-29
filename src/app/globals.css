@@ -3429,6 +3429,8 @@ footer { max-width: 1240px; }
 .recommended-course-retry { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-subtle); color: var(--muted); font-weight: 700; cursor: pointer; }
 .recommended-course-empty { margin-top: 10px; }
 .recommended-course-empty p { margin: 0 0 8px; color: var(--danger); font-size: 13px; }
+.recommended-course-region { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.recommended-course-region-select { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 700; cursor: pointer; }
 
 /* ── Result sort control ── */
 .sort-control { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }

@@ -1,6 +1,7 @@
 "use client";
 
 import type { RecommendedCourseResult } from "@/domain/course";
+import type { RegionOption } from "@/domain/regions";
 import { useLang } from "@/i18n/LangContext";
 
 const CATEGORY_LABEL: Record<string, { ko: string; en: string; zh: string; icon: string }> = {
@@ -11,18 +12,21 @@ const CATEGORY_LABEL: Record<string, { ko: string; en: string; zh: string; icon:
   shopping: { ko: "쇼핑", en: "Shopping", zh: "购物", icon: "🛍️" },
 };
 
-export function RecommendedCourseCard({ course, loading, themeTitle, addedCount, onAdd, onBuildPlan, onRetry, onClose }: {
+export function RecommendedCourseCard({ course, loading, themeTitle, addedCount, needsRegion, regionOptions, onSelectRegion, onAdd, onBuildPlan, onRetry, onClose }: {
   course: RecommendedCourseResult | null;
   loading: boolean;
   themeTitle: string;
   addedCount: number;
+  needsRegion: boolean;
+  regionOptions: RegionOption[];
+  onSelectRegion: (value: string) => void;
   onAdd: () => void;
   onBuildPlan: () => void;
   onRetry: () => void;
   onClose: () => void;
 }) {
   const { lang } = useLang();
-  if (!loading && !course) return null;
+  if (!loading && !course && !needsRegion) return null;
 
   const copy = {
     title: lang === "ko" ? "추천 코스" : lang === "zh" ? "推荐路线" : "Suggested course",
@@ -34,6 +38,8 @@ export function RecommendedCourseCard({ course, loading, themeTitle, addedCount,
     close: lang === "ko" ? "닫기" : lang === "zh" ? "关闭" : "Close",
     note: lang === "ko" ? "좌표상 가까운 순서로 고른 3곳이에요. 실제 이동 시간·영업 여부는 방문 전 확인하세요." : "Three spots picked nearest-first by coordinates. Confirm travel time and opening hours before visiting.",
     fail: lang === "ko" ? "추천할 장소를 찾지 못했어요." : lang === "zh" ? "找不到可推荐的场所。" : "No places to suggest.",
+    pickRegion: lang === "ko" ? "지역을 고르면 그 지역에서 코스를 골라드려요." : lang === "zh" ? "选择地区后为你挑选路线。" : "Pick a region and we'll choose a course there.",
+    selectPlaceholder: lang === "ko" ? "지역 선택…" : lang === "zh" ? "选择地区…" : "Choose a region…",
   };
 
   return (
@@ -46,7 +52,22 @@ export function RecommendedCourseCard({ course, loading, themeTitle, addedCount,
         <button type="button" className="recommended-course-close" onClick={onClose} aria-label={copy.close}>✕</button>
       </div>
 
-      {loading ? (
+      {needsRegion ? (
+        <div className="recommended-course-region">
+          <p className="recommended-course-note">{copy.pickRegion}</p>
+          <select
+            className="recommended-course-region-select"
+            defaultValue=""
+            aria-label={copy.selectPlaceholder}
+            onChange={(event) => { if (event.target.value) onSelectRegion(event.target.value); }}
+          >
+            <option value="" disabled>{copy.selectPlaceholder}</option>
+            {regionOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+      ) : loading ? (
         <p className="recommended-course-status" role="status">{copy.loading}</p>
       ) : course && course.success ? (
         <>
