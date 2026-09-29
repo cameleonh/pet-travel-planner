@@ -3435,3 +3435,20 @@ footer { max-width: 1240px; }
 .sort-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
 .sort-chip:hover { border-color: var(--brand); color: var(--brand-strong); }
 .sort-chip.active { background: var(--brand); color: var(--bg); border-color: var(--brand); }
+
+/* ── Mobile panel slide (theme/filters ↔ results) ──
+   Two snapped pages in a native horizontal scroller (no transform), so clipping
+   and height are handled by the browser and the reveal can't be clipped away. */
+.search-track { display: contents; }
+.theme-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.theme-results-btn { min-height: 34px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 800; cursor: pointer; }
+.theme-results-btn:hover { border-color: var(--brand); color: var(--brand-strong); }
+.mobile-panel-nav { display: none; }
+
+@media (max-width: 860px) {
+  .search-track { display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .search-track::-webkit-scrollbar { display: none; }
+  .search-track > .control-panel, .search-track > .results-panel { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; }
+  .mobile-panel-nav { display: block; padding: 2px 0 12px; }
+  .mobile-panel-back { min-height: 42px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 800; cursor: pointer; }
+}

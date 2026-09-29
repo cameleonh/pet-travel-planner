@@ -11,10 +11,11 @@ interface ThemeCurationsProps {
   onApplyTheme: (theme: ThemePreset) => void;
   onClearTheme: () => void;
   onBuildCourse: (theme: ThemePreset) => void;
+  onShowResults: () => void;
   todaySafetyLevel?: TodaySafetyLevel;
 }
 
-export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBuildCourse, todaySafetyLevel }: ThemeCurationsProps) {
+export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBuildCourse, onShowResults, todaySafetyLevel }: ThemeCurationsProps) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -79,16 +80,21 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
             </p>
           </div>
         </div>
-        {activeThemeId && (
-          <button
-            type="button"
-            className="theme-reset-btn"
-            onClick={onClearTheme}
-            title={lang === "ko" ? "테마 필터 초기화" : "Reset theme filter"}
-          >
-            ✕ {lang === "ko" ? "테마 해제" : "Reset"}
+        <div className="theme-header-actions">
+          <button type="button" className="theme-results-btn" onClick={onShowResults}>
+            📋 {lang === "ko" ? "결과 보기" : lang === "zh" ? "查看结果" : "View results"}
           </button>
-        )}
+          {activeThemeId && (
+            <button
+              type="button"
+              className="theme-reset-btn"
+              onClick={onClearTheme}
+              title={lang === "ko" ? "테마 필터 초기화" : "Reset theme filter"}
+            >
+              ✕ {lang === "ko" ? "테마 해제" : "Reset"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="theme-carousel-wrapper">

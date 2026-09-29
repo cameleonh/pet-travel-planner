@@ -114,6 +114,10 @@ async function fetchCatalog(url: string, signal?: AbortSignal): Promise<CatalogA
 
 type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
 
+function isMobileLayout(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches;
+}
+
 export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; initialAuxiliaryPlaces?: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
   const { lang, dict } = useLang();
   const [restoredSearchState] = useState(readPersistedSearchState);
@@ -138,6 +142,10 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
   const [prepFilters, setPrepFilters] = useState<PreparationFilterKey[]>([]);
   const [page, setPage] = useState(1);
   const [sortMode, setSortMode] = useState<"recommended" | "name" | "distance" | "rating">("recommended");
+  // Mobile-only: the theme/filters panel and the results panel are two snapped
+  // pages in a horizontal scroller. `mobilePanel` mirrors the visible page.
+  const [mobilePanel, setMobilePanel] = useState<"theme" | "results">("theme");
+  const [trackHeight, setTrackHeight] = useState<number | null>(null);
   const [catalog, setCatalog] = useState(initialCatalog);
   const [catalogRequestKey, setCatalogRequestKey] = useState("");
   const [loading, setLoading] = useState(true);
@@ -202,6 +210,8 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
   const plannerReturnFocusRef = useRef<HTMLElement | null>(null);
   const supplementalChoicesRef = useRef<HTMLElement>(null);
   const resultsPanelRef = useRef<HTMLDivElement>(null);
+  const controlPanelRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const themeCatalogCacheRef = useRef(new Map<string, CatalogApiData>());
   const themePrefetchKeyRef = useRef<string | null>(null);
   const searchStatePersistSkipRef = useRef(false);
@@ -643,6 +653,53 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     setPage(1);
     setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
   };
+  const showResultsPanel = useCallback(() => {
+    if (isMobileLayout()) {
+      const track = trackRef.current;
+      track?.scrollTo({ left: track.clientWidth, behavior: "smooth" });
+      setMobilePanel("results");
+      return;
+    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    resultsPanelRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, []);
+  const showThemePanel = useCallback(() => {
+    if (isMobileLayout()) {
+      trackRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+      setMobilePanel("theme");
+      return;
+    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("search")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, []);
+
+  // Mirror the scrolled page back into state so the toggle labels stay in sync.
+  const handleTrackScroll = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || !isMobileLayout()) return;
+    const index = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    setMobilePanel(index <= 0 ? "theme" : "results");
+  }, []);
+
+  // Size the horizontal scroller to the visible panel so the off-screen page
+  // never adds empty height to the page.
+  useEffect(() => {
+    const active = mobilePanel === "results" ? resultsPanelRef.current : controlPanelRef.current;
+    if (!active) return;
+    const update = () => {
+      if (isMobileLayout()) setTrackHeight(active.offsetHeight);
+      else setTrackHeight(null);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(active);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [mobilePanel]);
+
   const handleApplyTheme = useCallback((theme: ThemePreset) => {
     track("theme_apply", theme.id);
     if (!activeThemeId) {
@@ -668,10 +725,14 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
     setThemeResultPulse(true);
     globalThis.setTimeout(() => setThemeResultPulse(false), 900);
     globalThis.setTimeout(() => {
+      if (isMobileLayout()) {
+        showResultsPanel();
+        return;
+      }
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       resultsPanelRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
     }, 80);
-  }, [activeThemeId, categories, hard, petSize, petWeight, placeSet, preferences, prepFilters]);
+  }, [activeThemeId, categories, hard, petSize, petWeight, placeSet, preferences, prepFilters, showResultsPanel]);
   const handleClearTheme = useCallback(() => {
     const snapshot = themeFilterSnapshotRef.current;
     setActiveThemeId(null);
@@ -987,7 +1048,8 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
 
   return (
     <section className="search-workspace" id="search" aria-label={dict.findPlace}>
-      <div className="control-panel">
+      <div className="search-track" ref={trackRef} onScroll={handleTrackScroll} style={trackHeight ? { height: trackHeight } : undefined}>
+      <div className="control-panel" ref={controlPanelRef}>
         {petProfile ? (
           <div className="pet-profile-bar" role="region" aria-label="내 반려견 맞춤 설정">
             <div className="pet-profile-info">
@@ -1028,7 +1090,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
           <div><p className="section-kicker section-step">{dict.stepSearch}</p><h2>{dict.searchHeading}</h2></div>
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
-        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} onBuildCourse={startRecommendedCourse} todaySafetyLevel={todaySafety} />
+        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} onBuildCourse={startRecommendedCourse} onShowResults={showResultsPanel} todaySafetyLevel={todaySafety} />
         <RecommendedCourseCard
           course={recommendedCourse}
           loading={recommendedLoading}
@@ -1050,6 +1112,9 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
         </aside>
       </div>
       <div ref={resultsPanelRef} className={`results-panel interactive-results ${themeResultPulse ? "theme-result-pulse" : ""}`} aria-busy={loading}>
+        <div className="mobile-panel-nav">
+          <button type="button" className="mobile-panel-back" onClick={showThemePanel}>← {lang === "ko" ? "테마·조건 보기" : lang === "zh" ? "查看主题与条件" : "Theme & filters"}</button>
+        </div>
         <div className={`results-layout ${plannerOpen ? "planner-open" : ""}`}>
           <div className="results-primary">
             <div className="result-heading">
@@ -1274,6 +1339,7 @@ export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regio
             ) : null}
           </aside>
         </div>
+      </div>
       </div>
       {hasPlanItems ? <button ref={tripTrayRef} type="button" className="saved-trip-tray" disabled={!hasEnoughPlaces && !courseConfirmed} aria-label={courseConfirmed ? dict.openTripBoard : hasEnoughPlaces ? dict.selectionDone : t(lang, "savedTrayCount", { n: planItemCount })} onClick={courseConfirmed ? openPlanner : finishChoosing}><span><strong>{dict.savedTray}</strong><small>{planPlaces[0]?.name ?? planActivities[0]?.title}{planItemCount > 1 ? ` +${planItemCount - 1}` : ""} · {planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : courseConfirmed ? dict.openTripBoard : selectionCompleted ? dict.savedTrayNext : dict.selectionDone}</small></span><b>{planItemCount}</b></button> : null}
       <FloatingQuickNav viewMode={viewMode} onToggleViewMode={() => setViewMode((mode) => mode === "list" ? "map" : "list")} />
