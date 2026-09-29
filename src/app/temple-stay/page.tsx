@@ -42,9 +42,9 @@ export default function TempleStayPage() {
         댕댕이 + 템플스테이 — 반려견과 함께 사찰에서 머물며 불교문화를 체험하는 프로그램
       </p>
 
-      <div style={{ padding: "16px 20px", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 12, margin: "0 0 24px" }}>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "#78350f" }}>
-          ⚠️ <strong style={{ color: "#78350f" }}>상시 운영이 아닙니다.</strong> 회차별 모집·조기 마감되는 예약제 프로그램입니다.
+      <div style={{ padding: "16px 20px", background: "var(--warning-soft)", border: "1px solid var(--warning)", borderRadius: 12, margin: "0 0 24px" }}>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "var(--warning)" }}>
+          ⚠️ <strong style={{ color: "var(--warning)" }}>상시 운영이 아닙니다.</strong> 회차별 모집·조기 마감되는 예약제 프로그램입니다.
           방문 전 반드시 아래 연락처로 일정·모집 여부를 확인하세요.
         </p>
       </div>

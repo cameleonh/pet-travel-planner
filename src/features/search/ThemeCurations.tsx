@@ -164,7 +164,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
           <a
             href="/temple-stay"
             className="theme-preset-card"
-            style={{ textDecoration: "none", background: "linear-gradient(135deg, #fef9c3, #fde68a)" }}
+            style={{ textDecoration: "none", background: "var(--warning-soft)" }}
           >
             <div className="theme-card-top">
               <span className="theme-card-emoji">🧘</span>
