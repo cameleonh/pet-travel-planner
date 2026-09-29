@@ -3339,3 +3339,47 @@ footer { max-width: 1240px; }
   opacity: 0.65;
   font-variant-numeric: tabular-nums;
 }
+
+/* Nearby safety services card inside the printed/shared plan */
+.plan-nearby-services {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+.plan-nearby-services h4 { margin: 0 0 4px; font-size: 15px; }
+.plan-nearby-note { margin: 0 0 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.plan-nearby-group { margin-top: 10px; }
+.plan-nearby-group h5 { margin: 0 0 6px; font-size: 13px; color: var(--ink-subtle); }
+.plan-nearby-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.plan-nearby-list li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.plan-nearby-list strong { display: block; font-size: 13px; }
+.plan-nearby-list small { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.plan-nearby-links { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; font-size: 12px; }
+.plan-nearby-links a { color: var(--brand-strong); font-weight: 700; text-decoration: none; }
+.plan-nearby-source { margin: 8px 0 0; font-size: 10.5px; color: var(--ink-subtle); }
+
+@media print {
+  .plan-nearby-services {
+    display: block !important;
+    margin: 4mm 0 0;
+    padding: 3mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 2mm;
+    background: #fff !important;
+    color: #0f172a !important;
+  }
+  .plan-nearby-services h4 { margin: 0 0 1mm; color: #0f172a !important; font-size: 11pt; }
+  .plan-nearby-note { margin: 0 0 2mm; color: #475569 !important; font-size: 8pt; }
+  .plan-nearby-group { margin-top: 2mm; }
+  .plan-nearby-group h5 { margin: 0 0 1.5mm; color: #1e3a8a !important; font-size: 9pt; }
+  .plan-nearby-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2mm; }
+  .plan-nearby-list li { padding: 2mm; border: 1px solid #cbd5e1 !important; background: #f8fafc !important; }
+  .plan-nearby-list strong { color: #0f172a !important; font-size: 9.5pt; }
+  .plan-nearby-list small { color: #475569 !important; font-size: 7.5pt; }
+  .plan-nearby-links a { color: #1e3a8a !important; }
+  .plan-nearby-source { margin-top: 1.5mm; color: #64748b !important; font-size: 7pt; }
+}

@@ -13,6 +13,7 @@ import { generateTravelPlan } from "@/domain/planning/orchestrator";
 import { createDirectionsApiProvider } from "@/domain/planning/providers/directions-api";
 import { planningRequestFromLegacy } from "@/features/search/planning-request-adapter";
 import { SmartChecklist } from "@/features/planner/SmartChecklist";
+import { NearbySafetyServices } from "@/features/planner/NearbySafetyServices";
 import { ShareTripModal } from "@/features/planner/ShareTripModal";
 import { TripWeatherCard } from "@/features/weather/TripWeatherCard";
 import { NaviActionButtons } from "@/features/results/NaviActionButtons";
@@ -446,6 +447,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
               })}
             </tbody>
           </table>
+          <NearbySafetyServices coordinates={selectedPlaces[0]?.coordinates ?? null} referenceName={selectedPlaces[0]?.name ?? ""} />
         </section>
       ) : null}
 
