@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { THEME_PRESETS, type ThemePreset, type ThemePresetId } from "@/domain/themes";
 import { useLang } from "@/i18n/LangContext";
 
@@ -20,8 +20,9 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [isDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const hasDraggedRef = useRef(false);
+  const dragStateRef = useRef<{ startX: number; startScrollLeft: number } | null>(null);
 
   // Check scroll position to update arrow button states
   const updateScrollBounds = useCallback(() => {
@@ -53,6 +54,42 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
   const scrollByAmount = (amount: number) => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
+  };
+
+  // Mouse drag-to-scroll (touch already scrolls natively via overflow-x).
+  const endDrag = useCallback((pointerId?: number) => {
+    const el = scrollRef.current;
+    if (el && pointerId !== undefined) {
+      try { el.releasePointerCapture(pointerId); } catch {}
+    }
+    dragStateRef.current = null;
+    setIsDragging(false);
+    // Ignore the click that follows a drag, then re-arm.
+    globalThis.setTimeout(() => { hasDraggedRef.current = false; }, 0);
+  }, []);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+    const el = scrollRef.current;
+    if (!el) return;
+    dragStateRef.current = { startX: event.clientX, startScrollLeft: el.scrollLeft };
+    hasDraggedRef.current = false;
+    setIsDragging(true);
+    try { el.setPointerCapture(event.pointerId); } catch {}
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    const el = scrollRef.current;
+    if (!state || !el) return;
+    const dx = event.clientX - state.startX;
+    if (Math.abs(dx) > 4) hasDraggedRef.current = true;
+    el.scrollLeft = state.startScrollLeft - dx;
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStateRef.current) return;
+    endDrag(event.pointerId);
   };
 
   const handleCardClick = (theme: ThemePreset, isActive: boolean) => {
@@ -113,6 +150,10 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
           className={`theme-cards-scroll ${isDragging ? "is-dragging" : ""}`}
           role="region"
           aria-label={lang === "ko" ? "테마 코스 목록 (좌우로 스크롤 가능)" : "Theme courses list (horizontally scrollable)"}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           {THEME_PRESETS.map((theme) => {
             const isActive = activeThemeId === theme.id;
@@ -166,7 +207,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
                   ))}
                 </div>
               </button>
-              <button type="button" className="theme-course-btn" onClick={() => onBuildCourse(theme)}>
+              <button type="button" className="theme-course-btn" onClick={() => { if (hasDraggedRef.current) return; onBuildCourse(theme); }}>
                 🎯 {lang === "ko" ? "추천 코스" : lang === "zh" ? "推荐路线" : "Suggested course"}
               </button>
               </div>
@@ -176,6 +217,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
             href="/temple-stay"
             className="theme-preset-card"
             style={{ textDecoration: "none", background: "var(--warning-soft)" }}
+            onClick={(event) => { if (hasDraggedRef.current) event.preventDefault(); }}
           >
             <div className="theme-card-top">
               <span className="theme-card-emoji">🧘</span>
