@@ -585,7 +585,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
           <SmartChecklist places={selectedPlaces} />
           <div className="plan-actions">
             <button type="button" onClick={() => setShareDialogOpen(true)} className="btn-save" style={{ marginRight: "0.5rem" }}>
-              📲 {lang === "ko" ? "카카오톡/코스 공유" : "Share Itinerary"}
+              📲 {lang === "ko" ? "코스 공유" : "Share Itinerary"}
             </button>
             <button ref={printButtonRef} type="button" onClick={openPrintDialog} className="print-button">{dict.planPrint}</button>
           </div>

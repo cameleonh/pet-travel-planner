@@ -230,7 +230,7 @@ export function ShareTripModal({
 
         <div className="share-actions-row">
           <button type="button" className="btn-kakao-share" onClick={() => void handleNativeShare()}>
-            🟡 {lang === "ko" ? "카카오톡 / 메시지 공유" : "Share via Kakao / Messages"}
+            📤 {lang === "ko" ? "메시지·링크로 공유" : lang === "zh" ? "通过消息/链接分享" : "Share via Messages"}
           </button>
           <button type="button" className="btn-copy-link" onClick={() => void handleCopy()}>
             📋 {copied ? (lang === "ko" ? "✓ 복사 완료!" : "✓ Copied!") : lang === "ko" ? "코스 텍스트 복사" : "Copy Itinerary"}
