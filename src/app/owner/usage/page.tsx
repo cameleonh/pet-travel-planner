@@ -63,7 +63,7 @@ export default function OwnerUsagePage() {
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "32px 20px 64px", fontFamily: "system-ui, sans-serif", color: "#1e293b" }}>
-      <p style={{ fontSize: 13 }}><Link href="/owner/places" style={{ color: "#2563eb", textDecoration: "none" }}>← 오너 포털</Link></p>
+      <p style={{ fontSize: 13 }}><Link href="/owner/places" style={{ color: "#2563eb", textDecoration: "none" }}>← 오너 포털</Link> · <Link href="/owner/csp" style={{ color: "#2563eb", textDecoration: "none" }}>CSP 위반 리포트</Link></p>
       <h1 style={{ fontSize: 22 }}>📊 사용 통계 <span style={{ fontSize: 13, color: "#64748b", fontWeight: 400 }}>최근 30일 · 익명 집계 (식별 정보 없음)</span></h1>
 
       {!data ? (
