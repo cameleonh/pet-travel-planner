@@ -15,9 +15,11 @@ function apiError(status: number, code: string, message: string, extraHeaders?: 
 }
 
 export function middleware(request: NextRequest) {
-  // Health checks are meant for plain HTTP monitors, so they bypass the
-  // browser-signal gate and the per-IP rate limiter entirely.
-  if (request.nextUrl.pathname === "/api/health") return NextResponse.next();
+  // Health checks and CSP reports arrive from plain HTTP clients / browsers
+  // without Fetch Metadata, so they bypass the browser-signal gate.
+  if (request.nextUrl.pathname === "/api/health" || request.nextUrl.pathname === "/api/csp-report") {
+    return NextResponse.next();
+  }
 
   const verdict = evaluateApiGate({
     userAgent: request.headers.get("user-agent") ?? "",
