@@ -4,9 +4,23 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
-  // Security headers (X-Content-Type-Options / Referrer-Policy /
-  // Permissions-Policy / CSP / HSTS / X-Frame-Options) are emitted once by the
-  // Apache vhost, so they are intentionally not duplicated here.
+  // Security headers. The Apache vhost also sets the full set (CSP/HSTS are
+  // proxy-only), but the app declares the simple headers itself so it stays
+  // secure and verifiable when served directly (e.g. `next start`, e2e).
+  // geolocation is (self) because the nearby discovery uses the browser's
+  // location with an explicit opt-in.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), geolocation=(self), microphone=()" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       // Some crawlers and older browsers still request the legacy favicon path;

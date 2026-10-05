@@ -3448,7 +3448,7 @@ footer { max-width: 1240px; }
 .mobile-panel-nav { display: none; }
 
 @media (max-width: 860px) {
-  .search-track { display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .search-track { display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; contain: layout; }
   .search-track::-webkit-scrollbar { display: none; }
   .search-track > .control-panel, .search-track > .results-panel { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; }
   .mobile-panel-nav { display: block; padding: 2px 0 12px; }
