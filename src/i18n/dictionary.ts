@@ -372,6 +372,20 @@ const ko = {
   weatherAdviceSnow: "눈이 예보되었어요. 발 보호와 보온을 챙기고 짧은 산책으로 조절해 주세요 ❄️",
   weatherAdviceCold: "아침 기온이 영하로 떨어져요. 소형견은 보온옷과 짧은 산책을 추천해요 🧥",
   weatherLoading: "날씨를 불러오는 중…",
+  // companion dog
+  companionLabel: "같이갈개 마스코트 강아지",
+  companionPet: "마스코트 강아지 쓰다듬기",
+  companionHide: "마스코트 숨기기",
+  companionShow: "마스코트 보기",
+  companionDismiss: "추천 닫기",
+  companionPlaceTitle: "{name} 어때요?",
+  companionPlaceMeta: "{region} · 동반 확인된 곳",
+  companionRecentMeta: "{region} · 최근 본 곳",
+  companionPlaceCta: "자세히 보기",
+  companionTip: "반려견과 함께 갈 수 있는 곳을 찾아보세요 🐾",
+  companionPet1: "앗, 간지러워요!",
+  companionPet2: "좋아요, 한 번 더!",
+  companionPet3: "같이 가요, 멍!",
 };
 
 export type Dictionary = { [K in keyof typeof ko]: string };
@@ -722,6 +736,20 @@ const en: Dictionary = {
   weatherAdviceSnow: "Snow is forecast. Protect paws, keep warm, and keep walks short ❄️",
   weatherAdviceCold: "Sub-zero mornings expected. A coat and short walks for small dogs 🧥",
   weatherLoading: "Loading weather…",
+  // companion dog
+  companionLabel: "Gachi Galgae mascot dog",
+  companionPet: "Pet the mascot dog",
+  companionHide: "Hide the mascot",
+  companionShow: "Show the mascot",
+  companionDismiss: "Dismiss suggestion",
+  companionPlaceTitle: "How about {name}?",
+  companionPlaceMeta: "{region} · pet admission confirmed",
+  companionRecentMeta: "{region} · recently viewed",
+  companionPlaceCta: "See details",
+  companionTip: "Find a place you can visit with your dog 🐾",
+  companionPet1: "That tickles!",
+  companionPet2: "Nice, one more!",
+  companionPet3: "Let's go together, woof!",
 };
 
 const zh: Dictionary = {
@@ -1070,6 +1098,20 @@ const zh: Dictionary = {
   weatherAdviceSnow: "预报有雪。注意脚部保护和保暖，缩短散步时间 ❄️",
   weatherAdviceCold: "早晨气温降至零下。小型犬建议穿衣并缩短散步 🧥",
   weatherLoading: "正在获取天气…",
+  // companion dog
+  companionLabel: "같이갈개 吉祥物小狗",
+  companionPet: "摸摸吉祥物小狗",
+  companionHide: "隐藏吉祥物",
+  companionShow: "显示吉祥物",
+  companionDismiss: "关闭推荐",
+  companionPlaceTitle: "{name} 怎么样？",
+  companionPlaceMeta: "{region} · 已确认可携宠",
+  companionRecentMeta: "{region} · 最近浏览",
+  companionPlaceCta: "查看详情",
+  companionTip: "找找可以带狗狗一起去的地方吧 🐾",
+  companionPet1: "好痒呀！",
+  companionPet2: "真好，再来一次！",
+  companionPet3: "一起去吧，汪！",
 };
 
 export const dictionaries: Record<Lang, Dictionary> = { ko, en, zh };

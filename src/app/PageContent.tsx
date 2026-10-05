@@ -5,13 +5,15 @@ import type { CatalogPage } from "@/data/catalog";
 import type { RegionOption } from "@/domain/regions";
 import { SearchExperience } from "@/features/search/SearchExperience";
 import { dispatchHeroStrike } from "@/features/weather-hero/hero-events";
+import { CompanionDog } from "@/features/companion/CompanionDog";
+import type { CompanionCandidate } from "@/domain/companion";
 import { useLang } from "@/i18n/LangContext";
 import { LangToggle } from "@/i18n/LangToggle";
 import { AccessibilityToggle } from "@/features/accessibility/AccessibilityToggle";
 
 const HERO_VIDEO_URL = "/hero-dog-walk.mp4";
 
-export function PageContent({ catalog, notice, fetchedAt, regionOptions, placeCounts }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; regionOptions: RegionOption[]; placeCounts: Record<string, number> }) {
+export function PageContent({ catalog, notice, fetchedAt, regionOptions, placeCounts, companionCandidates }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; regionOptions: RegionOption[]; placeCounts: Record<string, number>; companionCandidates: CompanionCandidate[] }) {
   const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -113,6 +115,7 @@ export function PageContent({ catalog, notice, fetchedAt, regionOptions, placeCo
       <SearchExperience initialCatalog={catalog} regionOptions={regionOptions} placeCounts={placeCounts} />
 
       <footer><p>{dict.footerNotice}</p><p>{dict.footerBaseDate} {fetchedAt.slice(0, 10)}</p></footer>
+      <CompanionDog candidates={companionCandidates} />
     </main>
   );
 }
