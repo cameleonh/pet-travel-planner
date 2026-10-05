@@ -57,11 +57,9 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
   };
 
   // Mouse drag-to-scroll (touch already scrolls natively via overflow-x).
-  const endDrag = useCallback((pointerId?: number) => {
-    const el = scrollRef.current;
-    if (el && pointerId !== undefined) {
-      try { el.releasePointerCapture(pointerId); } catch {}
-    }
+  // No pointer capture: capturing on the container retargets the follow-up
+  // click away from the card button, which silently broke theme selection.
+  const endDrag = useCallback(() => {
     dragStateRef.current = null;
     setIsDragging(false);
     // Ignore the click that follows a drag, then re-arm.
@@ -75,7 +73,6 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
     dragStateRef.current = { startX: event.clientX, startScrollLeft: el.scrollLeft };
     hasDraggedRef.current = false;
     setIsDragging(true);
-    try { el.setPointerCapture(event.pointerId); } catch {}
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -87,9 +84,9 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
     el.scrollLeft = state.startScrollLeft - dx;
   };
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onPointerUp = () => {
     if (!dragStateRef.current) return;
-    endDrag(event.pointerId);
+    endDrag();
   };
 
   const handleCardClick = (theme: ThemePreset, isActive: boolean) => {
@@ -154,6 +151,8 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBu
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onClickCapture={(event) => { if (hasDraggedRef.current) { event.preventDefault(); event.stopPropagation(); } }}
         >
           {THEME_PRESETS.map((theme) => {
             const isActive = activeThemeId === theme.id;
