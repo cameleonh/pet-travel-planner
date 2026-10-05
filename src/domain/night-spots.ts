@@ -66,3 +66,17 @@ export const NIGHT_SPOTS: readonly NightSpot[] = [
 ];
 
 export const NIGHT_SPOT_PLACE_IDS: ReadonlySet<string> = new Set(NIGHT_SPOTS.map((spot) => spot.placeId));
+
+// The curated seed above stays as an owner-approved floor, but the catalog
+// keeps growing: any place whose name is a night-view landmark joins the set.
+// Bare "타워" is excluded on purpose — it matches shops such as "올리브영
+// 타워팰리스점", so only explicit tower names are kept.
+const NIGHT_SPOT_NAME_PATTERN = /전망대|전망타워|스카이|엑스포타워|월드타워|서울타워|등대|케이블카|모노레일|리프트|유람선|크루즈|한강|해맞이|해돋이|해넘이|노을|야경|야간|일몰|일출|해수욕장|해변|야시장|둘레길|산책로|해안/;
+
+export function isNightSpot(place: { id: string; name: string; category: string }): boolean {
+  if (NIGHT_SPOT_PLACE_IDS.has(place.id)) return true;
+  // Mall brand counters ("나이키 롯데월드타워점", "다비치안경 해운대해수욕장입구점")
+  // contain landmark words, so shopping rows stay curated-only.
+  if (place.category === "shopping") return false;
+  return NIGHT_SPOT_NAME_PATTERN.test(place.name);
+}

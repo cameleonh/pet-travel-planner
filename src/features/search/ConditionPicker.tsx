@@ -1,9 +1,13 @@
 "use client";
 
 import type { RegionOption } from "@/domain/regions";
-import { preparationFilterKeys, type PreparationFilterKey } from "@/domain/types";
+import type { PreparationFilterKey } from "@/domain/types";
 import { useLang } from "@/i18n/LangContext";
 import { t, type Lang } from "@/i18n/dictionary";
+
+// 목줄(leash)은 대부분 장소의 기본 준비물이라 조건에서 제외하고, 카드의 '방문 전 준비' 안내로만 노출한다.
+const admissionFilterKeys: PreparationFilterKey[] = ["carrier"];
+const placeFilterKeys: PreparationFilterKey[] = ["indoor", "outdoor"];
 
 const localizedRegionLabels: Record<Exclude<Lang, "ko">, Record<string, string>> = {
   en: { 서울: "Seoul", 경기: "Gyeonggi-do", 인천: "Incheon", 강원: "Gangwon State", 충북: "Chungcheongbuk-do", 충남: "Chungcheongnam-do", 대전: "Daejeon", 세종: "Sejong", 전북: "Jeonbuk State", 전남광주: "Gwangju · Jeonnam", 광주: "Gwangju", 전남: "Jeollanam-do", 경북: "Gyeongsangbuk-do", 대구: "Daegu", 울산: "Ulsan", 부산: "Busan", 경남: "Gyeongsangnam-do", 제주: "Jeju" },
@@ -54,10 +58,27 @@ export function ConditionPicker({ region, regionOptions, prepFilters, onRegionCh
         </div>
       </div>
       <p className="field-help">{dict.regionHelp}</p>
+      <div className="prep-filter-group" role="group" aria-label={dict.visitGroupAdmission}>
+        <p className="prep-filter-label">{dict.visitGroupAdmission}</p>
+        <div className="condition-grid">
+          {admissionFilterKeys.map((key) => (
+            <button
+              type="button"
+              className={`condition-button prep-button ${prepFilters.includes(key) ? "active" : ""}`}
+              aria-pressed={prepFilters.includes(key)}
+              onClick={() => onTogglePrepFilter(key)}
+              key={key}
+            >
+              <span className="condition-indicator" aria-hidden="true">{prepFilters.includes(key) ? "✓" : ""}</span>{t(lang, key)}
+            </button>
+          ))}
+        </div>
+        <p className="field-help">{dict.visitGroupAdmissionHelp}</p>
+      </div>
       <div className="prep-filter-group" role="group" aria-label={dict.visitConditions}>
         <p className="prep-filter-label">{dict.visitConditions}</p>
         <div className="condition-grid">
-          {preparationFilterKeys.map((key) => (
+          {placeFilterKeys.map((key) => (
             <button
               type="button"
               className={`condition-button prep-button ${prepFilters.includes(key) ? "active" : ""}`}
@@ -70,6 +91,7 @@ export function ConditionPicker({ region, regionOptions, prepFilters, onRegionCh
           ))}
         </div>
         <p className="field-help">{dict.visitConditionsHelp}</p>
+        <p className="field-help">{dict.prepLeashNote}</p>
       </div>
     </fieldset>
   );

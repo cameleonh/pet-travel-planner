@@ -4,16 +4,14 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
-  async headers() {
+  // Security headers (X-Content-Type-Options / Referrer-Policy /
+  // Permissions-Policy / CSP / HSTS / X-Frame-Options) are emitted once by the
+  // Apache vhost, so they are intentionally not duplicated here.
+  async rewrites() {
     return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "geolocation=(self), camera=(), microphone=()" }
-        ]
-      }
+      // Some crawlers and older browsers still request the legacy favicon path;
+      // serve the existing brand icon instead of a 404.
+      { source: "/favicon.ico", destination: "/icon.svg" },
     ];
   }
 };

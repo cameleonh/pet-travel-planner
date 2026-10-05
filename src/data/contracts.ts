@@ -13,7 +13,7 @@ export const rawPlaceSchema = z.object({
   sourceModifiedAt: z.string().min(1).nullable().optional(),
   petDetailStatus: z.enum(["fetched", "not-fetched", "failed"]).optional(),
 });
-export const auxiliaryPlaceSchema = z.object({ id: z.string().min(1), name: z.string().min(1), category: z.enum(["museum", "park", "parking", "veterinary", "toilet"]), address: z.string().min(1), coordinates: coordinateSchema, petStatus: z.enum(["confirmed", "unknown"]), evidence: sourceEvidenceSchema });
+export const auxiliaryPlaceSchema = z.object({ id: z.string().min(1), name: z.string().min(1), category: z.enum(["museum", "park", "parking", "veterinary", "toilet"]), address: z.string().min(1), coordinates: coordinateSchema, petStatus: z.enum(["confirmed", "unknown"]), evidence: sourceEvidenceSchema, phone: z.string().min(1).optional(), weekdayHours: z.string().min(1).optional(), saturdayHours: z.string().min(1).optional(), sundayHours: z.string().min(1).optional(), closingDay: z.string().min(1).optional(), usageFee: z.string().min(1).optional() });
 export const providerSnapshotSchema = z.object({ provider: z.enum(["fixture", "tour-api"]), fetchedAt: z.string().datetime(), sourceTotalCount: z.number().int().nonnegative().optional(), places: z.array(rawPlaceSchema), auxiliaryPlaces: z.array(auxiliaryPlaceSchema) });
 export type RawPlace = z.infer<typeof rawPlaceSchema>;
 export type AuxiliaryPlace = z.infer<typeof auxiliaryPlaceSchema>;

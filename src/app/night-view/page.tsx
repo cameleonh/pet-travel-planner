@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NightViewBack } from "@/features/night-view/NightViewBack";
 
 export const metadata = {
   title: "3D 뷰어 — 같이갈개",
@@ -21,7 +22,8 @@ export default async function NightViewPage({ searchParams }: {
     && lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
 
   return (
-    <main style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0b1220" }}>
+    <main style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#0b1220", position: "relative" }}>
+      <NightViewBack name={name} />
       {!valid || !key ? (
         <div style={{ margin: "auto", color: "#cdd7f5", textAlign: "center", padding: 24 }}>
           <p>{!valid ? "좌표가 올바르지 않습니다." : "VWorld API 키가 설정되지 않았습니다."}</p>
@@ -30,7 +32,7 @@ export default async function NightViewPage({ searchParams }: {
       ) : (
         <>
           <iframe
-            title={`${name} 3D 야경 뷰어`}
+            title={`${name} 3D 뷰어`}
             src={`/night-view.html?lat=${lat}&lng=${lng}&name=${encodeURIComponent(name)}&key=${encodeURIComponent(key)}`}
             style={{ flex: 1, width: "100%", border: "none" }}
             allow="fullscreen"

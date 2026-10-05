@@ -2,21 +2,24 @@
 
 **Product behavior source:** [PRD.md](../../PRD.md)
 **Visual system source:** [DESIGN.md](../../DESIGN.md)
-**Last updated:** 2026-08-08
+**Last updated:** 2026-09-25
 
 ## 1. Information Architecture
 
-The verified MVP is one responsive, keyboard-accessible page with four sequential regions: clickable conditions, exact results and proof, nearby auxiliary places, and an exact-only course. Saved objects, reusable profiles, a dedicated detail route, and map/list navigation are post-MVP capabilities.
+The current service is a responsive PWA organized around five linked tasks: set a pet/region profile, find exact places with source proof, inspect regional and nearby extras, arrange a day plan, and navigate/share the plan. List/map views, place-detail pages, local pet profiles, owner closure notices, traveler reviews, route/weather/traffic context, print, and plan sharing are implemented. External and unverified discoveries remain visibly separate from KTO-confirmed pet-entry matches.
 
 ## 2. First Value Flow
 
 ```text
 Open service
-  → See the deterministic sample dataset and common condition controls
-  → Select a pet size and required/preferred conditions
-  → See exact-result count
-  → Open one result and inspect match proof
-  → Optionally inspect nearby places or build a course from exact results
+  → Select region, pet size/profile, category, and preparation conditions
+  → See exact-result count and confirmed / non-match / unverified breakdown
+  → Inspect source wording and observation date for a result
+  → Save one or more confirmed places
+  → Review optional regional and nearby additions separately
+  → Set travel date, departure, stay length, order, and build the plan
+  → Check venue-hours disclosures, route legs, weather, and preparation list
+  → Navigate, print, or share the plan
 ```
 
 Rules:
@@ -38,7 +41,7 @@ Search page
 
 - Size and required admission conditions are hard constraints.
 - Optional comfort conditions are preferences and remain separately labeled.
-- Saved/reusable profiles are post-MVP and are not implied by the current controls.
+- A reusable pet profile is stored locally and can prefill the size filter; it is optional and does not block first use.
 
 ## 4. Search Flow
 
@@ -94,7 +97,7 @@ Result card
 
 - Official wording and product match labels remain visually separate.
 - Missing or conflicting values become `unknown` and stay outside exact results.
-- A dedicated detail/contact experience remains post-MVP.
+- A dedicated place-detail page exposes source policy, collected operating/accessibility information, map handoff, and visit reviews when available.
 
 ## 7. Zero-Result Flow
 
@@ -116,24 +119,28 @@ No exact matches
 
 ## 8. Course Flow
 
-The next-step action stays available while browsing, but it is enabled only after at least two exact places are saved. Optional regional and nearby choices are revealed after place selection is completed; the travel board is revealed after the course is confirmed.
+The next-step action stays available while browsing and supports a one-place plan. Optional regional and nearby choices are shown as separate discoveries; they may have unverified pet admission and are never relabeled as exact KTO matches. The travel board is revealed after course confirmation.
 
 ```text
 Exact results
-  → Save at least two places
+  → Save one or more places
   → “Places selected · Optional extras”
   → Review optional regional and nearby choices
   → “Build a course from these results”
-  → Order current exact places from the reference coordinate
-  → Show approximate course
-  → Hand off to a map service for actual routing
+  → Choose a starting place and saved/nearby order
+  → Set trip date, departure time, and default/per-place dwell
+  → Request routed legs and a travel schedule
+  → If routing is unavailable, show straight-line distance and unknown travel time explicitly
+  → Review weather/traffic context, source hours, and packing checklist
+  → Navigate, print/PDF, or create a shareable plan page
 ```
 
 ### Course result
 
-- The surrounding search state remains visible and the course reports each stop's proof count.
-- Approximate mode uses “approximate order” and distance, never invented travel minutes.
-- Duration, category, opening-hour feasibility, routed mode, and stop replacement are post-MVP.
+- The course reports each stop and keeps optional/unverified additions distinct from pet-admission-confirmed catalog places.
+- Road-provider legs may show route distance/duration and traffic context. If the provider is unavailable, the UI and share page say “straight-line distance” and do not sum unknown durations as a total.
+- The plan accepts a travel date, preferred departure, default/per-stop dwell time, and stop order; it shows an estimated arrival schedule and can link to map/navigation, print/PDF, and share a public plan page.
+- KTO opening hours/closing days are displayed when available, with collection date. A single clear time range and understood weekly closing day can flag schedule conflicts; complex, seasonal, or missing hours stay unverified. The schedule does not guarantee live operation or admission, so source details still need direct confirmation.
 
 ### Course traffic context (Phase 2E)
 
@@ -219,7 +226,7 @@ CCTV stream view
 
 ## 12. UX State Matrix
 
-The matrix below is the target-state contract. The verified MVP activates first use, no exact result, unknown policy, location denied, and exact-only approximate course states; refresh/cache, stale-policy, saved/share, and full infeasibility states remain post-MVP. Phase 2E adds traffic-context, CCTV stream, and AI detection states.
+The matrix below includes live states as well as explicit future hardening. The service currently activates first use, no exact result, unknown policy, location denied, condition-qualified core stops with separate optional supplemental places, route-provider fallback, schedule checks for simple published hours, and share/print flows. Seasonal/split-hour feasibility and automated user-submitted policy correction/moderation remain future work. Phase 2E describes the separate traffic-context, CCTV stream, and AI detection experience.
 
 | State | Meaning | Primary action | Required message |
 |---|---|---|---|

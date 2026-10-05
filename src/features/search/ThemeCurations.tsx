@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { THEME_PRESETS, type ThemePreset, type ThemePresetId } from "@/domain/themes";
 import { useLang } from "@/i18n/LangContext";
 
@@ -10,20 +10,19 @@ interface ThemeCurationsProps {
   activeThemeId: ThemePresetId | null;
   onApplyTheme: (theme: ThemePreset) => void;
   onClearTheme: () => void;
+  onBuildCourse: (theme: ThemePreset) => void;
+  onShowResults: () => void;
   todaySafetyLevel?: TodaySafetyLevel;
 }
 
-export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, todaySafetyLevel }: ThemeCurationsProps) {
+export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, onBuildCourse, onShowResults, todaySafetyLevel }: ThemeCurationsProps) {
   const { lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
-
-  const isMouseDownRef = useRef(false);
-  const startXRef = useRef(0);
-  const scrollLeftRef = useRef(0);
   const hasDraggedRef = useRef(false);
+  const dragStateRef = useRef<{ startX: number; startScrollLeft: number } | null>(null);
 
   // Check scroll position to update arrow button states
   const updateScrollBounds = useCallback(() => {
@@ -46,41 +45,48 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
     };
   }, [updateScrollBounds]);
 
+  useEffect(() => {
+    if (!activeThemeId) return;
+    const card = scrollRef.current?.querySelector<HTMLElement>(`[data-theme-id="${activeThemeId}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activeThemeId]);
+
   const scrollByAmount = (amount: number) => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
   };
 
-  // Mouse Drag to Scroll Handlers
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!scrollRef.current) return;
-    isMouseDownRef.current = true;
+  // Mouse drag-to-scroll (touch already scrolls natively via overflow-x).
+  // No pointer capture: capturing on the container retargets the follow-up
+  // click away from the card button, which silently broke theme selection.
+  const endDrag = useCallback(() => {
+    dragStateRef.current = null;
+    setIsDragging(false);
+    // Ignore the click that follows a drag, then re-arm.
+    globalThis.setTimeout(() => { hasDraggedRef.current = false; }, 0);
+  }, []);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+    const el = scrollRef.current;
+    if (!el) return;
+    dragStateRef.current = { startX: event.clientX, startScrollLeft: el.scrollLeft };
     hasDraggedRef.current = false;
-    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
-    scrollLeftRef.current = scrollRef.current.scrollLeft;
+    setIsDragging(true);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isMouseDownRef.current || !scrollRef.current) return;
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 1.35;
-    if (Math.abs(walk) > 4) {
-      if (!isDragging) setIsDragging(true);
-      hasDraggedRef.current = true;
-      e.preventDefault();
-      scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
-    }
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    const el = scrollRef.current;
+    if (!state || !el) return;
+    const dx = event.clientX - state.startX;
+    if (Math.abs(dx) > 4) hasDraggedRef.current = true;
+    el.scrollLeft = state.startScrollLeft - dx;
   };
 
-  const handleMouseUpOrLeave = () => {
-    if (isMouseDownRef.current) {
-      isMouseDownRef.current = false;
-      setIsDragging(false);
-      // Reset hasDragged after a brief delay so onClick handlers can check it
-      setTimeout(() => {
-        hasDraggedRef.current = false;
-      }, 80);
-    }
+  const onPointerUp = () => {
+    if (!dragStateRef.current) return;
+    endDrag();
   };
 
   const handleCardClick = (theme: ThemePreset, isActive: boolean) => {
@@ -108,16 +114,21 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
             </p>
           </div>
         </div>
-        {activeThemeId && (
-          <button
-            type="button"
-            className="theme-reset-btn"
-            onClick={onClearTheme}
-            title={lang === "ko" ? "테마 필터 초기화" : "Reset theme filter"}
-          >
-            ✕ {lang === "ko" ? "테마 해제" : "Reset"}
+        <div className="theme-header-actions">
+          <button type="button" className="theme-results-btn" onClick={onShowResults}>
+            📋 {lang === "ko" ? "결과 보기" : lang === "zh" ? "查看结果" : "View results"}
           </button>
-        )}
+          {activeThemeId && (
+            <button
+              type="button"
+              className="theme-reset-btn"
+              onClick={onClearTheme}
+              title={lang === "ko" ? "테마 필터 초기화" : "Reset theme filter"}
+            >
+              ✕ {lang === "ko" ? "테마 해제" : "Reset"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="theme-carousel-wrapper">
@@ -134,12 +145,14 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
         <div
           ref={scrollRef}
           className={`theme-cards-scroll ${isDragging ? "is-dragging" : ""}`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
           role="region"
-          aria-label={lang === "ko" ? "테마 코스 목록 (마우스 드래그 이동 가능)" : "Theme courses list (draggable)"}
+          aria-label={lang === "ko" ? "테마 코스 목록 (좌우로 스크롤 가능)" : "Theme courses list (horizontally scrollable)"}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onClickCapture={(event) => { if (hasDraggedRef.current) { event.preventDefault(); event.stopPropagation(); } }}
         >
           {THEME_PRESETS.map((theme) => {
             const isActive = activeThemeId === theme.id;
@@ -149,9 +162,10 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
               && (todaySafetyLevel === "caution" || todaySafetyLevel === "indoor");
             const todayPickLabel = lang === "ko" ? "오늘 추천" : lang === "zh" ? "今日推荐" : "Today's pick";
             return (
+              <div className="theme-card-wrap" key={theme.id}>
               <button
-                key={theme.id}
                 type="button"
+                data-theme-id={theme.id}
                 className={`theme-preset-card ${isActive ? "active" : ""}`}
                 onClick={() => handleCardClick(theme, isActive)}
                 aria-pressed={isActive}
@@ -159,6 +173,7 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
                 <div className="theme-card-top">
                   <span className="theme-card-emoji">{theme.emoji}</span>
                   <span className="theme-card-badge">{theme.badge}</span>
+                  {isActive ? <span className="theme-card-selected">✓ {lang === "ko" ? "선택됨" : "Selected"}</span> : null}
                   {isTodayPick ? (
                     <span
                       style={{
@@ -191,8 +206,38 @@ export function ThemeCurations({ activeThemeId, onApplyTheme, onClearTheme, toda
                   ))}
                 </div>
               </button>
+              <button type="button" className="theme-course-btn" onClick={() => { if (hasDraggedRef.current) return; onBuildCourse(theme); }}>
+                🎯 {lang === "ko" ? "추천 코스" : lang === "zh" ? "推荐路线" : "Suggested course"}
+              </button>
+              </div>
             );
           })}
+          <a
+            href="/temple-stay"
+            className="theme-preset-card"
+            style={{ textDecoration: "none", background: "var(--warning-soft)" }}
+            onClick={(event) => { if (hasDraggedRef.current) event.preventDefault(); }}
+          >
+            <div className="theme-card-top">
+              <span className="theme-card-emoji">🧘</span>
+              <span className="theme-card-badge" style={{ background: "#92400e", color: "#fef9c3" }}>NEW</span>
+            </div>
+            <div className="theme-card-body">
+              <strong className="theme-card-title">
+                {lang === "ko" ? "요즘 뜨는 댕플스테이 🐕🧘" : "Trending: Temple Stay with Dogs"}
+              </strong>
+              <p className="theme-card-desc">
+                {lang === "ko"
+                  ? "사찰에서 반려견과 차담·명상·사찰복 체험 — 예약제 프로그램 안내"
+                  : "Buddhist temple stays with your dog — reservation required, see details"}
+              </p>
+            </div>
+            <div className="theme-card-tags">
+              <span className="theme-tag-pill">#댕플스테이</span>
+              <span className="theme-tag-pill">#예약제</span>
+              <span className="theme-tag-pill">#사찰문화</span>
+            </div>
+          </a>
         </div>
 
         <button

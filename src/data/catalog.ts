@@ -1,7 +1,10 @@
 import type { ProviderSnapshot, RawPlace } from "@/data/contracts";
 import { CAFE_NAME_PATTERN } from "@/domain/categories";
-import { NIGHT_SPOT_PLACE_IDS } from "@/domain/night-spots";
+import { isNightSpot } from "@/domain/night-spots";
+import { RURAL_STAY_PLACE_IDS } from "@/domain/rural-stays";
 import { getRegionSearchTerm } from "@/domain/regions";
+import { ACCESSIBLE_PLACE_IDS } from "@/domain/accessible-spots";
+import { distanceKm, type Coordinates } from "@/domain/geo";
 import { evaluatePlace } from "@/domain/match";
 import { normalizePlaces } from "@/domain/normalize";
 import { findMinimalRelaxation } from "@/domain/relax";
@@ -34,6 +37,8 @@ export type CatalogPage = {
   proposal: CatalogRelaxation | null;
 };
 
+export type CatalogCoverage = Pick<CatalogPage, "sourceTotalCount" | "searchableCount" | "detailCoverage" | "pendingDetailCount" | "failedDetailCount">;
+
 export type CatalogQuery = {
   hard: SelectedConstraint[];
   preferences: SelectedConstraint[];
@@ -41,11 +46,37 @@ export type CatalogQuery = {
   region?: string;
   categories?: RawPlace["category"][];
   preparationFilters?: PreparationFilterKey[];
-  placeSet?: "night-spots";
+  placeSet?: "night-spots" | "rural-stays" | "accessible";
+  // Live accessibility coverage from the database; the static seed is only a
+  // fixture/dev fallback.
+  accessiblePlaceIds?: ReadonlySet<string>;
+  // Whole-result sorting (applied before paging so it is consistent across pages).
+  sort?: "recommended" | "name" | "distance" | "rating";
+  origin?: Coordinates;
+  ratings?: ReadonlyMap<string, { count: number; average: number | null }>;
 };
 
-const indoorPatterns = [/실내.{0,12}(가능|동반|출입|허용)/, /실내.{0,8}동반/];
-const outdoorPatterns = [/야외.{0,12}(가능|동반|출입|허용)/, /일부\s?구역.{0,12}(가능|동반)/, /전구역.{0,12}(가능|동반)/];
+const indoorAllowPatterns = [/실내.{0,16}(?:가능|동반|출입|허용)/, /(?:내부|매장\s?내|실내\s?공간|건물\s?내).{0,14}(?:가능|동반|출입|허용)/];
+const outdoorAllowPatterns = [/야외.{0,16}(?:가능|동반|출입|허용)/, /일부\s?구역.{0,16}(?:가능|동반)/, /전구역.{0,16}(?:가능|동반)/];
+const wholeAreaPattern = /전구역.{0,16}(?:가능|동반)/;
+// Cafés, restaurants and stays are indoor venues: a whole-area admission
+// statement includes the indoor space. Attractions and shopping rows stay
+// strict because the same wording can describe an outdoor venue or a single
+// brand counter inside a mall.
+const indoorInferredCategories = new Set<RawPlace["category"]>(["cafe", "restaurant", "accommodation"]);
+const restrictionPattern = /(?:제한|불가|금지|불허|안\s?됨|어려움)/;
+
+function clauseAllows(text: string, pattern: RegExp): boolean {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  for (const match of text.matchAll(new RegExp(pattern.source, flags))) {
+    const index = match.index ?? 0;
+    const rest = text.slice(index + match[0].length);
+    const boundary = rest.search(/[.;!?\n]/);
+    const clause = text.slice(index, index + match[0].length + (boundary === -1 ? rest.length : boundary));
+    if (!restrictionPattern.test(clause)) return true;
+  }
+  return false;
+}
 
 const noiseNamePatterns = [
   /약국/,
@@ -151,6 +182,17 @@ function prepareCatalog(snapshot: ProviderSnapshot): PreparedCatalog {
   return prepared;
 }
 
+export function getCatalogCoverage(snapshot: ProviderSnapshot): CatalogCoverage {
+  const prepared = prepareCatalog(snapshot);
+  return {
+    sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
+    searchableCount: prepared.places.length,
+    detailCoverage: prepared.detailCoverage,
+    pendingDetailCount: prepared.pendingDetailCount,
+    failedDetailCount: prepared.failedDetailCount,
+  };
+}
+
 function constraintCacheKey(constraints: SelectedConstraint[]): string {
   return JSON.stringify(constraints.map(({ key, label, kind, protectedCategory }) => [key, label, kind, protectedCategory]));
 }
@@ -176,8 +218,11 @@ function matchesPreparationFilter(evaluation: MatchEvaluation, filters: Preparat
   const hasPreparation = (key: PreparationFilterKey) => {
     if (key === "leash") return evaluation.place.requiredPreparations.some((p) => p.key === "leash");
     if (key === "carrier") return evaluation.place.requiredPreparations.some((p) => p.key === "carrier");
-    if (key === "indoor") return indoorPatterns.some((p) => p.test(text));
-    if (key === "outdoor") return outdoorPatterns.some((p) => p.test(text));
+    if (key === "indoor") {
+      if (indoorAllowPatterns.some((pattern) => clauseAllows(text, pattern))) return true;
+      return indoorInferredCategories.has(evaluation.place.category) && clauseAllows(text, wholeAreaPattern);
+    }
+    if (key === "outdoor") return outdoorAllowPatterns.some((pattern) => clauseAllows(text, pattern));
     return false;
   };
   return filters.every(hasPreparation);
@@ -191,7 +236,9 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const constraints = [...query.hard, ...query.preferences];
   const allEvaluations = evaluatePreparedCatalog(prepared, constraints);
   const evaluations = allEvaluations.filter(({ place }) => {
-    if (query.placeSet === "night-spots" && !NIGHT_SPOT_PLACE_IDS.has(place.id)) return false;
+    if (query.placeSet === "night-spots" && !isNightSpot(place)) return false;
+    if (query.placeSet === "rural-stays" && !RURAL_STAY_PLACE_IDS.has(place.id)) return false;
+    if (query.placeSet === "accessible" && !(query.accessiblePlaceIds ?? ACCESSIBLE_PLACE_IDS).has(place.id)) return false;
     const searchText = prepared.searchTextById.get(place.id) ?? "";
     const regionMatches = regionTerms.every((term) => searchText.includes(term));
     // "cafe" filter spans both source categories: the KTO pet-travel catalog files
@@ -211,6 +258,32 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
   const exactMatches = browsing ? [] : evaluations.filter((evaluation) => evaluation.exact);
   const prepFilteredExact = exactMatches.filter((evaluation) => matchesPreparationFilter(evaluation, prepFilters));
   const candidates = browsing ? evaluations.filter((evaluation) => matchesPreparationFilter(evaluation, prepFilters)) : prepFilteredExact;
+  const sortMode = query.sort ?? "recommended";
+  if (sortMode !== "recommended") {
+    const byName = (a: MatchEvaluation, b: MatchEvaluation) => a.place.name.localeCompare(b.place.name, "ko");
+    const ratingOf = (id: string) => query.ratings?.get(id) ?? { count: 0, average: null as number | null };
+    if (sortMode === "distance" && query.origin) {
+      const origin = query.origin;
+      candidates.sort((a, b) => distanceKm(origin, a.place.coordinates) - distanceKm(origin, b.place.coordinates) || byName(a, b));
+    } else if (sortMode === "rating") {
+      candidates.sort((a, b) => {
+        const ra = ratingOf(a.place.id);
+        const rb = ratingOf(b.place.id);
+        const aRated = ra.average != null;
+        const bRated = rb.average != null;
+        if (aRated !== bRated) return aRated ? -1 : 1; // rated places first
+        if (aRated && bRated) {
+          const byRating = (rb.average as number) - (ra.average as number);
+          if (byRating !== 0) return byRating;
+          const byCount = rb.count - ra.count;
+          if (byCount !== 0) return byCount;
+        }
+        return byName(a, b);
+      });
+    } else {
+      candidates.sort(byName);
+    }
+  }
   const confirmedMatchCount = browsing ? 0 : prepFilteredExact.length;
   const confirmedNonMatchCount = browsing ? 0 : evaluations.filter((result) => {
     if (result.status !== "confirmed-non-match") return false;
@@ -230,11 +303,8 @@ export function buildCatalogPage(snapshot: ProviderSnapshot, query: CatalogQuery
     : null;
 
   return {
-    sourceTotalCount: snapshot.sourceTotalCount ?? snapshot.places.length,
+    ...getCatalogCoverage(snapshot),
     searchableCount: places.length,
-    detailCoverage: prepared.detailCoverage,
-    pendingDetailCount: prepared.pendingDetailCount,
-    failedDetailCount: prepared.failedDetailCount,
     filteredCount: candidates.length,
     confirmedMatchCount,
     confirmedNonMatchCount,

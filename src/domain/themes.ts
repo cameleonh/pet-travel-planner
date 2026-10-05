@@ -8,7 +8,8 @@ export type ThemePresetId =
   | 'camping-glamping'
   | 'ocean-water'
   | 'rural-stay'
-  | 'night-view';
+  | 'night-view'
+  | 'accessible';
 
 export interface ThemePreset {
   id: ThemePresetId;
@@ -22,7 +23,7 @@ export interface ThemePreset {
   categories: RawPlace['category'][];
   prepFilters: PreparationFilterKey[];
   recommendedTags: string[];
-  placeSet?: 'night-spots';
+  placeSet?: 'night-spots' | 'rural-stays' | 'accessible';
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
@@ -62,21 +63,22 @@ export const THEME_PRESETS: ThemePreset[] = [
     descEn: 'Scenic pet-friendly brunch cafes & photo spots for relaxing outings',
     petSize: null,
     categories: ['cafe', 'restaurant'],
-    prepFilters: ['leash'],
+    // Cafés rarely state "실내" explicitly; requiring it hid almost every café.
+    prepFilters: [],
     recommendedTags: ['인스타감성', '브런치카페', '포토존', '댕댕이동반'],
   },
   {
     id: 'camping-glamping',
     emoji: '⛺',
     badge: '아웃도어',
-    titleKo: '댕댕이와 함께하는 불멍 캠핑',
+    titleKo: '댕댕이와 함께 떠나는 캠핑 · 글램핑',
     titleEn: 'Pet Camping & Glamping',
-    descKo: '자연 속에서 반려견과 함께 하룻밤 머물며 힐링하는 캠핑 & 글램핑',
-    descEn: 'Overnight nature camping and glamping under the stars with your pet',
+    descKo: '불멍·물멍·별멍·숲멍 — 반려견과 자연 속에서 하룻밤, 자유로운 캠핑 스타일',
+    descEn: 'Fire-gazing, stargazing, forest walks — pick your camping style with your pet',
     petSize: null,
     categories: ['accommodation', 'attraction'],
     prepFilters: ['outdoor'],
-    recommendedTags: ['애견캠핑', '글램핑', '불멍', '자연휴양'],
+    recommendedTags: ['애견캠핑', '글램핑', '불멍', '물멍', '별멍', '숲멍'],
   },
   {
     id: 'ocean-water',
@@ -88,34 +90,49 @@ export const THEME_PRESETS: ThemePreset[] = [
     descEn: 'Refreshing coastal drives, sea breeze walks & ocean-view spots',
     petSize: null,
     categories: ['attraction', 'cafe'],
-    prepFilters: ['leash'],
+    prepFilters: ['outdoor'],
     recommendedTags: ['바다산책', '오션뷰', '해안도로', '물놀이'],
   },
   {
     id: 'rural-stay',
     emoji: '🌾',
     badge: '촌캉스 힐링',
-    titleKo: '한적한 시골 촌캉스 & 민박 힐링',
-    titleEn: 'Quiet Countryside & Farmstay',
-    descKo: '도시를 벗어나 조용한 자연에서 반려견과 유유자적 힐링하는 농촌 여행',
-    descEn: 'Escape the city for quiet countryside homestays and rural farm walks',
+    titleKo: '반려견 동반 펜션·한옥·민박',
+    titleEn: 'Pet-Friendly Stays: Pensions, Hanok & Farmhouses',
+    descKo: '강아지랑 같이 자러 가요 — 검증된 반려견 동반 펜션·한옥·게스트하우스 큐레이션',
+    descEn: 'Verified pet-friendly pensions, hanok guesthouses and farm stays across Korea',
     petSize: null,
-    categories: ['accommodation', 'attraction'],
+    categories: [],
     prepFilters: ['outdoor'],
-    recommendedTags: ['촌캉스', '농어촌민박', '조용한휴식', '자연치유'],
+    recommendedTags: ['촌캉스', '펜션', '한옥', '반려견동반숙박'],
+    placeSet: 'rural-stays',
   },
   {
     id: 'night-view',
     emoji: '🌙',
     badge: '야경 데이트',
-    titleKo: '댕댕이와 보는 밤 · 야경 투어',
-    titleEn: 'Night View Tour with Your Dog',
+    titleKo: '댕댕이와 보는 야경',
+    titleEn: 'Night Views with Your Dog',
     descKo: '해 질 녘 한강 산책부터 케이블카, 전망대, 등대까지 — 반려견과 함께 즐기는 밤 풍경 큐레이션',
     descEn: 'Sunset river walks, cable cars, observatories and lighthouses to enjoy after dark with your dog',
     petSize: null,
     categories: [],
-    prepFilters: ['leash'],
+    prepFilters: ['outdoor'],
     recommendedTags: ['야경데이트', '한강야간산책', '케이블카', '새벽일출'],
     placeSet: 'night-spots',
+  },
+  {
+    id: 'accessible',
+    emoji: '♿',
+    badge: '누구나 함께',
+    titleKo: '아이·강아지·휠체어 함께 가요',
+    titleEn: 'Accessible for Everyone',
+    descKo: '유모차·휠체어가 함께 갈 수 있는 곳 — 엘리베이터, 장애인 화장실, 평지 접근로가 확인된 장소',
+    descEn: 'Venues accessible for strollers and wheelchairs — verified elevators, accessible restrooms and step-free routes',
+    petSize: null,
+    categories: [],
+    prepFilters: [],
+    recommendedTags: ['유모차', '휠체어', '아이와강아지', '배리어프리'],
+    placeSet: 'accessible',
   },
 ];

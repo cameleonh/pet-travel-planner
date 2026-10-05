@@ -90,7 +90,28 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
         <h3>{displayName}</h3>
         <p className="address">{displayAddress}</p>
         {closureStatus ? <div className="closure-status" aria-label={dict.ownerClosure}><strong>{closureStatus.closures.length > 0 ? dict.ownerClosure : dict.noClosure}</strong>{closureStatus.closures.length > 0 ? <span>{closureStatus.closures.slice(0, 2).map((closure) => closure.closureKind === "weekly" && closure.weekday !== null ? `매주 ${["일", "월", "화", "수", "목", "금", "토"][closure.weekday]}요일 · ${closure.reason}` : `${closure.closureDate ?? "—"} · ${closure.reason}`).join(" / ")}</span> : <span>{dict.noClosureNote}</span>}</div> : null}
-        {preparations.length > 0 ? <div className="preparation-list" aria-label={dict.visitPrep}><strong>{dict.visitPrep}</strong><ul>{preparations.map((item) => <li key={`${item.key}-${item.scope}`}>✓ {t(lang as "ko" | "en" | "zh", prepLabelKeys[item.key])}{item.scope === "indoor" ? ` ${dict.prepIndoor}` : item.scope === "dangerous-dog" ? ` ${dict.prepDangerousDog}` : ""}</li>)}</ul></div> : null}
+        {preparations.length > 0 ? (
+          <div className="preparation-list" aria-label={dict.visitPrep}>
+            <strong>{dict.visitPrep}</strong>
+            <ul>
+              {preparations.map((item) => (
+                <li key={`${item.key}-${item.scope}`}>
+                  <strong>✓ {t(lang as "ko" | "en" | "zh", prepLabelKeys[item.key])}{item.scope === "indoor" ? ` ${dict.prepIndoor}` : item.scope === "dangerous-dog" ? ` ${dict.prepDangerousDog}` : ""}</strong>
+                  <details className="preparation-proof">
+                    <summary>{lang === "ko" ? "원문 근거·확인일" : lang === "zh" ? "查看来源与日期" : "Source and date"}</summary>
+                    <div className="preparation-proof-body">
+                      <p>“{item.evidence.excerpt}”</p>
+                      <small>{lang === "ko" ? "관광공사 정보 관측일 " : "KTO observation date "}{new Intl.DateTimeFormat(lang === "en" ? "en-US" : lang === "zh" ? "zh-CN" : "ko-KR", { dateStyle: "medium" }).format(new Date(item.evidence.observedAt))}</small>
+                      {!item.evidence.sourceUrl.includes("example.invalid")
+                        ? <a href={item.evidence.sourceUrl} target="_blank" rel="noreferrer">{lang === "ko" ? "관광공사 원문 보기 ↗" : lang === "zh" ? "查看韩国旅游公社来源 ↗" : "View KTO source ↗"}</a>
+                        : <span className="fixture-source">시연용 데이터 근거</span>}
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {isCatalogResult ? <p className="catalog-hint">{dict.catalogHint}</p> : <><div className="proof-preview">{result.proof.slice(0, 3).map((item) => <span key={item.constraint.key}>✓ {item.constraint.label}{item.fact.requirements.length > 0 ? ` ${dict.proofConditional}` : ""}</span>)}</div><MatchProof proof={result.proof} /></>}
         <AccessibilitySection data={accessibility} />
         <CampingSection data={camping} />

@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import type { AuxiliaryPlace, RawPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
 import type { RegionOption } from "@/domain/regions";
 import { getRegionSearchTerm } from "@/domain/regions";
-import { conditionKeys, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
+import { conditionKeys, preparationFilterKeys, type ConditionKey, type MatchEvaluation, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { ConditionPicker } from "@/features/search/ConditionPicker";
 import { PetProfilePanel } from "@/features/search/PetProfilePanel";
 import { DestinationPanel } from "@/features/search/DestinationPanel";
@@ -26,10 +27,15 @@ import { ZeroResultRecovery } from "@/features/results/ZeroResultRecovery";
 import { RecentlyViewed } from "@/features/results/RecentlyViewed";
 import { recordViewedPlace, type ViewedPlaceSummary } from "@/domain/viewed-history";
 import { NearbyCatalog } from "@/features/nearby/NearbyCatalog";
+import { NearbyOriginPicker, type NearbyOrigin } from "@/features/nearby/NearbyOriginPicker";
 import { NearbyServices } from "@/features/nearby/NearbyServices";
 import { CourseBuilder } from "@/features/course/CourseBuilder";
+import { RecommendedCourseCard } from "@/features/course/RecommendedCourseCard";
+import { buildRecommendedCourse, type RecommendedCourseResult } from "@/domain/course";
+import { regionCenter } from "@/domain/weather";
 import { ThemeCurations } from "@/features/search/ThemeCurations";
-import type { ThemePreset, ThemePresetId } from "@/domain/themes";
+import { RegionCoursePicker } from "@/features/search/RegionCoursePicker";
+import { THEME_PRESETS, type ThemePreset, type ThemePresetId } from "@/domain/themes";
 import { track } from "@/domain/usage-client";
 import { InteractiveMapView } from "@/features/map/InteractiveMapView";
 import { FloatingQuickNav } from "@/features/navigation/FloatingQuickNav";
@@ -45,9 +51,55 @@ function selected(key: ConditionKey, kind: SelectedConstraint["kind"], lang: Ret
   return { key, label: t(lang, condLabelKeys[key]), kind, protectedCategory: kind === "hard" ? "admission" : null };
 }
 
+const SEARCH_STATE_KEY = "gggo_search_state_v1";
+const SEARCH_SCROLL_KEY = "gggo_search_scroll_v1";
+const PLACE_CATEGORIES: RawPlace["category"][] = ["attraction", "restaurant", "cafe", "accommodation", "shopping"];
+const THEME_IDS = new Set<string>(THEME_PRESETS.map((theme) => theme.id));
+const PLACE_SET_IDS = new Set<string>(["night-spots", "rural-stays", "accessible"]);
+
+type PersistedSearchState = {
+  region: string;
+  categories: RawPlace["category"][];
+  hard: ConditionKey[];
+  preferences: ConditionKey[];
+  prepFilters: PreparationFilterKey[];
+  petSize: ConditionKey | null;
+  petWeight: string;
+  activeThemeId: ThemePresetId | null;
+  placeSet: "night-spots" | "rural-stays" | "accessible" | null;
+};
+
+// Restore the last search session (theme, filters, scroll) when the user comes
+// back from a place-detail page. Values are validated on read so a stale or
+// corrupted snapshot can never inject unknown filter keys into the UI.
+function readPersistedSearchState(): PersistedSearchState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedSearchState>;
+    if (!parsed || typeof parsed !== "object") return null;
+    const conditions = new Set<string>(conditionKeys);
+    const preparations = new Set<string>(preparationFilterKeys);
+    return {
+      region: typeof parsed.region === "string" ? parsed.region : "",
+      categories: Array.isArray(parsed.categories) ? parsed.categories.filter((category) => PLACE_CATEGORIES.includes(category)) : [],
+      hard: Array.isArray(parsed.hard) ? parsed.hard.filter((key) => conditions.has(key)) : [],
+      preferences: Array.isArray(parsed.preferences) ? parsed.preferences.filter((key) => conditions.has(key)) : [],
+      prepFilters: Array.isArray(parsed.prepFilters) ? parsed.prepFilters.filter((key) => preparations.has(key)) : [],
+      petSize: typeof parsed.petSize === "string" && conditions.has(parsed.petSize) ? parsed.petSize as ConditionKey : null,
+      petWeight: typeof parsed.petWeight === "string" ? parsed.petWeight : "",
+      activeThemeId: typeof parsed.activeThemeId === "string" && THEME_IDS.has(parsed.activeThemeId) ? parsed.activeThemeId as ThemePresetId : null,
+      placeSet: typeof parsed.placeSet === "string" && PLACE_SET_IDS.has(parsed.placeSet) ? parsed.placeSet as PersistedSearchState["placeSet"] : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 type CatalogApiResponse = {
   success: boolean;
-  data: { catalog: CatalogPage; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData>; translations?: Record<string, TranslationData>; lang?: string } | null;
+  data: { catalog: CatalogPage; placeHours?: Record<string, { useTime: string | null; restDate: string | null; fetchedAt: string | null }>; accessibility?: Record<string, AccessibilityData>; camping?: Record<string, CampingData>; congestion?: Record<string, CongestionData>; translations?: Record<string, TranslationData>; lang?: string } | null;
   error: { message: string } | null;
 };
 
@@ -62,8 +114,24 @@ async function fetchCatalog(url: string, signal?: AbortSignal): Promise<CatalogA
 
 type ClosureApiResponse = { success: boolean; closures: Record<string, PublicClosureStatus["closures"]> };
 
-export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOptions }: { initialCatalog: CatalogPage; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[] }) {
+function isMobileLayout(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches;
+}
+
+export function SearchExperience({ initialCatalog, initialAuxiliaryPlaces, regionOptions, placeCounts }: { initialCatalog: CatalogPage; initialAuxiliaryPlaces?: AuxiliaryPlace[]; regionOptions: RegionOption[]; placeCounts?: Record<string, number> }) {
   const { lang, dict } = useLang();
+  const [restoredSearchState] = useState(readPersistedSearchState);
+  // Capture the scroll target at mount: incoming scroll events from the
+  // router's own restoration would otherwise overwrite the stored value.
+  const [restoredScrollTop] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const value = Number(sessionStorage.getItem(SEARCH_SCROLL_KEY) ?? "0");
+      return Number.isFinite(value) && value > 0 ? value : null;
+    } catch {
+      return null;
+    }
+  });
   const [petSize, setPetSize] = useState<ConditionKey | null>(null);
   const [petWeight, setPetWeight] = useState("");
   const [dangerousDog, setDangerousDog] = useState(false);
@@ -73,11 +141,17 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [preferences, setPreferences] = useState<ConditionKey[]>([]);
   const [prepFilters, setPrepFilters] = useState<PreparationFilterKey[]>([]);
   const [page, setPage] = useState(1);
+  const [sortMode, setSortMode] = useState<"recommended" | "name" | "distance" | "rating">("recommended");
+  // Mobile-only: the theme/filters panel and the results panel are two snapped
+  // pages in a horizontal scroller. `mobilePanel` mirrors the visible page.
+  const [mobilePanel, setMobilePanel] = useState<"theme" | "results">("theme");
+  const [trackHeight, setTrackHeight] = useState<number | null>(null);
   const [catalog, setCatalog] = useState(initialCatalog);
-  const [catalogRequestKey, setCatalogRequestKey] = useState("||1||||ko");
-  const [loading, setLoading] = useState(false);
+  const [catalogRequestKey, setCatalogRequestKey] = useState("");
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [closureByPlaceId, setClosureByPlaceId] = useState<Record<string, PublicClosureStatus>>({});
+  const [placeHoursById, setPlaceHoursById] = useState<NonNullable<CatalogApiData["placeHours"]>>({});
   const [accessibilityByPlaceId, setAccessibilityByPlaceId] = useState<Record<string, AccessibilityData>>({});
   const [campingByPlaceId, setCampingByPlaceId] = useState<Record<string, CampingData>>({});
   const [congestionByPlaceId, setCongestionByPlaceId] = useState<Record<string, CongestionData>>({});
@@ -97,21 +171,151 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const [discoveryLoadedRegion, setDiscoveryLoadedRegion] = useState<string | null>(null);
   const [nearbyActivatedFor, setNearbyActivatedFor] = useState<string | null>(null);
   const [nearbyOpenFor, setNearbyOpenFor] = useState<string | null>(null);
+  // Manual origin (address search or geolocation) applied by the nearby picker.
+  const [nearbyOrigin, setNearbyOrigin] = useState<{ anchorId: string; origin: NearbyOrigin } | null>(null);
   const [regionalReviewedFor, setRegionalReviewedFor] = useState<string | null>(null);
   const [nearbyReviewedFor, setNearbyReviewedFor] = useState<string | null>(null);
   const [selectionCompleted, setSelectionCompleted] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState<ThemePresetId | null>(null);
-  const [placeSet, setPlaceSet] = useState<"night-spots" | null>(null);
+  const [placeSet, setPlaceSet] = useState<"night-spots" | "rural-stays" | "accessible" | null>(null);
   const [todaySafety, setTodaySafety] = useState<"safe" | "caution" | "indoor" | "unknown">("unknown");
+  const [themeResultPulse, setThemeResultPulse] = useState(false);
+  const [plannerTripDate, setPlannerTripDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [petProfile, setPetProfile] = useState<PetProfile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  // The ~1k nearby auxiliary places are not needed for first paint; they are
+  // fetched from /api/auxiliary the first time the nearby panel is opened so
+  // they stay out of the initial HTML/RSC payload.
+  const [auxiliaryPlaces, setAuxiliaryPlaces] = useState<AuxiliaryPlace[]>(initialAuxiliaryPlaces ?? []);
+  const [auxiliaryLoaded, setAuxiliaryLoaded] = useState(Boolean(initialAuxiliaryPlaces && initialAuxiliaryPlaces.length));
+  // "Recommended course": auto-picks 3 places for a theme, shown as a preview.
+  const [recommendedCourse, setRecommendedCourse] = useState<RecommendedCourseResult | null>(null);
+  const [recommendedResults, setRecommendedResults] = useState<MatchEvaluation[]>([]);
+  const [recommendedTheme, setRecommendedTheme] = useState<ThemePreset | null>(null);
+  const [recommendedRotate, setRecommendedRotate] = useState(0);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedNeedsRegion, setRecommendedNeedsRegion] = useState(false);
+  const themeFilterSnapshotRef = useRef<{
+    petSize: ConditionKey | null;
+    petWeight: string;
+    hard: ConditionKey[];
+    preferences: ConditionKey[];
+    categories: RawPlace["category"][];
+    prepFilters: PreparationFilterKey[];
+    placeSet: "night-spots" | "rural-stays" | "accessible" | null;
+  } | null>(null);
   const plannerDialogRef = useRef<HTMLDivElement>(null);
   const tripTrayRef = useRef<HTMLButtonElement>(null);
   const selectionCompleteRef = useRef<HTMLButtonElement>(null);
   const plannerReturnFocusRef = useRef<HTMLElement | null>(null);
   const supplementalChoicesRef = useRef<HTMLElement>(null);
   const resultsPanelRef = useRef<HTMLDivElement>(null);
+  const controlPanelRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const themeCatalogCacheRef = useRef(new Map<string, CatalogApiData>());
+  const themePrefetchKeyRef = useRef<string | null>(null);
+  const searchStatePersistSkipRef = useRef(false);
+  const initialScrollRestoredRef = useRef(false);
+  const scrollRestorePendingRef = useRef(true);
+
+  // Apply the restored session after hydration. Doing this in an effect keeps
+  // the server-rendered markup identical to the first client render.
+  useEffect(() => {
+    if (restoredSearchState) {
+      queueMicrotask(() => {
+        setRegion(restoredSearchState.region);
+        setCategories(restoredSearchState.categories);
+        setHard(restoredSearchState.hard);
+        setPreferences(restoredSearchState.preferences);
+        setPrepFilters(restoredSearchState.prepFilters);
+        setPetSize(restoredSearchState.petSize);
+        setPetWeight(restoredSearchState.petWeight);
+        setActiveThemeId(restoredSearchState.activeThemeId);
+        setPlaceSet(restoredSearchState.placeSet);
+      });
+      return;
+    }
+    try {
+      const legacyRegion = sessionStorage.getItem("gggo_region") || localStorage.getItem("gggo_region_last");
+      if (legacyRegion) queueMicrotask(() => setRegion(legacyRegion));
+    } catch {}
+  }, [restoredSearchState]);
+
+  // Persist the visible search session so browser back from a place page
+  // restores the theme and filters instead of the first-visit defaults.
+  useEffect(() => {
+    if (!searchStatePersistSkipRef.current) {
+      searchStatePersistSkipRef.current = true;
+      if (restoredSearchState) return;
+    }
+    try {
+      sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify({
+        region, categories, hard, preferences, prepFilters, petSize, petWeight, activeThemeId, placeSet,
+      } satisfies PersistedSearchState));
+      sessionStorage.setItem("gggo_region", region);
+      // Remember the last region across sessions (a fresh tab has no session state).
+      if (region.trim()) localStorage.setItem("gggo_region_last", region);
+    } catch {}
+  }, [region, categories, hard, preferences, prepFilters, petSize, petWeight, activeThemeId, placeSet, restoredSearchState]);
+
+  useEffect(() => {
+    let frame = 0;
+    // Once an internal link is clicked the router scrolls the outgoing page to
+    // the top; freezing further writes keeps the pre-navigation position.
+    let frozen = false;
+    const persistScroll = () => {
+      if (scrollRestorePendingRef.current) return;
+      try { sessionStorage.setItem(SEARCH_SCROLL_KEY, String(Math.round(window.scrollY))); } catch {}
+    };
+    const onScroll = () => {
+      if (frozen || frame) return;
+      frame = window.requestAnimationFrame(() => { frame = 0; if (!frozen) persistScroll(); });
+    };
+    const onDocumentClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest?.("a[href]");
+      const href = anchor?.getAttribute("href") ?? "";
+      if (!href.startsWith("/") || href.startsWith("//")) return;
+      // Navigating away: stop pending restoration and save immediately.
+      scrollRestorePendingRef.current = false;
+      if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
+      persistScroll();
+      frozen = true;
+    };
+    // Failsafe: never block scroll persistence if the catalog request stalls.
+    const failsafe = globalThis.setTimeout(() => { scrollRestorePendingRef.current = false; }, 4000);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("click", onDocumentClick, true);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("click", onDocumentClick, true);
+      if (frame) window.cancelAnimationFrame(frame);
+      globalThis.clearTimeout(failsafe);
+    };
+  }, []);
+
+  // Load nearby auxiliary places on demand (first nearby activation) so the
+  // initial RSC payload stays small. A failure simply leaves the nearby list
+  // empty, which the existing zero-state copy already covers.
+  useEffect(() => {
+    if (!nearbyActivatedFor || auxiliaryLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/auxiliary");
+        const body = await response.json() as { success: boolean; data: AuxiliaryPlace[] | null };
+        if (!cancelled && response.ok && body.success && Array.isArray(body.data)) {
+          setAuxiliaryPlaces(body.data);
+          setAuxiliaryLoaded(true);
+        }
+      } catch {
+        // Keep the panel usable; a later activation retries.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nearbyActivatedFor, auxiliaryLoaded]);
+
   const constraints = useMemo(() => {
     const seen = new Set<string>();
     const result: SelectedConstraint[] = [];
@@ -128,9 +332,52 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const isBrowsing = constraints.length === 0;
   const hardKeys = useMemo(() => constraints.filter((item) => item.kind === "hard").map((item) => item.key), [constraints]);
   const preferenceKeys = useMemo(() => constraints.filter((item) => item.kind === "preference").map((item) => item.key), [constraints]);
-  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}|${placeSet ?? ""}`;
+  const requestKey = `${hardKeys.join(",")}|${preferenceKeys.join(",")}|${page}|${region.trim()}|${categories.join(",")}|${prepFilters.join(",")}|${lang}|${placeSet ?? ""}|${sortMode}`;
   const catalogIsCurrent = catalogRequestKey === requestKey;
+
+  // Restore the previous scroll position once the restored results render.
+  useEffect(() => {
+    if (!restoredSearchState) {
+      scrollRestorePendingRef.current = false;
+      return;
+    }
+    if (initialScrollRestoredRef.current || !catalogIsCurrent || loading) return;
+    initialScrollRestoredRef.current = true;
+    if (!restoredScrollTop) {
+      scrollRestorePendingRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    const cancel = () => {
+      cancelled = true;
+      scrollRestorePendingRef.current = false;
+    };
+    const applyScroll = () => {
+      if (cancelled) return;
+      if (Math.abs(window.scrollY - restoredScrollTop) > 24) {
+        window.scrollTo({ top: restoredScrollTop, behavior: "auto" });
+      }
+    };
+    const interactionEvents: Array<keyof WindowEventMap> = ["wheel", "touchstart", "pointerdown", "keydown"];
+    for (const eventName of interactionEvents) window.addEventListener(eventName, cancel, { passive: true, once: true });
+    // The list can grow as data and images settle; keep re-applying the target
+    // until the layout is stable or the user takes over.
+    const timers = [0, 120, 500, 1200].map((delay) => globalThis.setTimeout(() => {
+      applyScroll();
+      if (delay === 1200) scrollRestorePendingRef.current = false;
+    }, delay));
+
+    return () => {
+      cancelled = true;
+      for (const eventName of interactionEvents) window.removeEventListener(eventName, cancel);
+      for (const timer of timers) globalThis.clearTimeout(timer);
+      scrollRestorePendingRef.current = false;
+    };
+  }, [restoredSearchState, restoredScrollTop, catalogIsCurrent, loading]);
   const nearbyAnchor = planPlaces[0];
+  const activeNearbyOrigin = nearbyAnchor && nearbyOrigin?.anchorId === nearbyAnchor.id ? nearbyOrigin.origin : null;
+  const nearbyReferenceName = activeNearbyOrigin?.name ?? nearbyAnchor?.name ?? "";
   const selectedPlaceIds = useMemo(() => new Set(planPlaces.map((place) => place.id)), [planPlaces]);
   const auxiliaryPlaceIds = useMemo(() => new Set(auxiliaryPlaces.map((place) => place.id)), [auxiliaryPlaces]);
   const selectedActivityIds = useMemo(
@@ -147,7 +394,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
   const nearbyReviewComplete = !nearbyReviewRequired || nearbyReviewedFor === nearbyAnchor?.id;
   const supplementalReviewTotal = Number(regionalReviewRequired) + Number(nearbyReviewRequired);
   const supplementalReviewDone = Number(regionalReviewComplete && regionalReviewRequired) + Number(nearbyReviewComplete && nearbyReviewRequired);
-  const hasEnoughPlaces = planPlaces.length >= 2;
+  const hasEnoughPlaces = planPlaces.length >= 1;
   const visibleResults = catalogIsCurrent ? catalog.results : [];
   const openPlanner = useCallback(() => {
     plannerReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : tripTrayRef.current;
@@ -158,8 +405,29 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     globalThis.setTimeout(() => (plannerReturnFocusRef.current ?? tripTrayRef.current)?.focus(), 0);
   }, []);
 
+  const getThemeRequestKey = useCallback((theme: ThemePreset) => {
+    return `${theme.petSize ?? ""}||1|${region.trim()}|${theme.categories.join(",")}|${theme.prepFilters.join(",")}|${lang}|${theme.placeSet ?? ""}`;
+  }, [lang, region]);
+
   useEffect(() => {
     const controller = new AbortController();
+    const cachedThemeData = activeThemeId ? themeCatalogCacheRef.current.get(requestKey) : undefined;
+    if (cachedThemeData) {
+      queueMicrotask(() => {
+        if (controller.signal.aborted) return;
+        setCatalog(cachedThemeData.catalog);
+        setCatalogRequestKey(requestKey);
+        setPlaceHoursById(cachedThemeData.placeHours ?? {});
+        setAccessibilityByPlaceId(cachedThemeData.accessibility ?? {});
+        setCampingByPlaceId(cachedThemeData.camping ?? {});
+        setCongestionByPlaceId(cachedThemeData.congestion ?? {});
+        setTranslationByPlaceId(cachedThemeData.translations ?? {});
+        setClosureByPlaceId({});
+        setLoading(false);
+        setErrorMessage(null);
+      });
+      return () => controller.abort();
+    }
     const parameters = new URLSearchParams({ page: String(page) });
     if (hardKeys.length > 0) parameters.set("hard", hardKeys.join(","));
     if (preferenceKeys.length > 0) parameters.set("preferences", preferenceKeys.join(","));
@@ -167,6 +435,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     if (categories.length > 0) parameters.set("categories", categories.join(","));
     if (prepFilters.length > 0) parameters.set("prep", prepFilters.join(","));
     if (placeSet) parameters.set("placeSet", placeSet);
+    if (sortMode !== "recommended") parameters.set("sort", sortMode);
     if (lang !== "ko") parameters.set("lang", lang);
     const catalogUrl = `/api/places?${parameters}`;
     queueMicrotask(() => {
@@ -179,6 +448,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (controller.signal.aborted) return;
         setCatalog(data.catalog);
         setCatalogRequestKey(requestKey);
+        setPlaceHoursById(data.placeHours ?? {});
+        if (activeThemeId) themeCatalogCacheRef.current.set(requestKey, data);
         setAccessibilityByPlaceId(data.accessibility ?? {});
         setCampingByPlaceId(data.camping ?? {});
         setCongestionByPlaceId(data.congestion ?? {});
@@ -203,7 +474,40 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, requestKey, dict]);
+  }, [activeThemeId, hardKeys, preferenceKeys, page, region, categories, prepFilters, lang, placeSet, sortMode, requestKey, dict]);
+
+  useEffect(() => {
+    if (activeThemeId || themePrefetchKeyRef.current === `${region.trim()}|${lang}`) return;
+    themePrefetchKeyRef.current = `${region.trim()}|${lang}`;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        for (const theme of THEME_PRESETS) {
+          if (controller.signal.aborted) return;
+          const key = getThemeRequestKey(theme);
+          if (themeCatalogCacheRef.current.has(key)) continue;
+          const parameters = new URLSearchParams({ page: "1" });
+          if (theme.petSize) parameters.set("hard", theme.petSize);
+          if (region.trim()) parameters.set("region", region.trim());
+          if (theme.categories.length > 0) parameters.set("categories", theme.categories.join(","));
+          if (theme.prepFilters.length > 0) parameters.set("prep", theme.prepFilters.join(","));
+          if (theme.placeSet) parameters.set("placeSet", theme.placeSet);
+          if (lang !== "ko") parameters.set("lang", lang);
+          try {
+            const data = await fetchCatalog(`/api/places?${parameters}`, controller.signal);
+            if (!controller.signal.aborted) themeCatalogCacheRef.current.set(key, data);
+          } catch {
+            if (controller.signal.aborted) return;
+          }
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 350));
+        }
+      })();
+    }, 1800);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeThemeId, getThemeRequestKey, lang, region]);
 
   const inFlightDiscoveryRef = useRef<string | null>(null);
   useEffect(() => {
@@ -343,42 +647,209 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     const weight = Number(value);
     const newSize: ConditionKey | null = !value || !Number.isFinite(weight) || weight <= 0 ? null : weight < 10 ? "smallDog" : weight < 25 ? "mediumDog" : "largeDog";
     setHard((current) => {
-      const withoutOld = petSize && petSize !== newSize ? current.filter((item) => item !== petSize) : current;
-      const next = newSize && !withoutOld.includes(newSize) ? [...withoutOld, newSize] : withoutOld;
-      return [...new Set(next)];
+      const withoutSize = current.filter((item) => !conditionKeys.includes(item));
+      return newSize ? [...withoutSize, newSize] : withoutSize;
     });
     setPetSize(newSize);
-  }, [petSize]);
+  }, []);
   const toggleCategory = (category: RawPlace["category"]) => {
     setPage(1);
     setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
   };
+  const showResultsPanel = useCallback(() => {
+    if (isMobileLayout()) {
+      const track = trackRef.current;
+      track?.scrollTo({ left: track.clientWidth, behavior: "smooth" });
+      setMobilePanel("results");
+      return;
+    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    resultsPanelRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, []);
+  const showThemePanel = useCallback(() => {
+    if (isMobileLayout()) {
+      trackRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+      setMobilePanel("theme");
+      return;
+    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("search")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, []);
+
+  // Mirror the scrolled page back into state so the toggle labels stay in sync.
+  const handleTrackScroll = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || !isMobileLayout()) return;
+    const index = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    setMobilePanel(index <= 0 ? "theme" : "results");
+  }, []);
+
+  // Size the horizontal scroller to the visible panel so the off-screen page
+  // never adds empty height to the page.
+  useEffect(() => {
+    const active = mobilePanel === "results" ? resultsPanelRef.current : controlPanelRef.current;
+    if (!active) return;
+    const update = () => {
+      if (isMobileLayout()) setTrackHeight(active.offsetHeight);
+      else setTrackHeight(null);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(active);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [mobilePanel]);
+
   const handleApplyTheme = useCallback((theme: ThemePreset) => {
     track("theme_apply", theme.id);
+    if (!activeThemeId) {
+      themeFilterSnapshotRef.current = {
+        petSize,
+        petWeight,
+        hard: [...hard],
+        preferences: [...preferences],
+        categories: [...categories],
+        prepFilters: [...prepFilters],
+        placeSet,
+      };
+    }
     setActiveThemeId(theme.id);
     setPlaceSet(theme.placeSet ?? null);
     setPage(1);
-    if (theme.petSize) {
-      setPetSize(theme.petSize);
-      setHard((current) => {
-        const withoutSize = current.filter((item) => !conditionKeys.includes(item));
-        return theme.petSize ? [...withoutSize, theme.petSize] : withoutSize;
-      });
-    }
+    setPetSize(theme.petSize);
+    setPetWeight("");
+    setHard(theme.petSize ? [theme.petSize] : []);
+    setPreferences([]);
     setCategories(theme.categories);
     setPrepFilters(theme.prepFilters);
+    setThemeResultPulse(true);
+    globalThis.setTimeout(() => setThemeResultPulse(false), 900);
     globalThis.setTimeout(() => {
+      if (isMobileLayout()) {
+        showResultsPanel();
+        return;
+      }
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       resultsPanelRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
     }, 80);
-  }, []);
+  }, [activeThemeId, categories, hard, petSize, petWeight, placeSet, preferences, prepFilters, showResultsPanel]);
   const handleClearTheme = useCallback(() => {
+    const snapshot = themeFilterSnapshotRef.current;
     setActiveThemeId(null);
-    setPlaceSet(null);
     setPage(1);
-    setCategories([]);
-    setPrepFilters([]);
+    setPetSize(snapshot?.petSize ?? null);
+    setPetWeight(snapshot?.petWeight ?? "");
+    setHard(snapshot?.hard ?? []);
+    setPreferences(snapshot?.preferences ?? []);
+    setCategories(snapshot?.categories ?? []);
+    setPrepFilters(snapshot?.prepFilters ?? []);
+    setPlaceSet(snapshot?.placeSet ?? null);
+    themeFilterSnapshotRef.current = null;
   }, []);
+
+  const toPlanPlaceFromResult = useCallback((result: MatchEvaluation): PlanPlace => ({
+    id: result.place.id,
+    name: result.place.name,
+    address: result.place.address,
+    category: result.place.category,
+    coordinates: result.place.coordinates,
+    policySourceText: result.place.policySource.sourceText,
+    policySourceUrl: result.place.policySource.sourceUrl,
+    policyObservedAt: result.place.policySource.observedAt,
+    exact: result.exact,
+    operatingHours: placeHoursById[result.place.id] ?? null,
+  }), [placeHoursById]);
+
+  const handleBuildRecommendedCourse = useCallback(async (theme: ThemePreset, rotate = 0, regionOverride?: string) => {
+    setRecommendedTheme(theme);
+    setRecommendedRotate(rotate);
+    setRecommendedCourse(null);
+    const targetRegion = (regionOverride ?? region).trim();
+    if (!targetRegion) {
+      setRecommendedResults([]);
+      setRecommendedNeedsRegion(true);
+      return;
+    }
+    setRecommendedNeedsRegion(false);
+    setRecommendedLoading(true);
+    try {
+      const parameters = new URLSearchParams({ page: "1", region: targetRegion });
+      if (theme.petSize) parameters.set("hard", theme.petSize);
+      if (theme.categories.length > 0) parameters.set("categories", theme.categories.join(","));
+      if (theme.prepFilters.length > 0) parameters.set("prep", theme.prepFilters.join(","));
+      if (theme.placeSet) parameters.set("placeSet", theme.placeSet);
+      const data = await fetchCatalog(`/api/places?${parameters}`);
+      const candidates = data.catalog.results;
+      const origin = regionCenter(targetRegion) ?? candidates[0]?.place.coordinates ?? null;
+      if (!origin) {
+        setRecommendedResults([]);
+        setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "이 지역의 좌표를 찾지 못했어요." });
+        return;
+      }
+      const result = buildRecommendedCourse(
+        candidates.map((candidate) => ({ id: candidate.place.id, name: candidate.place.name, category: candidate.place.category, coordinates: candidate.place.coordinates })),
+        origin,
+        { maxStops: 3, rotate },
+      );
+      setRecommendedCourse(result);
+      setRecommendedResults(result.success ? result.stops.map((stop) => candidates.find((candidate) => candidate.place.id === stop.placeId)).filter((candidate): candidate is MatchEvaluation => Boolean(candidate)) : []);
+    } catch {
+      setRecommendedResults([]);
+      setRecommendedCourse({ success: false, code: "NOT_ENOUGH", message: "추천 코스를 불러오지 못했어요." });
+    } finally {
+      setRecommendedLoading(false);
+    }
+  }, [region]);
+
+  // Role separation: the theme card filters the list; this button builds a
+  // separate course from the theme's conditions WITHOUT selecting the theme, so
+  // the two are clearly different outcomes (list vs. route).
+  const startRecommendedCourse = useCallback((theme: ThemePreset) => {
+    void handleBuildRecommendedCourse(theme, 0);
+  }, [handleBuildRecommendedCourse]);
+
+  const addRecommendedToPlan = useCallback(() => {
+    setPlanPlaces((current) => {
+      const ids = new Set(current.map((place) => place.id));
+      const additions = recommendedResults.filter((result) => !ids.has(result.place.id)).map(toPlanPlaceFromResult);
+      return [...current, ...additions];
+    });
+    setSelectionCompleted(false);
+    setCourseConfirmed(false);
+  }, [recommendedResults, toPlanPlaceFromResult]);
+
+  const buildPlanFromRecommended = useCallback(() => {
+    addRecommendedToPlan();
+    openPlanner();
+  }, [addRecommendedToPlan, openPlanner]);
+
+  // Inline region choice inside the recommended-course card: apply the region
+  // (same resets as the region picker) and immediately build the course.
+  const handleRegionChange = useCallback((value: string) => {
+    setPage(1);
+    track("region_search", value);
+    setRegion(value);
+    setTrails([]);
+    setFestivals([]);
+    setRuralVillages([]);
+    setRuralFarmstays([]);
+    setPetCafes([]);
+    setDiscoveryLoadedRegion(null);
+    setDiscoveryOpen(false);
+    setRegionalReviewedFor(null);
+    setCourseConfirmed(false);
+  }, []);
+
+  const selectRecommendedRegion = useCallback((value: string) => {
+    setRecommendedNeedsRegion(false);
+    handleRegionChange(value);
+    if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate, value);
+  }, [handleRegionChange, recommendedTheme, recommendedRotate, handleBuildRecommendedCourse]);
+
+  const recommendedAddedCount = recommendedResults.filter((result) => planPlaces.some((place) => place.id === result.place.id)).length;
 
   const filtersActive = hasActiveFilters({ region, categories, hard, preferences, prepFilters, page });
   const recordView = useCallback((place: Pick<RawPlace, "id" | "name" | "address" | "category">) => {
@@ -417,6 +888,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setPetWeight("");
     setActiveThemeId(null);
     setPlaceSet(null);
+    themeFilterSnapshotRef.current = null;
     setTrails([]);
     setFestivals([]);
     setRuralVillages([]);
@@ -433,16 +905,20 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     if (!saved) return;
     queueMicrotask(() => {
       setPetProfile(saved);
-      if (saved.weight) {
-        changeWeight(saved.weight);
-      } else if (saved.size) {
-        selectSize(saved.size);
+      // A restored session keeps the theme/manual size the user left behind;
+      // the saved profile only prefills a fresh visit.
+      if (!restoredSearchState) {
+        if (saved.weight) {
+          changeWeight(saved.weight);
+        } else if (saved.size) {
+          selectSize(saved.size);
+        }
       }
       if (saved.dangerousDog) {
         setDangerousDog(true);
       }
     });
-  }, [changeWeight, selectSize]);
+  }, [changeWeight, selectSize, restoredSearchState]);
 
   const handleSavePetProfile = useCallback((profile: PetProfile) => {
     setPetProfile(profile);
@@ -454,7 +930,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setDangerousDog(profile.dangerousDog);
   }, [changeWeight, selectSize]);
 
-  const resultCount = isBrowsing ? catalog.searchableCount : catalog.confirmedMatchCount;
+  const resultCount = isBrowsing ? catalog.filteredCount : catalog.confirmedMatchCount;
 
   const finishChoosing = useCallback(() => {
     if (!hasEnoughPlaces) return;
@@ -508,7 +984,10 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
       category: place.category,
       coordinates: place.coordinates,
       policySourceText: place.policySource.sourceText,
+      policySourceUrl: place.policySource.sourceUrl,
+      policyObservedAt: place.policySource.observedAt,
       exact: result.exact,
+      operatingHours: placeHoursById[place.id] ?? null,
     };
     if (isRemovingNearbyAnchor) { setNearbyActivatedFor(null); setNearbyOpenFor(null); setNearbyReviewedFor(null); }
     if (isRemovingLastPlace) {
@@ -517,7 +996,7 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
     setSelectionCompleted(false);
     setCourseConfirmed(false);
     setPlanPlaces((current) => current.some((p) => p.id === place.id) ? current.filter((p) => p.id !== place.id) : [...current, planPlace]);
-  }, [planPlaces, planActivities.length, closePlanner]);
+  }, [planPlaces, planActivities.length, closePlanner, placeHoursById]);
 
   const removePlanPlace = useCallback((id: string) => {
     if (planPlaces[0]?.id === id) { setNearbyActivatedFor(null); setNearbyOpenFor(null); setNearbyReviewedFor(null); }
@@ -597,7 +1076,8 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
 
   return (
     <section className="search-workspace" id="search" aria-label={dict.findPlace}>
-      <div className="control-panel">
+      <div className="search-track" ref={trackRef} onScroll={handleTrackScroll} style={trackHeight ? { height: trackHeight } : undefined}>
+      <div className="control-panel" ref={controlPanelRef}>
         {petProfile ? (
           <div className="pet-profile-bar" role="region" aria-label="내 반려견 맞춤 설정">
             <div className="pet-profile-info">
@@ -638,19 +1118,38 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
           <div><p className="section-kicker section-step">{dict.stepSearch}</p><h2>{dict.searchHeading}</h2></div>
           <p>{dict.searchDesc1} <span className="keep-together">{dict.searchDesc2}</span> <span className="keep-together">{dict.searchDesc3}</span></p>
         </header>
-        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} todaySafetyLevel={todaySafety} />
+        {placeCounts ? (
+          <RegionCoursePicker region={region} regionOptions={regionOptions} placeCounts={placeCounts} onRegionChange={handleRegionChange} />
+        ) : null}
+        <ThemeCurations activeThemeId={activeThemeId} onApplyTheme={handleApplyTheme} onClearTheme={handleClearTheme} onBuildCourse={startRecommendedCourse} onShowResults={showResultsPanel} todaySafetyLevel={todaySafety} />
+        <RecommendedCourseCard
+          course={recommendedCourse}
+          loading={recommendedLoading}
+          themeTitle={recommendedTheme ? (lang === "ko" ? recommendedTheme.titleKo : recommendedTheme.titleEn) : ""}
+          addedCount={recommendedAddedCount}
+          needsRegion={recommendedNeedsRegion}
+          regionOptions={regionOptions}
+          onSelectRegion={selectRecommendedRegion}
+          onAdd={addRecommendedToPlan}
+          onBuildPlan={buildPlanFromRecommended}
+          onRetry={() => { if (recommendedTheme) void handleBuildRecommendedCourse(recommendedTheme, recommendedRotate + 1); }}
+          onClose={() => { setRecommendedCourse(null); setRecommendedResults([]); setRecommendedNeedsRegion(false); }}
+        />
+        <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} petName={petProfile?.name} targetDate={plannerTripDate ?? undefined} onSafetyLevel={setTodaySafety} />
         <aside className="filter-panel">
-          <WeatherSafeWidget region={region} themeActive={activeThemeId !== null} onSafetyLevel={setTodaySafety} />
-          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={(value) => { setPage(1); track("region_search", value); setRegion(value); setTrails([]); setFestivals([]); setRuralVillages([]); setRuralFarmstays([]); setPetCafes([]); setDiscoveryLoadedRegion(null); setDiscoveryOpen(false); setRegionalReviewedFor(null); setCourseConfirmed(false); }} onTogglePrepFilter={togglePrepFilter} />
+          <ConditionPicker region={region} regionOptions={regionOptions} prepFilters={prepFilters} onRegionChange={handleRegionChange} onTogglePrepFilter={togglePrepFilter} />
           <PetProfilePanel selected={petSize} weight={petWeight} dangerousDog={dangerousDog} onSelect={selectSize} onWeightChange={changeWeight} onDangerousDogChange={setDangerousDog} />
           <DestinationPanel selectedCategories={categories} onToggleCategory={toggleCategory} />
         </aside>
       </div>
-      <div ref={resultsPanelRef} className="results-panel interactive-results" aria-busy={loading}>
+      <div ref={resultsPanelRef} className={`results-panel interactive-results ${themeResultPulse ? "theme-result-pulse" : ""}`} aria-busy={loading}>
+        <div className="mobile-panel-nav">
+          <button type="button" className="mobile-panel-back" onClick={showThemePanel}>← {lang === "ko" ? "테마·조건 보기" : lang === "zh" ? "查看主题与条件" : "Theme & filters"}</button>
+        </div>
         <div className={`results-layout ${plannerOpen ? "planner-open" : ""}`}>
           <div className="results-primary">
             <div className="result-heading">
-              <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{!catalogIsCurrent ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
+              <div><p className="section-kicker section-step">{dict.stepResults}</p><h2>{errorMessage ? dict.loadingErrorTitle : !catalogIsCurrent ? dict.checkingConditions : isBrowsing ? t(lang, "browseCount", { n: resultCount.toLocaleString("ko-KR") }) : resultCount > 0 ? t(lang, "confirmedCount", { n: resultCount.toLocaleString("ko-KR") }) : dict.noConfirmedYet}</h2></div>
               {catalogIsCurrent ? <p className="result-count" aria-live="polite"><strong>{resultCount.toLocaleString("ko-KR")}</strong><span>{dict.places}</span></p> : null}
             </div>
             <div className="view-mode-toggle-bar">
@@ -689,6 +1188,16 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             <div className="match-bar-row">
               <div className="match-bar"><strong>{isBrowsing ? dict.browsingFilter : dict.allApplied}</strong><div className="active-query" aria-label={dict.currentConditions}>{region.trim() ? <span key="region">{region.trim()}</span> : null}{categories.map((category) => <span key={`cat-${category}`}>{category}</span>)}{isBrowsing && !region.trim() && categories.length === 0 && prepFilters.length === 0 ? <span key="all">{dict.allPlaces}</span> : constraints.map((item, idx) => <span key={`c-${idx}`}>{item.label}{item.kind === "preference" ? <small>{dict.preference}</small> : null}</span>)}{prepFilters.map((key) => <span key={`prep-${key}`}>{t(lang, prepFilterKeys[key])}</span>)}</div>{filtersActive ? <button type="button" className="filter-reset-button" onClick={handleResetFilters}>⟲ <span>{dict.resetFilters}</span></button> : null}</div>
               <RecentlyViewed onOpen={handleOpenViewed} />
+            </div>
+            <div className="sort-control" role="group" aria-label={lang === "ko" ? "정렬" : lang === "zh" ? "排序" : "Sort"}>
+              {([
+                ["recommended", lang === "ko" ? "추천순" : lang === "zh" ? "推荐" : "Recommended"],
+                ["name", lang === "ko" ? "이름순" : lang === "zh" ? "名称" : "Name"],
+                ["distance", lang === "ko" ? "거리순" : lang === "zh" ? "距离" : "Distance"],
+                ["rating", lang === "ko" ? "별표순" : lang === "zh" ? "评分" : "Rating"],
+              ] as const).map(([value, label]) => (
+                <button key={value} type="button" className={`sort-chip ${sortMode === value ? "active" : ""}`} aria-pressed={sortMode === value} onClick={() => { setSortMode(value); setPage(1); }}>{label}</button>
+              ))}
             </div>
             {(loading || !catalogIsCurrent) && !errorMessage ? <p className="catalog-status" role="status">{dict.loadingMessage}</p> : null}
             {errorMessage ? <p className="catalog-error" role="alert">{errorMessage}</p> : null}
@@ -729,15 +1238,15 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                           >
                             <ResultCard result={result} dangerousDog={dangerousDog} closureStatus={closureByPlaceId[result.place.id]} accessibility={accessibilityByPlaceId[result.place.id]} camping={campingByPlaceId[result.place.id]} congestion={congestionByPlaceId[result.place.id]} translation={translationByPlaceId[result.place.id]} lang={lang} />
                             <div className="place-action-row">
-                              <a
+                              <Link
                                 className="plan-add-button"
                                 href={`/night-view?lat=${result.place.coordinates.latitude}&lng=${result.place.coordinates.longitude}&name=${encodeURIComponent(result.place.name)}`}
                                 title={lang === "ko" ? "이 장소를 3D로 둘러보기" : "Explore this spot in 3D"}
                                 style={{ textDecoration: "none", textAlign: "center", background: "#1e2a4a", borderColor: "#31437a", color: "#dbe4ff" }}
                               >
                                 🏙️ {lang === "ko" ? "3D 보기" : "3D View"}
-                              </a>
-                              <a className="plan-add-button" href={`/place/${encodeURIComponent(result.place.id)}`} title={lang === "ko" ? "장소 상세 정보" : "Place details"} style={{ textDecoration: "none", textAlign: "center", background: "#fff", color: "#334155" }}>🔎 {lang === "ko" ? "상세" : "Info"}</a>
+                              </Link>
+                              <Link className="plan-add-button secondary" href={`/place/${encodeURIComponent(result.place.id)}`} title={lang === "ko" ? "장소 상세 정보" : "Place details"}>🔎 {lang === "ko" ? "상세" : "Info"}</Link>
                               <button type="button" className={`plan-add-button ${isSaved ? "added" : ""}`} onClick={() => togglePlanPlace(result)} aria-pressed={isSaved} aria-label={t(lang, isSaved ? "planRemoveNamed" : "planAddNamed", { name: accessibleName })}><span aria-hidden="true">{isSaved ? "✓" : "+"}</span>{isSaved ? dict.planAdded : dict.planAdd}</button>
                             </div>
                             {isSaved ? (
@@ -828,8 +1337,13 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
                   <details key={nearbyAnchor.id} className="context-disclosure nearby-disclosure" open={nearbyOpenFor === nearbyAnchor.id}>
                     <summary onClick={(event) => { event.preventDefault(); const willOpen = nearbyOpenFor !== nearbyAnchor.id; setNearbyOpenFor(willOpen ? nearbyAnchor.id : null); if (willOpen) setNearbyActivatedFor(nearbyAnchor.id); }}><span><strong>{dict.nearbySaved}</strong><small>{dict.nearbySavedNote}</small>{nearbyReviewComplete ? <em>{dict.supplementalReviewed}</em> : null}</span><b aria-hidden="true">{nearbyReviewComplete ? "✓" : "＋"}</b></summary>
                     {nearbyActivatedFor === nearbyAnchor.id ? <div className="context-disclosure-body extensions">
-                      {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} /> : null}
-                      <NearbyServices origin={nearbyAnchor.coordinates} referenceName={nearbyAnchor.name} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} />
+                      <NearbyOriginPicker
+                        referenceName={nearbyAnchor.name}
+                        activeOrigin={activeNearbyOrigin}
+                        onOriginChange={(origin) => setNearbyOrigin(origin ? { anchorId: nearbyAnchor.id, origin } : null)}
+                      />
+                      {auxiliaryPlaces.length > 0 ? <NearbyCatalog places={auxiliaryPlaces} fallbackOrigin={activeNearbyOrigin?.coordinates ?? nearbyAnchor.coordinates} referenceName={nearbyReferenceName} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} /> : null}
+                      <NearbyServices origin={activeNearbyOrigin?.coordinates ?? nearbyAnchor.coordinates} referenceName={nearbyReferenceName} selectedPlaceIds={selectedPlaceIds} onTogglePlace={toggleSupplementalPlace} />
                       <button type="button" className="supplemental-review-button" onClick={completeNearbyReview}>{nearbySelectionCount > 0 ? t(lang, "supplementalConfirmCount", { n: nearbySelectionCount }) : dict.supplementalConfirmNone}</button>
                     </div> : null}
                   </details>
@@ -851,11 +1365,12 @@ export function SearchExperience({ initialCatalog, auxiliaryPlaces, regionOption
             {courseConfirmed && hasPlanItems ? (
               <div ref={plannerDialogRef} tabIndex={-1} className="trip-board-plan" role={plannerOpen ? "dialog" : undefined} aria-modal={plannerOpen ? true : undefined} aria-label={dict.tripBoardTitle}>
                 {plannerOpen ? <div className="mobile-planner-heading"><strong>{dict.tripBoardTitle}</strong><button type="button" autoFocus aria-label={dict.closeTripBoard} onClick={closePlanner}>×</button></div> : null}
-                <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onDwellChange={changePlaceDwell} onClear={clearPlanPlaces} />
+                <PlanBuilder selectedPlaces={planPlaces} selectedActivities={planActivities} generateRequest={planGenerationRequest} courseConfirmed={courseConfirmed} onRemove={removePlanPlace} onRemoveActivity={removePlanActivity} onDwellChange={changePlaceDwell} onTripDateChange={setPlannerTripDate} onClear={clearPlanPlaces} />
               </div>
             ) : null}
           </aside>
         </div>
+      </div>
       </div>
       {hasPlanItems ? <button ref={tripTrayRef} type="button" className="saved-trip-tray" disabled={!hasEnoughPlaces && !courseConfirmed} aria-label={courseConfirmed ? dict.openTripBoard : hasEnoughPlaces ? dict.selectionDone : t(lang, "savedTrayCount", { n: planItemCount })} onClick={courseConfirmed ? openPlanner : finishChoosing}><span><strong>{dict.savedTray}</strong><small>{planPlaces[0]?.name ?? planActivities[0]?.title}{planItemCount > 1 ? ` +${planItemCount - 1}` : ""} · {planPlaces.length === 0 ? dict.selectionDoneNeed : !hasEnoughPlaces ? dict.selectionDoneNeedMore : courseConfirmed ? dict.openTripBoard : selectionCompleted ? dict.savedTrayNext : dict.selectionDone}</small></span><b>{planItemCount}</b></button> : null}
       <FloatingQuickNav viewMode={viewMode} onToggleViewMode={() => setViewMode((mode) => mode === "list" ? "map" : "list")} />

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildCatalogPage, CATALOG_PAGE_SIZE, clearCatalogCache, getCatalogCacheStats } from "@/data/catalog";
+import { buildCatalogPage, CATALOG_PAGE_SIZE, clearCatalogCache, getCatalogCacheStats, getCatalogCoverage } from "@/data/catalog";
 import { FixturePlaceProvider } from "@/data/providers/fixture-provider";
 import type { ProviderSnapshot } from "@/data/contracts";
 import type { SelectedConstraint } from "@/domain/types";
@@ -27,6 +27,17 @@ async function largeSnapshot(): Promise<ProviderSnapshot> {
 
 describe("catalog pagination", () => {
   beforeEach(() => clearCatalogCache());
+
+  it("summarizes completeness from the full downloaded snapshot, not a page or a placeholder", async () => {
+    const snapshot = await largeSnapshot();
+    expect(getCatalogCoverage(snapshot)).toEqual({
+      sourceTotalCount: 120,
+      searchableCount: 60,
+      detailCoverage: 60,
+      pendingDetailCount: 60,
+      failedDetailCount: 0,
+    });
+  });
 
   it("reports the global total while returning only one 50-row page", async () => {
     const page = buildCatalogPage(await largeSnapshot(), { hard: [], preferences: [], page: 1 });
@@ -79,6 +90,28 @@ describe("catalog pagination", () => {
     const page = buildCatalogPage(snapshot, { hard: [hard("smallDog"), hard("largeDog")], preferences: [], page: 1 });
     expect(page).toMatchObject({ confirmedMatchCount: 1, confirmedNonMatchCount: 1, unverifiedCount: 1, unknownPlaceCount: 1 });
     expect(page.confirmedMatchCount + page.confirmedNonMatchCount + page.unverifiedCount).toBe(3);
+  });
+
+  it("sorts the whole result set by name, distance and rating", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const base = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...base, id: "p-c", name: "다나", coordinates: { latitude: 37.6, longitude: 127.0 }, petDetailStatus: "fetched", petPolicy: { ...base.petPolicy, sourceText: "동반 가능" } },
+        { ...base, id: "p-a", name: "가나", coordinates: { latitude: 37.5, longitude: 127.0 }, petDetailStatus: "fetched", petPolicy: { ...base.petPolicy, sourceText: "동반 가능" } },
+        { ...base, id: "p-b", name: "나다", coordinates: { latitude: 37.55, longitude: 127.0 }, petDetailStatus: "fetched", petPolicy: { ...base.petPolicy, sourceText: "동반 가능" } },
+      ],
+      auxiliaryPlaces: [],
+    };
+    const browsing = { hard: [], preferences: [], page: 1 };
+
+    expect(buildCatalogPage(snapshot, { ...browsing, sort: "name" }).results.map((r) => r.place.id)).toEqual(["p-a", "p-b", "p-c"]);
+    expect(buildCatalogPage(snapshot, { ...browsing, sort: "distance", origin: { latitude: 37.5, longitude: 127.0 } }).results.map((r) => r.place.id)).toEqual(["p-a", "p-b", "p-c"]);
+
+    const ratings = new Map([["p-b", { count: 3, average: 5 }], ["p-c", { count: 1, average: 4 }]]);
+    expect(buildCatalogPage(snapshot, { ...browsing, sort: "rating", ratings }).results.map((r) => r.place.id)).toEqual(["p-b", "p-c", "p-a"]);
   });
 
   it("includes café-named restaurants when the cafe category is selected", async () => {
@@ -205,6 +238,69 @@ describe("catalog pagination", () => {
 
     expect(second.results[0]).not.toBe(first.results[0]);
     expect(getCatalogCacheStats()).toEqual({ preparations: 2, evaluationBuilds: 2 });
+  });
+
+  it("infers indoor admission for indoor venues with whole-area admission", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 4,
+      places: [
+        { ...source, id: "cafe-whole", category: "cafe", petPolicy: { ...source.petPolicy, sourceText: "동반 유형: 전구역 동반가능" } },
+        { ...source, id: "attraction-whole", category: "attraction", petPolicy: { ...source.petPolicy, sourceText: "동반 유형: 전구역 동반가능" } },
+        { ...source, id: "attraction-explicit", category: "attraction", petPolicy: { ...source.petPolicy, sourceText: "실내 동반 가능" } },
+        { ...source, id: "attraction-restricted", category: "attraction", petPolicy: { ...source.petPolicy, sourceText: "실내 전시관은 출입 제한. 야외 공간은 동반 가능." } },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, preparationFilters: ["indoor"] });
+    expect(page.results.map((result) => result.place.id).sort()).toEqual(["attraction-explicit", "cafe-whole"]);
+  });
+
+  it("uses live accessibility ids for the accessible place set when provided", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 3,
+      places: [
+        { ...source, id: "acc-live", name: "실제 접근성 장소" },
+        { ...source, id: "acc-other", name: "일반 장소" },
+        { ...source, id: "acc-third", name: "다른 장소" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, {
+      hard: [],
+      preferences: [],
+      page: 1,
+      placeSet: "accessible",
+      accessiblePlaceIds: new Set(["acc-live"]),
+    });
+    expect(page.results.map((result) => result.place.id)).toEqual(["acc-live"]);
+  });
+
+  it("adds name-matched night landmarks and ignores mall tower shops", async () => {
+    const fixture = await new FixturePlaceProvider().getSnapshot();
+    const source = fixture.places[0]!;
+    const snapshot: ProviderSnapshot = {
+      ...fixture,
+      sourceTotalCount: 4,
+      places: [
+        { ...source, id: "night-beach", name: "광안리해수욕장", category: "attraction" },
+        { ...source, id: "night-tower-shop", name: "올리브영 타워팰리스점", category: "shopping" },
+        { ...source, id: "night-beach-shop", name: "다비치안경 해운대해수욕장입구점", category: "shopping" },
+        { ...source, id: "night-ordinary", name: "동네 식당", category: "restaurant" },
+        { ...source, id: "night-curated", name: "여의도한강공원", category: "attraction" },
+      ],
+      auxiliaryPlaces: [],
+    };
+
+    const page = buildCatalogPage(snapshot, { hard: [], preferences: [], page: 1, placeSet: "night-spots" });
+    expect(page.results.map((result) => result.place.id).sort()).toEqual(["night-beach", "night-curated"]);
   });
 
   it("restricts results to the curated night-spot place set when requested", async () => {

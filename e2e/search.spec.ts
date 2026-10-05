@@ -4,15 +4,21 @@ import AxeBuilder from "@axe-core/playwright";
 test("click-only strict search shows proof and safe recovery", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
+  await expect(page.locator(".catalog-coverage")).toContainText("상세 수집률 100.0%");
   await expect(page.getByText("1 / 1페이지")).toBeVisible();
   await expect(page.getByRole("button", { name: "다음 50곳" })).toBeDisabled();
   await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
   await expect(page.getByText("왜 맞는지 확인", { exact: false })).toHaveCount(0);
   await page.getByLabel("소형견").check();
-  await page.getByRole("button", { name: "목줄 착용" }).click();
-  await page.getByRole("button", { name: "이동가방 가능" }).click();
+  await page.getByRole("button", { name: "이동가방 필수" }).click();
   await expect(page.getByRole("heading", { name: "현재 1곳에서 가능을 확인했어요" })).toBeVisible();
+  const carrierProof = page.locator(".preparation-list li").filter({ has: page.locator("strong", { hasText: "이동가방" }) }).locator("details.preparation-proof");
+  await expect(carrierProof).toHaveCount(1);
+  await carrierProof.locator("summary").click();
+  await expect(carrierProof).toContainText("이동가방 사용 시 실내 가능");
+  await expect(carrierProof).toContainText("관광공사 정보 관측일");
+  await expect(carrierProof).toContainText("시연용 데이터 근거");
   await expect(page.getByLabel("가능 명시 확인")).toContainText("가능 명시 확인1");
   await expect(page.getByLabel("가능 명시 확인")).toContainText("정보 미확인0");
   await expect(page.locator(".result-count")).toHaveText("1곳");
@@ -26,13 +32,40 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
   await expect(page.getByRole("heading", { name: "가능이 확인된 장소가 아직 없어요" })).toBeVisible();
   await expect(page.getByText(/정보 미확인 장소 1곳은 정책을 확인하면 조건에 맞을 수도 있어요/)).toBeVisible();
   await expect(page.getByText(/꼭 필요한 조건은 그대로 두었어요/)).toBeVisible();
-  await page.getByRole("button", { name: "이동가방 가능" }).click();
+  await page.getByRole("button", { name: "이동가방 필수" }).click();
   await expect(page.locator(".result-count")).toHaveText("1곳");
   await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
 
   await page.getByLabel("대형견").check();
   await expect(page.locator(".result-count")).toHaveText("1곳");
   await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
+});
+
+test("narrow viewport keeps content inside the viewport width", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await expect(page.locator(".condition-button").first()).toContainText("이동가방 필수");
+  const buttonOverflow = await page.locator(".condition-button").first().evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(buttonOverflow).toBeLessThanOrEqual(1);
+});
+
+test("map view renders real map markers and links back to the list", async ({ page }) => {
+  await page.route(/tile\.openstreetmap\.org/, (route) => route.fulfill({ status: 204, body: "" }));
+  await page.goto("/");
+  await page.getByRole("tab", { name: /지도에서 탐색/ }).click();
+  await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".map-pin-content")).toHaveCount(2);
+
+  await page.locator(".map-pin-content").first().click();
+  const sheet = page.locator(".map-place-sheet");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("link", { name: /카카오맵 보기/ })).toHaveAttribute("href", /map\.kakao\.com/);
+
+  await sheet.getByRole("button", { name: /상세 증빙 보기/ }).click();
+  await expect(page.locator(".place-row").first()).toBeVisible();
 });
 
 test("critical controls are keyboard reachable and expose state", async ({ page }) => {
@@ -105,6 +138,72 @@ test("manual size selection replaces the size inferred from weight", async ({ pa
   await expect(page.getByRole("heading", { name: "2곳을 둘러보세요" })).toBeVisible();
 });
 
+test("large-dog theme overrides a persisted small-dog profile", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pet_travel_profile_v1", JSON.stringify({
+      name: "보리",
+      avatar: "🐶",
+      breed: "말티즈",
+      weight: "8.5",
+      size: "smallDog",
+      dangerousDog: false,
+    }));
+  });
+  await page.goto("/");
+  await expect(page.getByLabel("소형견")).toBeChecked();
+  await page.locator('[data-theme-id="large-dog-free"]').click();
+
+  await expect(page.getByLabel("대형견")).toBeChecked();
+  await expect(page.getByLabel("소형견")).not.toBeChecked();
+  await expect(page.locator('[data-theme-id="large-dog-free"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".active-query")).toContainText("대형견");
+
+  await page.locator(".size-grid").getByLabel("중형견").check();
+  await expect(page.getByLabel("중형견")).toBeChecked();
+  await expect(page.getByLabel("대형견")).not.toBeChecked();
+  await expect(page.locator(".active-query")).toContainText("중형견");
+  await page.waitForTimeout(400);
+  await expect(page.getByLabel("중형견")).toBeChecked();
+});
+
+test("back navigation from a place detail restores the previous scroll position", async ({ page }) => {
+  await page.goto("/");
+  const row = page.locator(".place-row").first();
+  await row.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  const scrollBefore = await page.evaluate(() => Math.round(window.scrollY));
+  expect(scrollBefore).toBeGreaterThan(200);
+
+  await row.getByRole("link", { name: /상세/ }).click();
+  await page.waitForURL(/\/place\//);
+  await page.goBack();
+  await page.waitForURL((url) => url.pathname === "/");
+
+  await expect.poll(
+    async () => Math.abs((await page.evaluate(() => Math.round(window.scrollY))) - scrollBefore),
+    { timeout: 10000 },
+  ).toBeLessThan(150);
+});
+
+test("theme selection survives back navigation from a place detail page", async ({ page }) => {
+  await page.goto("/");
+  const themeCard = page.locator('[data-theme-id="healing-cafe"]');
+  await themeCard.click();
+  await expect(themeCard).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".active-query")).toContainText("cafe");
+  await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
+
+  await page.locator(".place-row").first().getByRole("link", { name: /상세/ }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("파도끝 테라스");
+  await page.goBack();
+
+  await expect(themeCard).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".active-query")).toContainText("cafe");
+  await expect(page.getByRole("heading", { name: "1곳을 둘러보세요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "파도끝 테라스" })).toBeVisible();
+});
+
 test("a pending filter request never labels stale browsing rows as filtered results", async ({ page }) => {
   await page.goto("/");
   let releaseRequest!: () => void;
@@ -154,7 +253,7 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   const addActivity = page.getByRole("button", { name: "코스 경유지로 담기" }).last();
   await addActivity.click();
   await expect(page.getByRole("button", { name: "코스 경유지에 담았어요" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "내 여행 · 1개 저장" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "장소 선택 완료 · 추가 선택", exact: true })).toBeEnabled();
   await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
   await discoverySummary.click();
   await discoverySummary.click();
@@ -165,7 +264,7 @@ test("regional discovery is lazy, expands inline, and can be added to the itiner
   const nearbyReview = page.locator(".nearby-disclosure");
   if (await nearbyReview.getAttribute("open") === null) await nearbyReview.locator("summary").click();
   await nearbyReview.locator(".supplemental-review-button").click();
-  await page.locator(".plan-add-button").first().click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   await page.locator(".selection-complete-button").click();
   const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
   await expect(courseBuilder.getByRole("checkbox", { name: /반려견 숲 축제/ })).toBeChecked();
@@ -181,8 +280,8 @@ test("selection completion moves to supplemental choices and only course confirm
     await route.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ success: false, data: null, error: { code: "PROVIDER_UNAVAILABLE", message: "경로 제공자 지연" } }) });
   });
   await page.goto("/");
-  await page.locator(".plan-add-button").first().click();
-  await page.locator(".plan-add-button").nth(1).click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
   const complete = page.locator(".selection-complete-button");
   await complete.click();
   const supplemental = page.getByRole("region", { name: "축제·산책과 주변 장소도 살펴보세요" });
@@ -201,24 +300,27 @@ test("selection completion moves to supplemental choices and only course confirm
   await expect(page.locator(".course-card .course-button")).toBeFocused();
 });
 
-test("one saved place keeps the next step available without exposing a blocked planner", async ({ page }) => {
+test("one saved place enables direct completion and a one-place course", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  await page.locator(".plan-add-button").first().click();
-  const tray = page.getByRole("button", { name: "내 여행 · 1개 저장" });
-  await expect(tray).toBeDisabled();
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  const tray = page.getByRole("button", { name: "장소 선택 완료 · 추가 선택", exact: true });
+  await expect(tray).toBeEnabled();
   await expect(page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" })).toHaveCount(0);
   await expect(page.locator(".trip-board-plan")).toHaveCount(0);
-  await expect(page.locator(".selection-complete-button")).toBeDisabled();
-  await expect(page.locator(".selection-complete-button")).toContainText("한 곳 더 저장해 주세요");
+  await page.locator(".selection-complete-button").click();
+  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
+  await expect(courseBuilder.getByRole("checkbox")).toHaveCount(1);
+  await expect(courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 1곳 코스 만들기" })).toBeEnabled();
+  await expect(page.locator(".trip-board-plan")).toHaveCount(0);
 });
 
 test("saving a place preserves the current viewport and button focus", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
 
-  const addButton = page.locator(".plan-add-button").first();
+  const addButton = page.locator(".place-row").first().locator("button.plan-add-button");
   await addButton.scrollIntoViewIfNeeded();
   await addButton.focus();
   const beforeY = await page.evaluate(() => window.scrollY);

@@ -9,6 +9,9 @@ import { compactCatalogForTransport } from "@/data/catalog-transport";
 import { rawPlaceSchema } from "@/data/contracts";
 import { conditionKeys, preparationFilterKeys, type ConditionKey, type PreparationFilterKey, type SelectedConstraint } from "@/domain/types";
 import { SqlitePlaceRepository, resolveDatabasePath } from "@/data/database/repository";
+import { getPlaceHoursBatch } from "@/app/api/_shared/place-hours";
+import { allRatingSummaries } from "@/app/api/_shared/reviews";
+import { regionCenter } from "@/domain/weather";
 
 const conditionSchema = z.enum(conditionKeys);
 const categorySchema = rawPlaceSchema.shape.category;
@@ -44,8 +47,25 @@ export async function GET(request: Request) {
     const prepFiltersRaw = url.searchParams.get("prep");
     const preparationFilters = (prepFiltersRaw ? preparationFilterListSchema.parse(prepFiltersRaw.split(",").filter(Boolean)) : []) as PreparationFilterKey[];
     const lang = z.enum(["ko", "en", "zh"]).default("ko").parse(url.searchParams.get("lang") ?? "ko");
-    const placeSet = url.searchParams.get("placeSet") === "night-spots" ? "night-spots" as const : undefined;
-    const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories, preparationFilters, placeSet });
+    const placeSetParam = url.searchParams.get("placeSet");
+    const placeSet = placeSetParam === "night-spots" || placeSetParam === "rural-stays" || placeSetParam === "accessible" ? placeSetParam as "night-spots" | "rural-stays" | "accessible" : undefined;
+    const sort = z.enum(["recommended", "name", "distance", "rating"]).default("recommended").parse(url.searchParams.get("sort") ?? "recommended");
+    const origin = sort === "distance" && region.trim() ? regionCenter(region.trim()) ?? undefined : undefined;
+    const ratings = sort === "rating" ? allRatingSummaries() : undefined;
+    let accessiblePlaceIds: ReadonlySet<string> | undefined;
+    if (placeSet === "accessible") {
+      try {
+        const repo = new SqlitePlaceRepository(resolveDatabasePath());
+        try {
+          accessiblePlaceIds = new Set(repo.listAccessiblePlaceIds());
+        } finally {
+          repo.close();
+        }
+      } catch {
+        // Fall back to the curated seed when the database is unavailable.
+      }
+    }
+    const catalog = buildCatalogPage(snapshot, { hard, preferences, page, region, categories, preparationFilters, placeSet, accessiblePlaceIds, sort, origin, ratings });
 
     // Enrich results with accessibility, camping, congestion, and translation data when available
     const placeIds = catalog.results.map((result) => result.place.id);
@@ -75,6 +95,7 @@ export async function GET(request: Request) {
         provider: snapshot.provider,
         fetchedAt: snapshot.fetchedAt,
         catalog: compactCatalogForTransport(catalog),
+        placeHours: getPlaceHoursBatch(placeIds),
         accessibility: accessibilityMap,
         camping: campingMap,
         congestion: congestionMap,

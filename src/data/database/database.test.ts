@@ -30,7 +30,7 @@ describe("SQLite place repository", () => {
     const result = await syncProviderSnapshot(new FixturePlaceProvider(), repository);
     const restored = repository.loadLatestSnapshot();
 
-    expect(repository.getMigrationVersions()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(repository.getMigrationVersions()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(result).toMatchObject({ places: 2, auxiliaryPlaces: 5 });
     expect(restored).toEqual(source);
     expect(repository.getCounts()).toEqual({ successfulRuns: 1, snapshots: 1, places: 2, auxiliaryPlaces: 5 });
@@ -46,7 +46,7 @@ describe("SQLite place repository", () => {
     legacy.close();
 
     const repository = new SqlitePlaceRepository(path);
-    expect(repository.getMigrationVersions()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(repository.getMigrationVersions()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(repository.loadLatestSnapshot()).toBeNull();
     repository.close();
   });

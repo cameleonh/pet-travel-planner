@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3D 뷰어 — 같이갈개</title>
+<link rel="preconnect" href="https://map.vworld.kr" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
 <style>
   html, body { margin: 0; height: 100%; background: #0b1220; overflow: hidden; font-family: system-ui, sans-serif; }
   #vmap3d { position: absolute; inset: 0; }
@@ -14,12 +17,14 @@
   #credit { bottom: 12px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.55); font-size: 10.5px; }
   #loading { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: #0b1220; color: #cdd7f5; flex-direction: column; gap: 10px; font-size: 14px; }
   #err { position: absolute; left: 14px; right: 14px; bottom: 60px; z-index: 40; background: #3a1010; color: #fdd; font: 12px/1.5 monospace; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-wrap; }
+  #note { top: 64px; left: 14px; right: 14px; z-index: 25; background: rgba(15, 23, 42, .82); color: #e2e8f0; font-size: 12px; line-height: 1.5; padding: 8px 11px; border-radius: 9px; display: none; }
 </style>
 </head>
 <body>
 <div id="vmap3d"></div>
 <div id="title" class="hud"><h1 id="spot-name">3D 뷰어</h1><p>드래그=회전 · 휠=줌</p></div>
 <div id="credit" class="hud">© VWorld 3D 타일 · 국토교통부 / 같이갈개</div>
+<div id="note" class="hud"></div>
 <div id="err" class="hud"></div>
 <div id="loading"><div>🏙️ 도시를 불러오는 중…</div><div style="font-size:12px;opacity:.6">VWorld 3D 엔진</div></div>
 <script>
@@ -48,6 +53,75 @@ function showErr(msg) {
   if (l) l.style.display = "none";
 }
 
+function showNote(msg) {
+  var n = document.getElementById("note");
+  n.textContent = msg;
+  n.style.display = "block";
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/* 3D 지도 위에 장소 위치를 핀으로 표시한다. VWorld createMarker(name, x, y, popupHtml, icon, w, h, height).
+   위젯이 막 준비된 시점에는 POI 그룹이 없어 조용히 실패하므로, 잠시 뒤에 호출하고
+   실패 시 몇 번 재시도한다. 이전 시도의 잔여 마커는 먼저 제거한다. */
+function add3dMarker(attempt) {
+  attempt = attempt || 0;
+  var p = window.__NV;
+  var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='48' height='64' viewBox='0 0 48 64'>"
+    + "<path d='M24 2C12 2 3 11 3 23c0 15 21 39 21 39s21-24 21-39C45 11 36 2 24 2z' fill='#e11d48' stroke='white' stroke-width='3'/>"
+    + "<circle cx='24' cy='23' r='8' fill='white'/></svg>";
+  var icon = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  var popup = "<div style='font:13px/1.5 system-ui,sans-serif;color:#111'>"
+    + "<strong>" + escapeHtml(p.name) + "</strong><br/>선택한 장소</div>";
+  try {
+    var supervisor = window.vw && window.vw.ObjectSuperviser;
+    if (supervisor && supervisor.getById && supervisor.getById(p.name)) supervisor.removeById(p.name);
+  } catch (e) {}
+  try {
+    window.map3d.createMarker(p.name, p.lng, p.lat, popup, icon, 240, 90, 30);
+  } catch (e) {
+    if (attempt < 5) setTimeout(function () { add3dMarker(attempt + 1); }, 700);
+  }
+}
+
+function hideLoading() {
+  var l = document.getElementById("loading");
+  if (!l) return;
+  l.style.transition = "opacity .6s";
+  l.style.opacity = "0";
+  setTimeout(function () { l.remove(); }, 650);
+}
+
+/* 3D(웹GL) API가 이 키/도메인에 승인되지 않으면 2D 지도로 대체한다. */
+function startFallback(reason) {
+  showNote("3D 지도를 열 수 없어 2D 지도로 표시합니다. " + reason);
+  var css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
+  document.head.appendChild(css);
+  var script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
+  script.onload = function () {
+    var p = window.__NV;
+    try {
+      var map = L.map("vmap3d").setView([p.lat, p.lng], 15);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(map);
+      L.marker([p.lat, p.lng]).addTo(map).bindPopup(p.name).openPopup();
+      window.__nvMode = "2d-fallback";
+      hideLoading();
+    } catch (e) {
+      showErr("2D 지도 초기화 실패: " + (e && e.message || e));
+    }
+  };
+  script.onerror = function () { showErr("2D 지도 라이브러리를 불러오지 못했습니다."); };
+  document.head.appendChild(script);
+}
+
 function waitFor(fn, ms, what) {
   return new Promise(function (resolve, reject) {
     var t0 = Date.now();
@@ -61,8 +135,7 @@ function waitFor(fn, ms, what) {
 
 window.addEventListener("load", function () {
   var p = window.__NV;
-  waitFor(function () { return typeof vw !== "undefined" && vw.Map; }, 15000,
-    "VWorld 엔진 로드 실패 — 키 도메인 등록과 접속 호스트(" + location.hostname + ")를 확인하세요")
+  waitFor(function () { return typeof vw !== "undefined" && vw.Map; }, 6000, "3D API 미승인")
     .then(function () {
       var bm = (vw.BasemapType && vw.BasemapType.PHOTO !== undefined) ? vw.BasemapType.PHOTO : vw.BasemapType.GRAPHIC;
       var start = new vw.CameraPosition(new vw.CoordZ(p.lng, p.lat, 1500), new vw.Direction(0, -42, 0));
@@ -71,12 +144,17 @@ window.addEventListener("load", function () {
       return waitFor(function () { return map3d._wsViewer && map3d._wsViewer._cesiumWidget; }, 25000, "3D 뷰어 초기화 실패");
     })
     .then(function () {
-      window.__nvMode = "plain-map";
+      window.__nvMode = "3d";
+      setTimeout(function () { add3dMarker(0); }, 1800);
       try { navigator.sendBeacon("/api/usage", new Blob([JSON.stringify({ kind: "place_3d_open", detail: (window.__NV.name || "").slice(0, 40) })], { type: "application/json" })); } catch (e) {}
-      var loading = document.getElementById("loading");
-      setTimeout(function () { loading.style.transition = "opacity .6s"; loading.style.opacity = "0"; setTimeout(function () { loading.remove(); }, 650); }, 1500);
+      setTimeout(hideLoading, 1500);
     })
-    .catch(function (e) { showErr(String(e && e.message || e)); });
+    .catch(function (e) {
+      var message = String(e && e.message || e);
+      startFallback(message.indexOf("3D API 미승인") >= 0
+        ? "(VWorld 콘솔에서 3D 지도 API 사용 설정과 " + location.hostname + " 도메인 등록이 필요합니다)"
+        : "(" + message + ")");
+    });
 });
 </script>
 </body>

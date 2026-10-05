@@ -12,6 +12,7 @@ describe("THEME_PRESETS", () => {
       "ocean-water",
       "rural-stay",
       "night-view",
+      "accessible",
     ];
     expect(ids).toEqual(expectedIds);
   });
@@ -27,7 +28,7 @@ describe("THEME_PRESETS", () => {
       expect(preset.descEn).toBeTruthy();
       expect(preset.recommendedTags.length).toBeGreaterThan(0);
       if (preset.placeSet) {
-        expect(preset.placeSet).toBe("night-spots");
+        expect(["night-spots", "rural-stays", "accessible"]).toContain(preset.placeSet);
       } else {
         expect(preset.categories.length).toBeGreaterThan(0);
       }
@@ -39,7 +40,21 @@ describe("THEME_PRESETS", () => {
     expect(nightPreset).toBeDefined();
     expect(nightPreset?.placeSet).toBe("night-spots");
     expect(nightPreset?.categories).toEqual([]);
-    expect(nightPreset?.prepFilters).toContain("leash");
+    expect(nightPreset?.prepFilters).toContain("outdoor");
+  });
+
+  it("configures the rural stay preset to drive results via the curated place set", () => {
+    const ruralPreset = THEME_PRESETS.find((p) => p.id === "rural-stay");
+    expect(ruralPreset).toBeDefined();
+    expect(ruralPreset?.placeSet).toBe("rural-stays");
+    expect(ruralPreset?.categories).toEqual([]);
+  });
+
+  it("keeps the cafe preset from requiring an explicit indoor claim", () => {
+    const cafePreset = THEME_PRESETS.find((p) => p.id === "healing-cafe");
+    expect(cafePreset).toBeDefined();
+    expect(cafePreset?.categories).toEqual(["cafe", "restaurant"]);
+    expect(cafePreset?.prepFilters).toEqual([]);
   });
 
   it("configures large dog free preset with largeDog requirement", () => {

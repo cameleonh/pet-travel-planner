@@ -1,4 +1,4 @@
-const CACHE = "pet-travel-shell-v2";
+const CACHE = "pet-travel-shell-v3";
 const SHELL = ["/", "/offline.html", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -16,6 +16,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || event.request.url.includes("/api/")) return;
+  // Cross-origin requests (map tiles, CDN images) must bypass the worker: the
+  // worker script inherits the site CSP, whose connect-src blocks them, and
+  // opaque responses would otherwise fall back to the offline shell.
+  if (new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {

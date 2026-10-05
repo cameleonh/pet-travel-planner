@@ -128,7 +128,7 @@ export const planningRequestSchema = z.object({
 
 export const generationRequestSchema = planningRequestSchema.superRefine((request, context) => {
   if (request.includedItemIds.length === 0) context.addIssue({ code: "custom", path: ["includedItemIds"], message: "NO_SELECTED_ITEMS" });
-  if (request.orderedItemIds.length < 2) context.addIssue({ code: "custom", path: ["orderedItemIds"], message: "NOT_ENOUGH_ROUTE_NODES" });
+  if (request.orderedItemIds.length < 1) context.addIssue({ code: "custom", path: ["orderedItemIds"], message: "NOT_ENOUGH_ROUTE_NODES" });
   if (request.orderedItemIds.length > 12) context.addIssue({ code: "custom", path: ["orderedItemIds"], message: "TOO_MANY_ROUTE_NODES" });
   if (request.startItemId === null || request.startItemId !== request.orderedItemIds[0]) {
     context.addIssue({ code: "custom", path: ["startItemId"], message: "START_MUST_BE_FIRST_ORDERED_ITEM" });

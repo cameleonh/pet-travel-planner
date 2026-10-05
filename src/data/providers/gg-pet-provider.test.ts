@@ -71,4 +71,37 @@ describe("GyeonggiPetFacilityProvider", () => {
     expect(first.id).toBe(second.id);
     expect(first.id).toMatch(/^gg-pet:vet-[0-9a-f]{10}$/);
   });
+
+  it("maps vet contact details: first phone of multiple, hours, closing day, detail address", () => {
+    const { places, stats } = mapGyeonggiRows([], [vetRecord({
+      rprs_telno_info: "031-792-5277 / 010-1234-5678",
+      opr_hr_info: "09:00~18:00",
+      sat_opr_hr: "09:00~14:00",
+      sun_opr_hr: "",
+      restday_info: "매주 일요일",
+      detail_addr: "2,3층 201호",
+    })]);
+    expect(stats.vetSaved).toBe(1);
+    const vet = places[0]!;
+    expect(vet.phone).toBe("031-792-5277");
+    expect(vet.weekdayHours).toBe("09:00~18:00");
+    expect(vet.saturdayHours).toBe("09:00~14:00");
+    expect(vet.sundayHours).toBeUndefined();
+    expect(vet.closingDay).toBe("매주 일요일");
+    expect(vet.address).toContain("(2,3층 201호)");
+    expect(() => auxiliaryPlaceSchema.parse(vet)).not.toThrow();
+  });
+
+  it("maps park fee and rejects non-numeric phone strings", () => {
+    const { places } = mapGyeonggiRows([parkRecord({ utlz_chrg: "무료", rprs_telno: "운영기관 문의" })], []);
+    const park = places[0]!;
+    expect(park.usageFee).toBe("무료");
+    expect(park.phone).toBeUndefined();
+    expect(park.weekdayHours).toBeUndefined();
+  });
+
+  it("omits phone when the vet record has none", () => {
+    const { places } = mapGyeonggiRows([], [vetRecord({ rprs_telno_info: "" })]);
+    expect(places[0]!.phone).toBeUndefined();
+  });
 });

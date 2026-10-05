@@ -18,7 +18,12 @@ describe("places API transport", () => {
 
     expect(result).not.toHaveProperty("failures");
     expect(result.place).not.toHaveProperty("facts");
-    expect(result.place.requiredPreparations[0]).not.toHaveProperty("evidence");
+    expect(result.place.requiredPreparations[0]?.evidence).toEqual(expect.objectContaining({
+      excerpt: expect.any(String),
+      sourceUrl: expect.any(String),
+      observedAt: expect.any(String),
+    }));
+    expect(result.place.requiredPreparations[0]?.evidence).not.toHaveProperty("sourceText");
     expect(result.proof[0]?.fact).not.toHaveProperty("evidence");
     expect(result.proof[0]?.evidence).toEqual(expect.objectContaining({ excerpt: expect.any(String), sourceUrl: expect.any(String), observedAt: expect.any(String) }));
     expect(compactBytes).toBeLessThan(rawBytes * 0.65);

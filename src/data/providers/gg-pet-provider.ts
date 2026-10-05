@@ -17,6 +17,7 @@ export const parkRecordSchema = z.object({
   lotno_addr: z.string().optional(),
   opr_inst_nm: z.string().optional(),
   rprs_telno: z.string().optional(),
+  utlz_chrg: z.string().optional(),
   refine_wgs84_lat: z.string().optional(),
   refine_wgs84_logt: z.string().optional(),
 });
@@ -26,6 +27,12 @@ export const vetRecordSchema = z.object({
   cmpnm_nm: z.string().min(1),
   locplc_roadnm_addr: z.string().optional(),
   locplc_lotno_addr: z.string().optional(),
+  detail_addr: z.string().optional(),
+  rprs_telno_info: z.string().optional(),
+  opr_hr_info: z.string().optional(),
+  sat_opr_hr: z.string().optional(),
+  sun_opr_hr: z.string().optional(),
+  restday_info: z.string().optional(),
   refine_wgs84_lat: z.string().optional(),
   refine_wgs84_logt: z.string().optional(),
   dat_crtr_ymd: z.string().optional(),
@@ -68,6 +75,20 @@ function firstAddress(...candidates: Array<string | undefined>): string {
   return found ?? "";
 }
 
+function toPhone(raw: string | undefined): string | undefined {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return undefined;
+  const first = trimmed.split(/\s*[/,]\s*/)[0]!.trim();
+  return /^[\d\-+() ]+$/.test(first) && /\d/.test(first) ? first : undefined;
+}
+
+function toText(raw: string | undefined): string | undefined {
+  const trimmed = (raw ?? "").trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+type FacilityContact = Pick<AuxiliaryPlace, "phone" | "weekdayHours" | "saturdayHours" | "sundayHours" | "closingDay" | "usageFee">;
+
 export type GyeonggiPetFacilityStats = {
   parkRaw: number;
   vetRaw: number;
@@ -88,7 +109,7 @@ export function mapGyeonggiRows(parkRows: Array<z.infer<typeof parkRecordSchema>
   const seenIds = new Set<string>();
   const stats: GyeonggiPetFacilityStats = { parkRaw: parkRows.length, vetRaw: vetRows.length, parkSaved: 0, vetSaved: 0, skippedInvalid: 0, skippedNonVet: 0, duplicates: 0 };
 
-  const push = (kind: "park" | "vet", name: string, address: string, latitude: number, longitude: number, observedAt: string, sourceUrl: string, sourceText: string) => {
+  const push = (kind: "park" | "vet", name: string, address: string, latitude: number, longitude: number, observedAt: string, sourceUrl: string, sourceText: string, contact?: FacilityContact) => {
     const id = buildId(kind, name, address);
     if (seenIds.has(id)) {
       stats.duplicates += 1;
@@ -107,6 +128,12 @@ export function mapGyeonggiRows(parkRows: Array<z.infer<typeof parkRecordSchema>
       coordinates: { latitude, longitude },
       petStatus: "confirmed",
       evidence: { label: "경기데이터드림 반려동물 시설", sourceText, sourceUrl, observedAt },
+      ...(contact?.phone ? { phone: contact.phone } : {}),
+      ...(contact?.weekdayHours ? { weekdayHours: contact.weekdayHours } : {}),
+      ...(contact?.saturdayHours ? { saturdayHours: contact.saturdayHours } : {}),
+      ...(contact?.sundayHours ? { sundayHours: contact.sundayHours } : {}),
+      ...(contact?.closingDay ? { closingDay: contact.closingDay } : {}),
+      ...(contact?.usageFee ? { usageFee: contact.usageFee } : {}),
     });
     stats[kind === "park" ? "parkSaved" : "vetSaved"] += 1;
   };
@@ -121,7 +148,8 @@ export function mapGyeonggiRows(parkRows: Array<z.infer<typeof parkRecordSchema>
       toCoordinate(row.refine_wgs84_logt),
       PORTAL_FALLBACK_OBSERVED_AT,
       PARK_SOURCE_URL,
-      `경기도 반려동물 놀이시설 구비 공원 (${row.signgu_nm ?? "경기도"}${row.opr_inst_nm ? ` � ${row.opr_inst_nm.trim()}` : ""})`,
+      `경기도 반려동물 놀이시설 구비 공원 (${row.signgu_nm ?? "경기도"}${row.opr_inst_nm ? ` · ${row.opr_inst_nm.trim()}` : ""})`,
+      { phone: toPhone(row.rprs_telno), usageFee: toText(row.utlz_chrg) },
     );
   }
 
@@ -131,15 +159,24 @@ export function mapGyeonggiRows(parkRows: Array<z.infer<typeof parkRecordSchema>
       continue;
     }
     const name = row.cmpnm_nm.trim();
+    const baseAddress = firstAddress(row.locplc_roadnm_addr, row.locplc_lotno_addr);
+    const detail = toText(row.detail_addr);
     push(
       "vet",
       name,
-      firstAddress(row.locplc_roadnm_addr, row.locplc_lotno_addr),
+      baseAddress && detail ? `${baseAddress} (${detail})` : baseAddress,
       toCoordinate(row.refine_wgs84_lat),
       toCoordinate(row.refine_wgs84_logt),
       toIsoDate(row.dat_crtr_ymd, PORTAL_FALLBACK_OBSERVED_AT),
       VET_SOURCE_URL,
       "경기도 반려동물 의료 및 복지시설(동물병원)",
+      {
+        phone: toPhone(row.rprs_telno_info),
+        weekdayHours: toText(row.opr_hr_info),
+        saturdayHours: toText(row.sat_opr_hr),
+        sundayHours: toText(row.sun_opr_hr),
+        closingDay: toText(row.restday_info),
+      },
     );
   }
 

@@ -428,4 +428,24 @@ export const migrations: readonly Migration[] = [
       DROP TABLE IF EXISTS farmstay_pet_policies;
     `,
   },
+  {
+    version: 11,
+    name: "auxiliary_place_contact_details",
+    up: `
+      ALTER TABLE auxiliary_places ADD COLUMN phone TEXT;
+      ALTER TABLE auxiliary_places ADD COLUMN weekday_hours TEXT;
+      ALTER TABLE auxiliary_places ADD COLUMN saturday_hours TEXT;
+      ALTER TABLE auxiliary_places ADD COLUMN sunday_hours TEXT;
+      ALTER TABLE auxiliary_places ADD COLUMN closing_day TEXT;
+      ALTER TABLE auxiliary_places ADD COLUMN usage_fee TEXT;
+    `,
+    down: `
+      ALTER TABLE auxiliary_places DROP COLUMN usage_fee;
+      ALTER TABLE auxiliary_places DROP COLUMN closing_day;
+      ALTER TABLE auxiliary_places DROP COLUMN sunday_hours;
+      ALTER TABLE auxiliary_places DROP COLUMN saturday_hours;
+      ALTER TABLE auxiliary_places DROP COLUMN weekday_hours;
+      ALTER TABLE auxiliary_places DROP COLUMN phone;
+    `,
+  },
 ];

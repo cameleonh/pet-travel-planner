@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import type { Coordinates } from "@/domain/geo";
 import type { PlanPlace } from "@/domain/plan";
 import { useLang } from "@/i18n/LangContext";
@@ -39,6 +39,8 @@ export function NearbyServices({ origin, referenceName, selectedPlaceIds, onTogg
   const [vetError, setVetError] = useState(false);
   const [shopError, setShopError] = useState(false);
   const [restaurantError, setRestaurantError] = useState(false);
+  const [activeKind, setActiveKind] = useState<ServiceKind>("restaurant");
+  const panelId = useId();
 
   const fetchVets = useCallback(async (signal?: AbortSignal) => {
     setVetLoading(true);
@@ -146,6 +148,23 @@ export function NearbyServices({ origin, referenceName, selectedPlaceIds, onTogg
     );
   };
 
+  const groups: {
+    kind: ServiceKind;
+    icon: string;
+    label: string;
+    services: Service[];
+    loading: boolean;
+    error: boolean;
+    errorMessage: string;
+    retry: () => Promise<void>;
+    empty: string;
+  }[] = [
+    { kind: "restaurant", icon: "🍽️", label: dict.nearbyRestaurants, services: restaurants, loading: restaurantLoading, error: restaurantError, errorMessage: dict.nearbyRestaurantError, retry: fetchRestaurants, empty: dict.nearbyNoRestaurants },
+    { kind: "veterinary", icon: "🏥", label: dict.nearbyVets, services: vets, loading: vetLoading, error: vetError, errorMessage: dict.nearbyVetError, retry: fetchVets, empty: dict.nearbyNoVets },
+    { kind: "pet-shop", icon: "🛒", label: dict.nearbyShops, services: shops, loading: shopLoading, error: shopError, errorMessage: dict.nearbyShopError, retry: fetchShops, empty: dict.nearbyNoShops },
+  ];
+  const active = groups.find((group) => group.kind === activeKind) ?? groups[0]!;
+
   return (
     <section className="extension-card nearby-card" aria-labelledby="nearby-services-title">
       <div className="extension-heading">
@@ -155,19 +174,33 @@ export function NearbyServices({ origin, referenceName, selectedPlaceIds, onTogg
         </div>
       </div>
       <p className="distance-note">{t(lang, "nearbyServicesNote", { ref: referenceName })}</p>
-      <div className="nearby-services-grid">
-        <div>
-          <h3><span aria-hidden="true">🍽️</span> {dict.nearbyRestaurants}</h3>
-          {restaurantLoading ? <p className="empty-line" role="status">{dict.nearbyLoading}</p> : restaurantError ? renderFetchError(dict.nearbyRestaurantError, fetchRestaurants) : restaurants.length === 0 ? <p className="empty-line">{dict.nearbyNoRestaurants}</p> : <ul>{restaurants.slice(0, 5).map((service) => renderService(service, "restaurant"))}</ul>}
-        </div>
-        <div>
-          <h3><span aria-hidden="true">🏥</span> {dict.nearbyVets}</h3>
-          {vetLoading ? <p className="empty-line" role="status">{dict.nearbyLoading}</p> : vetError ? renderFetchError(dict.nearbyVetError, fetchVets) : vets.length === 0 ? <p className="empty-line">{dict.nearbyNoVets}</p> : <ul>{vets.slice(0, 5).map((service) => renderService(service, "veterinary"))}</ul>}
-        </div>
-        <div>
-          <h3><span aria-hidden="true">🛒</span> {dict.nearbyShops}</h3>
-          {shopLoading ? <p className="empty-line" role="status">{dict.nearbyLoading}</p> : shopError ? renderFetchError(dict.nearbyShopError, fetchShops) : shops.length === 0 ? <p className="empty-line">{dict.nearbyNoShops}</p> : <ul>{shops.slice(0, 5).map((service) => renderService(service, "pet-shop"))}</ul>}
-        </div>
+      <div className="nearby-tabs" role="tablist" aria-label={dict.nearbyCategoryTabs}>
+        {groups.map((group) => (
+          <button
+            key={group.kind}
+            type="button"
+            role="tab"
+            id={`${panelId}-${group.kind}-tab`}
+            aria-selected={active.kind === group.kind}
+            aria-controls={panelId}
+            onClick={() => setActiveKind(group.kind)}
+          >
+            <span aria-hidden="true">{group.icon}</span>
+            {group.label}
+            <span className="nearby-tab-count">{group.loading ? "…" : group.services.length}</span>
+          </button>
+        ))}
+      </div>
+      <div className="nearby-services-panel" id={panelId} role="tabpanel" aria-labelledby={`${panelId}-${active.kind}-tab`}>
+        {active.loading ? (
+          <p className="empty-line" role="status">{dict.nearbyLoading}</p>
+        ) : active.error ? (
+          renderFetchError(active.errorMessage, active.retry)
+        ) : active.services.length === 0 ? (
+          <p className="empty-line">{active.empty}</p>
+        ) : (
+          <ul>{active.services.slice(0, 5).map((service) => renderService(service, active.kind))}</ul>
+        )}
       </div>
     </section>
   );

@@ -1,28 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AuxiliaryPlace } from "@/data/contracts";
 import type { CatalogPage } from "@/data/catalog";
 import type { RegionOption } from "@/domain/regions";
 import { SearchExperience } from "@/features/search/SearchExperience";
+import { dispatchHeroStrike } from "@/features/weather-hero/hero-events";
+import { CompanionDog } from "@/features/companion/CompanionDog";
+import type { CompanionCandidate } from "@/domain/companion";
 import { useLang } from "@/i18n/LangContext";
 import { LangToggle } from "@/i18n/LangToggle";
+import { AccessibilityToggle } from "@/features/accessibility/AccessibilityToggle";
 
 const HERO_VIDEO_URL = "/hero-dog-walk.mp4";
 
-export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regionOptions }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; auxiliaryPlaces: AuxiliaryPlace[]; regionOptions: RegionOption[] }) {
+export function PageContent({ catalog, notice, fetchedAt, regionOptions, placeCounts, companionCandidates }: { catalog: CatalogPage; notice: string | null | undefined; fetchedAt: string; regionOptions: RegionOption[]; placeCounts: Record<string, number>; companionCandidates: CompanionCandidate[] }) {
   const { dict, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
 
+  // The video plays once (~3s); onEnded triggers the photo transition.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      video.pause();
-      return;
-    }
-    void video.play().catch(() => setVideoPlaying(false));
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(() => {
+      void videoRef.current?.play().catch(() => setVideoPlaying(false));
+    }, 1200);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const toggleVideo = () => {
@@ -31,11 +34,26 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
     if (video.paused) void video.play().catch(() => setVideoPlaying(false));
     else video.pause();
   };
+
+  const toggleBackdrop = () => {
+    toggleVideo();
+  };
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="#top" aria-label={dict.homeLabel}><span aria-hidden="true">같이</span>갈개</a>
-        <LangToggle />
+        <a className="brand" href="#top" aria-label={dict.homeLabel} onClick={() => dispatchHeroStrike()}><span aria-hidden="true">같이</span>갈개</a>
+        <span className="topbar-mascots" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
+          <img src="/gachi-galgae-mascot-walk.png" alt="" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
+          <img src="/gachi-galgae-mascot.png" alt="" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- static mascot assets */}
+          <img src="/gachi-galgae-mascot-ribbon.png" alt="" />
+        </span>
+        <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <AccessibilityToggle />
+          <LangToggle />
+        </span>
       </header>
 
       <section className="intro" id="top">
@@ -44,15 +62,28 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           className="hero-video"
           autoPlay
           muted
-          loop
           playsInline
-          preload="auto"
+          preload="metadata"
           aria-hidden="true"
           onPlay={() => setVideoPlaying(true)}
           onPause={() => setVideoPlaying(false)}
+          onEnded={() => setVideoEnded(true)}
         >
           <source src={HERO_VIDEO_URL} type="video/mp4" />
         </video>
+        {videoEnded ? (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: -2,
+              background: "#0a0f0a",
+              opacity: 1,
+              transition: "opacity 2.5s ease-in",
+            }}
+          />
+        ) : null}
         <span className="hero-video-scrim" aria-hidden="true" />
         <div className="intro-copy">
           <p className="eyebrow">{dict.eyebrow}</p>
@@ -73,7 +104,7 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
           </div>
         </div>
         <div className="hero-video-actions">
-          <button type="button" className="hero-video-toggle" onClick={toggleVideo} aria-label={videoPlaying ? dict.heroVideoPause : dict.heroVideoPlay}>
+          <button type="button" className="hero-video-toggle" onClick={toggleBackdrop} aria-label={videoPlaying ? dict.heroVideoPause : dict.heroVideoPlay}>
             <span aria-hidden="true">{videoPlaying ? "Ⅱ" : "▶"}</span>
           </button>
           <a href="https://www.pexels.com/video/person-walking-with-a-dog-6231305/" target="_blank" rel="noreferrer">{dict.heroVideoCredit}</a>
@@ -81,9 +112,10 @@ export function PageContent({ catalog, notice, fetchedAt, auxiliaryPlaces, regio
       </section>
 
       {notice ? <p role="status" className="notice global-notice">{notice}</p> : null}
-      <SearchExperience initialCatalog={catalog} auxiliaryPlaces={auxiliaryPlaces} regionOptions={regionOptions} />
+      <SearchExperience initialCatalog={catalog} regionOptions={regionOptions} placeCounts={placeCounts} />
 
-      <footer><p>{dict.footerNotice}</p><p>{fetchedAt.slice(0, 10)} {dict.footerBaseDate}</p></footer>
+      <footer><p>{dict.footerNotice}</p><p>{dict.footerBaseDate} {fetchedAt.slice(0, 10)}</p></footer>
+      <CompanionDog candidates={companionCandidates} />
     </main>
   );
 }
