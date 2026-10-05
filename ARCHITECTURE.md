@@ -66,18 +66,19 @@ src/
 
 ## UX polish layer (2026-08-28)
 
-Five experience features added on top of the matching pipeline, all following the same domain/feature split:
+Six experience features added on top of the matching pipeline, all following the same domain/feature split:
 
 - **Photo-less card placeholders** — `domain/place-visuals.ts` maps every display category to a pastel gradient + emoji; `PlaceThumbnail` renders it until a real image loads (or when none exists).
 - **Share cards** — `layout.tsx` metadata carries OpenGraph/Twitter tags pointing at `GET /og` (`src/app/og/route.tsx`), a `next/og` ImageResponse (1200×630: brand gradient + mascot + Korean headline, fonts read from `@fontsource/noto-sans-kr` woff subsets). `NEXT_PUBLIC_SITE_URL` overrides the default `https://gggo.blog` base.
 - **Floating quick nav** — `features/navigation/FloatingQuickNav.tsx`: scroll-to-top (appears past 480px) + map/list view toggle mirroring the results header segmented control.
 - **One-click filter reset** — `domain/search-filters.ts` defines the empty state and `hasActiveFilters`; the match-bar shows a reset button whenever any filter is active, and region/district selects have inline ✕ clear buttons.
 - **Recently viewed** — `domain/viewed-history.ts` keeps the last 4 interacted places in localStorage (dedup, newest-first, observable via `subscribeViewedHistory` for `useSyncExternalStore`); chips under the match-bar jump to the card when visible, otherwise re-apply the stored region+category filters.
+- **Companion dog mascot** — `features/companion/CompanionDog.tsx` is a page-level mascot fixed bottom-left *above* the mobile action bars (so it never covers the trip tray). It recommends a place from `domain/companion.ts` (recently viewed first, then a bounded sample of catalog-confirmed places) in a bubble that is `pointer-events: none`, pettable on click, and persists hide/pet-count state in localStorage under `pet_travel_companion_v1`.
 
 ## The matching pipeline
 
 1. **Ingest** — provider adapters fetch external sources, zod-validate, and store a *snapshot* (`source_snapshots` + `places` rows). Snapshots are append-only; the latest successful one is canonical.
-2. **Normalize** — `normalize.ts` derives tri-state facts (`smallDog`/`mediumDog`/`largeDog` ∈ true/false/unknown) from the policy text, with evidence and `evidenceClass` (e.g. `inferred-from-general-admission` when "동반 가능" without size limits is promoted).
+2. **Normalize** — `normalize.ts` derives tri-state facts (`smallDog`/`mediumDog`/`largeDog` ∈ true/false/unknown) from the policy text, with evidence and `evidenceClass`. Generic "동반 가능" without size-specific wording proves only the small band; an explicit all-breeds phrase ("전 견종"/"모든 견종") proves every band. Restrictions always win over positive facts.
 3. **Evaluate** — `evaluatePlace` ANDs the selected hard constraints; `buildCatalogPage` (`catalog.ts`) layers region text search, category filters, preparation filters, pagination, and zero-result relaxation on top.
 4. **Disclose** — result cards show the proof panel; auxiliary data (Kakao keyword results, rural villages/farmstays) is rendered in separate sections that never claim tri-state confirmation.
 
@@ -133,6 +134,10 @@ Pet-policy inheritance (`farmstay_pet_policies`, migration v10): a farmstay inhe
 - Owner portal: `/api/owner/*`, `/api/places/*/closures`; auth: `/api/auth/*` (Google)
 
 Map handoff pattern: the app does not embed maps. Places link out to Kakao Map deep links (`https://map.kakao.com/link/map/{name},{lat},{lng}`) consistently across result cards, trails, rural cards, and course timeline.
+
+## Security headers
+
+`next.config.ts` emits `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), geolocation=(self), microphone=()` on every response, so the app is secure and verifiable when served directly (`next start`, e2e). The Apache vhost additionally emits CSP, HSTS, and X-Frame-Options, and its own `Permissions-Policy` overrides the app value in production. `poweredByHeader: false` removes `X-Powered-By`.
 
 ## Verification
 
