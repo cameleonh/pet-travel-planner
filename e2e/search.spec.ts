@@ -37,8 +37,10 @@ test("click-only strict search shows proof and safe recovery", async ({ page }) 
   await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
 
   await page.getByLabel("대형견").check();
-  await expect(page.locator(".result-count")).toHaveText("1곳");
-  await expect(page.getByRole("heading", { name: "솔바람 산책정원" })).toBeVisible();
+  // A place that states only small/medium admission leaves the large band
+  // unverified under strict matching (generic "동반 가능" proves the small band only).
+  await expect(page.locator(".result-count")).toHaveText("0곳");
+  await expect(page.getByRole("heading", { name: "가능이 확인된 장소가 아직 없어요" })).toBeVisible();
 });
 
 test("narrow viewport keeps content inside the viewport width", async ({ page }) => {

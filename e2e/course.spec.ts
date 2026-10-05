@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// The app uses smooth scrolling and enter animations, which make Playwright's
+// element-stability checks non-deterministic. The product fully supports reduced
+// motion, so run this flow in that mode to keep interactions stable and repeatable.
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+});
+
 async function finishNearbyReview(page: Page): Promise<void> {
   const nearby = page.locator(".nearby-disclosure");
   if (await nearby.getAttribute("open") === null) await nearby.locator("summary").click();
