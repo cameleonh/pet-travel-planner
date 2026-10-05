@@ -3465,7 +3465,7 @@ footer { max-width: 1240px; }
 .companion-dog {
   position: fixed;
   left: 20px;
-  bottom: calc(20px + env(safe-area-inset-bottom));
+  bottom: calc(92px + env(safe-area-inset-bottom));
   z-index: 75;
   display: flex;
   flex-direction: column;
@@ -3488,7 +3488,11 @@ footer { max-width: 1240px; }
   box-shadow: 0 12px 32px rgb(15 23 35 / 18%);
   font-size: 13px;
   line-height: 1.45;
+  /* Informational only: never block clicks on the page behind it. */
+  pointer-events: none;
 }
+.companion-bubble-close,
+.companion-bubble-cta { pointer-events: auto; }
 .companion-bubble::after {
   content: "";
   position: absolute;
@@ -3586,7 +3590,7 @@ footer { max-width: 1240px; }
 }
 
 @media (max-width: 767px) {
-  .companion-dog { left: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .companion-dog { left: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); }
   .companion-pet { width: 64px; height: 64px; }
 }
 
