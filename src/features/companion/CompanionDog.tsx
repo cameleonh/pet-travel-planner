@@ -12,19 +12,18 @@ import {
   type CompanionCandidate,
 } from "@/domain/companion";
 import { getViewedHistorySnapshot, subscribeViewedHistory } from "@/domain/viewed-history";
-import type { CompanionDogDriver } from "@/features/companion/dog-driver";
 import { useLang } from "@/i18n/LangContext";
 import { t, type Dictionary } from "@/i18n/dictionary";
 
 const BUBBLE_FIRST_DELAY_MS = 6_000;
 const BUBBLE_INTERVAL_MS = 18_000;
 const HAPPY_DURATION_MS = 2_200;
-const WALK_INTERVAL_MS = 17_000;
-const WALK_DURATION_MS = 3_500;
-const MASCOT_IDLE = "/gachi-galgae-mascot.png";
-const MASCOT_HAPPY = "/gachi-galgae-mascot-ribbon.png";
+const MEDIA_PNG = "/companion/dog-loop.png";
+const MEDIA_WEBM = "/companion/dog-loop.webm";
+const MEDIA_WEBP = "/companion/dog-loop.webp";
 
 type Bubble = { kind: "place" | "pet" | "tip"; text: string; meta?: string; href?: string };
+type Media = "video" | "webp" | "static";
 
 function petLine(petCount: number, dict: Dictionary): string {
   const slot = ((Math.max(1, petCount) - 1) % 3);
@@ -37,15 +36,16 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function hasWebGL(): boolean {
-  if (typeof document === "undefined") return false;
-  const probe = document.createElement("canvas");
-  try {
-    const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
-    return gl !== null;
-  } catch {
-    return false;
-  }
+function subscribeNoop(): () => void {
+  return () => {};
+}
+
+// WebM VP9 alpha plays on Chromium/Firefox/Edge/Android; Safari cannot, so it
+// falls back to the animated WebP loop (alpha), and reduced motion to a still.
+function pickMedia(): Media {
+  if (typeof document === "undefined" || prefersReducedMotion()) return "static";
+  const probe = document.createElement("video");
+  return probe.canPlayType('video/webm; codecs="vp9"') !== "" ? "video" : "webp";
 }
 
 export function CompanionDog({ candidates }: { candidates: readonly CompanionCandidate[] }) {
@@ -57,10 +57,7 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
   const [happy, setHappy] = useState(false);
   const [bubble, setBubble] = useState<Bubble | null>(null);
   const [petAnnouncement, setPetAnnouncement] = useState("");
-  const [dog3d, setDog3d] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const driverRef = useRef<CompanionDogDriver | null>(null);
-  const happyRef = useRef(false);
+  const media = useSyncExternalStore<Media>(subscribeNoop, pickMedia, () => "static");
   const stepRef = useRef(0);
   const happyTimerRef = useRef<number | null>(null);
 
@@ -70,68 +67,9 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
     };
   }, []);
 
-  // Progressive 3D enhancement: only when motion is allowed and WebGL is
-  // available; the illustrated PNG stays as the fallback in every other case.
-  useEffect(() => {
-    if (prefs.hidden || prefersReducedMotion() || !hasWebGL()) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    let cancelled = false;
-    void (async () => {
-      const { CompanionDogDriver } = await import("@/features/companion/dog-driver");
-      const driver = await CompanionDogDriver.create(canvas);
-      if (cancelled || !driver) {
-        driver?.dispose();
-        return;
-      }
-      driverRef.current = driver;
-      setDog3d(true);
-    })().catch(() => {});
-    return () => {
-      cancelled = true;
-      driverRef.current?.dispose();
-      driverRef.current = null;
-      setDog3d(false);
-    };
-  }, [prefs.hidden]);
-
-  // Mood follows the pet reaction; idle otherwise.
-  useEffect(() => {
-    happyRef.current = happy;
-    driverRef.current?.setMood(happy ? "happy" : "idle");
-  }, [happy, dog3d]);
-
-  // Occasional ambient wander.
-  useEffect(() => {
-    if (!dog3d || prefs.hidden || prefersReducedMotion()) return;
-    const interval = window.setInterval(() => {
-      if (happyRef.current) return;
-      const driver = driverRef.current;
-      if (!driver) return;
-      driver.setMood("walk");
-      window.setTimeout(() => {
-        if (!happyRef.current) driverRef.current?.setMood("idle");
-      }, WALK_DURATION_MS);
-    }, WALK_INTERVAL_MS);
-    return () => window.clearInterval(interval);
-  }, [dog3d, prefs.hidden]);
-
-  // Pause the GPU loop while the tab is hidden.
-  useEffect(() => {
-    const onVisibility = () => {
-      const driver = driverRef.current;
-      if (!driver) return;
-      if (document.visibilityState === "visible") driver.resume();
-      else driver.pause();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
-
   // Ambient place recommendations: only when visible and motion is allowed.
   useEffect(() => {
-    if (prefs.hidden) return;
-    if (prefersReducedMotion()) return;
+    if (prefs.hidden || prefersReducedMotion()) return;
     const showNext = () => {
       const item = pickRecommendation(queue, stepRef.current);
       stepRef.current += 1;
@@ -203,11 +141,14 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
           onClick={pet}
           aria-label={dict.companionPet}
         >
-          <canvas ref={canvasRef} className="companion-canvas" data-ready={dog3d} aria-hidden="true" />
-          {!dog3d ? (
-            /* eslint-disable-next-line @next/next/no-img-element -- static mascot fallback */
-            <img src={happy ? MASCOT_HAPPY : MASCOT_IDLE} alt="" width={96} height={96} />
-          ) : null}
+          {media === "video" ? (
+            <video className="companion-media" autoPlay loop muted playsInline poster={MEDIA_PNG} aria-hidden="true">
+              <source src={MEDIA_WEBM} type="video/webm" />
+            </video>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element -- animated WebP / still fallback */
+            <img className="companion-media" src={media === "webp" ? MEDIA_WEBP : MEDIA_PNG} alt="" width={276} height={276} />
+          )}
         </button>
         <button type="button" className="companion-hide" onClick={hide} aria-label={dict.companionHide}>
           <span aria-hidden="true">×</span>

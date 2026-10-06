@@ -73,7 +73,7 @@ Six experience features added on top of the matching pipeline, all following the
 - **Floating quick nav** — `features/navigation/FloatingQuickNav.tsx`: scroll-to-top (appears past 480px) + map/list view toggle mirroring the results header segmented control.
 - **One-click filter reset** — `domain/search-filters.ts` defines the empty state and `hasActiveFilters`; the match-bar shows a reset button whenever any filter is active, and region/district selects have inline ✕ clear buttons.
 - **Recently viewed** — `domain/viewed-history.ts` keeps the last 4 interacted places in localStorage (dedup, newest-first, observable via `subscribeViewedHistory` for `useSyncExternalStore`); chips under the match-bar jump to the card when visible, otherwise re-apply the stored region+category filters.
-- **Companion dog mascot** — `features/companion/CompanionDog.tsx` is a page-level mascot fixed bottom-left *above* the mobile action bars (so it never covers the trip tray). It recommends a place from `domain/companion.ts` (recently viewed first, then a bounded sample of catalog-confirmed places) in a bubble that is `pointer-events: none`, pettable on click, and persists hide/pet-count state in localStorage under `pet_travel_companion_v1`. On WebGL-capable, motion-allowed browsers it lazily upgrades to a three.js rendering of the CC0 dog model (`public/companion/dog.glb` via `features/companion/dog-driver.ts`; idle + ambient walk + a one-shot reaction from `dog-animation.ts`), and stays on the illustrated PNG everywhere else.
+- **Companion dog mascot** — `features/companion/CompanionDog.tsx` is a page-level mascot fixed bottom-left *above* the mobile action bars (so it never covers the trip tray). It recommends a place from `domain/companion.ts` (recently viewed first, then a bounded sample of catalog-confirmed places) in a bubble that is `pointer-events: none`, pettable on click, and persists hide/pet-count state in localStorage under `pet_travel_companion_v1`. The visual is a realistic dog loop (`public/companion/dog-loop.*`, Mixkit-licensed): VP9-alpha WebM where supported, animated WebP (alpha) on Safari, and a still PNG for reduced motion.
 
 ## The matching pipeline
 
@@ -137,7 +137,7 @@ Map handoff pattern: the app does not embed maps. Places link out to Kakao Map d
 
 ## Security headers
 
-`next.config.ts` emits `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), geolocation=(self), microphone=()` on every response, so the app is secure and verifiable when served directly (`next start`, e2e). The Apache vhost additionally emits CSP, HSTS, and X-Frame-Options, and delegates the three app headers (single source of truth). `poweredByHeader: false` removes `X-Powered-By`. The vhost CSP must allow `connect-src 'self' blob:`: the companion's three.js loader fetches the GLB's embedded texture through a `blob:` URL, and `connect-src` (not `img-src`) governs that fetch.
+`next.config.ts` emits `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), geolocation=(self), microphone=()` on every response, so the app is secure and verifiable when served directly (`next start`, e2e). The Apache vhost additionally emits CSP, HSTS, and X-Frame-Options, and delegates the three app headers (single source of truth). `poweredByHeader: false` removes `X-Powered-By`.
 
 ## Verification
 

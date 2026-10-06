@@ -1,9 +1,13 @@
-Companion dog model
+Companion dog media
 ===================
 
-dog.glb — "Dog" by Quaternius (Ultimate Animated Animal Pack)
-Source: https://poly.pizza/m/2kUk0QqpCg  (mirror of https://quaternius.com/packs/ultimateanimatedanimal.html)
-License: CC0 1.0 Universal (Public Domain Dedication) — https://creativecommons.org/publicdomain/zero/1.0/
-Animations used by the companion: Idle, Walk, Headbutt (played via dog-driver.ts).
+dog-loop.webm / dog-loop.webp / dog-loop.png — "Little white puppy looking around"
+Source: https://mixkit.co/free-stock-video/little-white-puppy-looking-around-33161/
+License: Mixkit Stock Video Free License — free for commercial and non-commercial use,
+no attribution required; the clip itself may not be redistributed as a standalone stock asset.
+Processing: background removed (rembg, isnet-general-use), trimmed to a 2.5s ping-pong loop,
+scaled to 260px; encoded to VP9-alpha WebM (Chromium/Firefox/Edge/Android) and animated
+WebP with alpha (Safari); dog-loop.png is the reduced-motion / first-frame still.
 
-CC0 requires no attribution; this note is kept for provenance.
+The illustrated mascot (public/gachi-galgae-mascot*.png) remains the brand mark for the
+header and the social card.
