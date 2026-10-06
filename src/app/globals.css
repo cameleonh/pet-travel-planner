@@ -3357,7 +3357,7 @@ footer { max-width: 1240px; }
 }
 .region-course-chip-count {
   font-size: 0.6875rem;
-  opacity: 0.65;
+  opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3530,6 +3530,7 @@ footer { max-width: 1240px; }
 .companion-bubble-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .companion-pet {
+  position: relative;
   display: grid;
   place-items: center;
   width: 78px;
@@ -3539,6 +3540,14 @@ footer { max-width: 1240px; }
   background: transparent;
   cursor: pointer;
 }
+.companion-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 14px rgb(15 23 35 / 22%));
+}
+.companion-canvas[data-ready="false"] { opacity: 0; }
 .companion-pet img {
   width: 100%;
   height: 100%;

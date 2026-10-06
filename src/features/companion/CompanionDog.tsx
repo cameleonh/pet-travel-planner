@@ -12,12 +12,15 @@ import {
   type CompanionCandidate,
 } from "@/domain/companion";
 import { getViewedHistorySnapshot, subscribeViewedHistory } from "@/domain/viewed-history";
+import type { CompanionDogDriver } from "@/features/companion/dog-driver";
 import { useLang } from "@/i18n/LangContext";
 import { t, type Dictionary } from "@/i18n/dictionary";
 
 const BUBBLE_FIRST_DELAY_MS = 6_000;
 const BUBBLE_INTERVAL_MS = 18_000;
 const HAPPY_DURATION_MS = 2_200;
+const WALK_INTERVAL_MS = 17_000;
+const WALK_DURATION_MS = 3_500;
 const MASCOT_IDLE = "/gachi-galgae-mascot.png";
 const MASCOT_HAPPY = "/gachi-galgae-mascot-ribbon.png";
 
@@ -30,6 +33,21 @@ function petLine(petCount: number, dict: Dictionary): string {
   return dict.companionPet1;
 }
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function hasWebGL(): boolean {
+  if (typeof document === "undefined") return false;
+  const probe = document.createElement("canvas");
+  try {
+    const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
+    return gl !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function CompanionDog({ candidates }: { candidates: readonly CompanionCandidate[] }) {
   const { dict, lang } = useLang();
   const recent = useSyncExternalStore(subscribeViewedHistory, getViewedHistorySnapshot, getViewedHistorySnapshot);
@@ -39,6 +57,10 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
   const [happy, setHappy] = useState(false);
   const [bubble, setBubble] = useState<Bubble | null>(null);
   const [petAnnouncement, setPetAnnouncement] = useState("");
+  const [dog3d, setDog3d] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const driverRef = useRef<CompanionDogDriver | null>(null);
+  const happyRef = useRef(false);
   const stepRef = useRef(0);
   const happyTimerRef = useRef<number | null>(null);
 
@@ -48,10 +70,68 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
     };
   }, []);
 
+  // Progressive 3D enhancement: only when motion is allowed and WebGL is
+  // available; the illustrated PNG stays as the fallback in every other case.
+  useEffect(() => {
+    if (prefs.hidden || prefersReducedMotion() || !hasWebGL()) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    void (async () => {
+      const { CompanionDogDriver } = await import("@/features/companion/dog-driver");
+      const driver = await CompanionDogDriver.create(canvas);
+      if (cancelled || !driver) {
+        driver?.dispose();
+        return;
+      }
+      driverRef.current = driver;
+      setDog3d(true);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+      driverRef.current?.dispose();
+      driverRef.current = null;
+      setDog3d(false);
+    };
+  }, [prefs.hidden]);
+
+  // Mood follows the pet reaction; idle otherwise.
+  useEffect(() => {
+    happyRef.current = happy;
+    driverRef.current?.setMood(happy ? "happy" : "idle");
+  }, [happy, dog3d]);
+
+  // Occasional ambient wander.
+  useEffect(() => {
+    if (!dog3d || prefs.hidden || prefersReducedMotion()) return;
+    const interval = window.setInterval(() => {
+      if (happyRef.current) return;
+      const driver = driverRef.current;
+      if (!driver) return;
+      driver.setMood("walk");
+      window.setTimeout(() => {
+        if (!happyRef.current) driverRef.current?.setMood("idle");
+      }, WALK_DURATION_MS);
+    }, WALK_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [dog3d, prefs.hidden]);
+
+  // Pause the GPU loop while the tab is hidden.
+  useEffect(() => {
+    const onVisibility = () => {
+      const driver = driverRef.current;
+      if (!driver) return;
+      if (document.visibilityState === "visible") driver.resume();
+      else driver.pause();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   // Ambient place recommendations: only when visible and motion is allowed.
   useEffect(() => {
     if (prefs.hidden) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     const showNext = () => {
       const item = pickRecommendation(queue, stepRef.current);
       stepRef.current += 1;
@@ -123,8 +203,11 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
           onClick={pet}
           aria-label={dict.companionPet}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- static mascot asset */}
-          <img src={happy ? MASCOT_HAPPY : MASCOT_IDLE} alt="" width={96} height={96} />
+          <canvas ref={canvasRef} className="companion-canvas" data-ready={dog3d} aria-hidden="true" />
+          {!dog3d ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- static mascot fallback */
+            <img src={happy ? MASCOT_HAPPY : MASCOT_IDLE} alt="" width={96} height={96} />
+          ) : null}
         </button>
         <button type="button" className="companion-hide" onClick={hide} aria-label={dict.companionHide}>
           <span aria-hidden="true">×</span>

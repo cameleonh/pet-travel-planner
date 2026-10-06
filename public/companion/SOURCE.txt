@@ -1,0 +1,9 @@
+Companion dog model
+===================
+
+dog.glb — "Dog" by Quaternius (Ultimate Animated Animal Pack)
+Source: https://poly.pizza/m/2kUk0QqpCg  (mirror of https://quaternius.com/packs/ultimateanimatedanimal.html)
+License: CC0 1.0 Universal (Public Domain Dedication) — https://creativecommons.org/publicdomain/zero/1.0/
+Animations used by the companion: Idle, Walk, Headbutt (played via dog-driver.ts).
+
+CC0 requires no attribution; this note is kept for provenance.
