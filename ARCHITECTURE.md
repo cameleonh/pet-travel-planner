@@ -137,7 +137,7 @@ Map handoff pattern: the app does not embed maps. Places link out to Kakao Map d
 
 ## Security headers
 
-`next.config.ts` emits `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), geolocation=(self), microphone=()` on every response, so the app is secure and verifiable when served directly (`next start`, e2e). The Apache vhost additionally emits CSP, HSTS, and X-Frame-Options, and delegates the three app headers (single source of truth). `poweredByHeader: false` removes `X-Powered-By`.
+`next.config.ts` emits `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), geolocation=(self), microphone=()` on every response, so the app is secure and verifiable when served directly (`next start`, e2e). The Apache vhost additionally emits CSP, HSTS, and X-Frame-Options, and delegates the three app headers (single source of truth). `poweredByHeader: false` removes `X-Powered-By`. The vhost CSP must allow `connect-src 'self' blob:`: the companion's three.js loader fetches the GLB's embedded texture through a `blob:` URL, and `connect-src` (not `img-src`) governs that fetch.
 
 ## Verification
 
