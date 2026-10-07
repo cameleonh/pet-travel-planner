@@ -139,6 +139,10 @@ Map handoff pattern: the app does not embed maps. Places link out to Kakao Map d
 
 `next.config.ts` emits `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), geolocation=(self), microphone=()` on every response, so the app is secure and verifiable when served directly (`next start`, e2e). The Apache vhost additionally emits CSP, HSTS, and X-Frame-Options, and delegates the three app headers (single source of truth). `poweredByHeader: false` removes `X-Powered-By`.
 
+## Deployment note
+
+The home page is statically revalidated (`revalidate = 3600`) and reads the catalog snapshot **at build time**. The deploy build must therefore run with `DATA_PROVIDER=database` and a `DATABASE_PATH` the build user can read (the production DB is `www-data`-owned, mode 640). Otherwise the page silently bakes the fixture fallback (2 places) into its server HTML while the runtime API still serves the database. The runtime service (`gachi-galgae.service`) reads the live DB as `www-data` with an absolute `DATABASE_PATH`.
+
 ## Verification
 
 ```
