@@ -58,8 +58,14 @@ export function CompanionDog({ candidates }: { candidates: readonly CompanionCan
   const [bubble, setBubble] = useState<Bubble | null>(null);
   const [petAnnouncement, setPetAnnouncement] = useState("");
   const media = useSyncExternalStore<Media>(subscribeNoop, pickMedia, () => "static");
+  // Rotate through the recommendation queue; seed a random start on mount so each
+  // visit recommends a different place first (no immediate repeats until it cycles).
   const stepRef = useRef(0);
   const happyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    stepRef.current = Math.floor(Math.random() * 991);
+  }, []);
 
   useEffect(() => {
     return () => {
