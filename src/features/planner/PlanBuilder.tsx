@@ -272,6 +272,12 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
   }, [tripDate, lang]);
   const finalArrival = formatClock(schedule.at(-1)?.arrivalAt ?? null);
   const incompleteRouteCount = routes.filter((route) => route.routeMode === "approximate" || route.durationMinutes === null).length;
+  // A confirmed course is ready to show even with a single saved place: there
+  // are no inter-place legs, but the plan report, navigation hand-off, and
+  // print/PDF output must still be available.
+  const routesReady = routes.length > 0;
+  const isSinglePlace = selectedPlaces.length === 1;
+  const planReady = courseConfirmed && (routesReady || isSinglePlace);
   const resetGeneratedPlan = () => {
     setRoutes([]);
     setDepartureRecommendation(null);
@@ -378,7 +384,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
           : "Arrival times are estimates from travel and stay durations. Check each venue's hours and closing days, and reconfirm current operation and pet policy before visiting."}
       </p>
 
-      {courseConfirmed && routes.length > 0 ? (
+      {courseConfirmed && routesReady ? (
         <section className={`departure-recommendation ${departureRecommendation ? "forecast" : "selected-time"}`} aria-label={departureRecommendation ? dict.planTrafficRecommendation : dict.planPlannedDeparture}>
           <div className="departure-recommendation-heading">
             <p>{departureRecommendation ? dict.planTrafficRecommendation : dict.planPlannedDeparture}</p>
@@ -396,7 +402,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
         </section>
       ) : null}
 
-      {courseConfirmed && routes.length > 0 ? (
+      {planReady ? (
         <section className="plan-print-overview" aria-labelledby="plan-print-overview-title">
           <div className="plan-report-heading">
             <div>
@@ -534,8 +540,9 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
       {error ? <p className="plan-error" role="alert">{error}</p> : null}
       {notice ? <p className="plan-notice" role="status">{notice}</p> : null}
 
-      {courseConfirmed && routes.length > 0 ? (
+      {planReady ? (
         <div className="plan-routes" ref={resultsRef}>
+          {routesReady ? <>
           <div className="plan-routes-heading"><span>{dict.planSchedule}</span><h3>{dict.planRoutes}</h3></div>
           {schedule.map(({ route, departureAt, arrivalAt, durationMinutes }, i) => {
             const departureClock = formatClock(departureAt);
@@ -582,6 +589,7 @@ export function PlanBuilder({ selectedPlaces, selectedActivities, generateReques
               </div>
             </article>;
           })}
+          </> : null}
           <SmartChecklist places={selectedPlaces} />
           <div className="plan-actions">
             <button type="button" onClick={() => setShareDialogOpen(true)} className="btn-save" style={{ marginRight: "0.5rem" }}>

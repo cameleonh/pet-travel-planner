@@ -332,3 +332,36 @@ test("print layout contains only the selected travel plan", async ({ page }) => 
   await expect(page.locator("#plan-builder-title")).toHaveCSS("font-size", "32px");
   await expect(page.locator(".print-button")).toBeHidden();
 });
+
+test("single-place course confirmation still yields a navigable, printable plan", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: /여행에 담기/ }).first().click();
+  await page.locator(".selection-complete-button").click();
+
+  const courseBuilder = page.getByRole("region", { name: "모두 골랐다면 코스를 확정하세요" });
+  await courseBuilder.getByRole("button", { name: "추가 선택은 선택 사항 · 1곳 코스 만들기" }).click();
+
+  const plan = page.locator(".trip-board-plan");
+  await expect(plan).toBeVisible();
+  await expect(page.locator(".plan-place-list li")).toHaveCount(1);
+  // The single stop must still expose a navigation hand-off.
+  await expect(plan.locator(".plan-single-navi .navi-btn.kakao")).toBeVisible();
+  await expect(plan.locator(".plan-single-navi .navi-btn.naver")).toBeVisible();
+
+  // And the plan document output (print / PDF) must still be reachable.
+  const printButton = plan.getByRole("button", { name: "계획서 인쇄 / PDF 저장" });
+  await expect(printButton).toBeVisible();
+  await printButton.click();
+  const printDialog = page.getByRole("alertdialog", { name: "여행 계획서가 준비됐어요" });
+  await expect(printDialog).toBeVisible();
+  await printDialog.getByRole("button", { name: "닫기" }).click();
+  await expect(printDialog).toHaveCount(0);
+
+  // The print layout carries the one-stop report.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".plan-print-overview")).toBeVisible();
+  await expect(page.locator(".plan-report-table tbody tr")).toHaveCount(1);
+  await expect(page.locator(".plan-place-list li")).toHaveCount(1);
+  await expect(page.locator("#plan-builder-title")).toContainText("1곳");
+});
