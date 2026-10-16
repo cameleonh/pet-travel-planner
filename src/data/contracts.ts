@@ -14,7 +14,13 @@ export const rawPlaceSchema = z.object({
   petDetailStatus: z.enum(["fetched", "not-fetched", "failed"]).optional(),
 });
 export const auxiliaryPlaceSchema = z.object({ id: z.string().min(1), name: z.string().min(1), category: z.enum(["museum", "park", "parking", "veterinary", "toilet"]), address: z.string().min(1), coordinates: coordinateSchema, petStatus: z.enum(["confirmed", "unknown"]), evidence: sourceEvidenceSchema, phone: z.string().min(1).optional(), weekdayHours: z.string().min(1).optional(), saturdayHours: z.string().min(1).optional(), sundayHours: z.string().min(1).optional(), closingDay: z.string().min(1).optional(), usageFee: z.string().min(1).optional() });
-export const providerSnapshotSchema = z.object({ provider: z.enum(["fixture", "tour-api"]), fetchedAt: z.string().datetime(), sourceTotalCount: z.number().int().nonnegative().optional(), places: z.array(rawPlaceSchema), auxiliaryPlaces: z.array(auxiliaryPlaceSchema) });
+export const providerSnapshotSchema = z.object({ provider: z.enum(["fixture", "tour-api"]), fetchedAt: z.string().datetime(), sourceTotalCount: z.number().int().nonnegative().optional(), snapshotId: z.number().int().optional(), checksum: z.string().regex(/^[0-9a-f]{64}$/).optional(), places: z.array(rawPlaceSchema), auxiliaryPlaces: z.array(auxiliaryPlaceSchema) });
 export type RawPlace = z.infer<typeof rawPlaceSchema>;
 export type AuxiliaryPlace = z.infer<typeof auxiliaryPlaceSchema>;
 export type ProviderSnapshot = z.infer<typeof providerSnapshotSchema>;
+
+export function buildDataVersion(snapshot: Pick<ProviderSnapshot, "provider" | "fetchedAt" | "snapshotId" | "checksum">): string {
+  return snapshot.checksum && snapshot.snapshotId !== undefined
+    ? `v1-${snapshot.snapshotId}-${snapshot.checksum.slice(0, 12)}`
+    : `v1-${snapshot.provider}-${snapshot.fetchedAt}`;
+}

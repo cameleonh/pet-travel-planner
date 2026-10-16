@@ -28,11 +28,13 @@ describe("SQLite place repository", () => {
     const source = await new FixturePlaceProvider().getSnapshot();
 
     const result = await syncProviderSnapshot(new FixturePlaceProvider(), repository);
-    const restored = repository.loadLatestSnapshot();
+    const { checksum, snapshotId, ...restored } = repository.loadLatestSnapshot()!;
 
     expect(repository.getMigrationVersions()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(result).toMatchObject({ places: 2, auxiliaryPlaces: 5 });
     expect(restored).toEqual(source);
+    expect(checksum).toEqual(expect.any(String));
+    expect(snapshotId).toEqual(expect.any(Number));
     expect(repository.getCounts()).toEqual({ successfulRuns: 1, snapshots: 1, places: 2, auxiliaryPlaces: 5 });
     repository.close();
   });
@@ -70,6 +72,9 @@ describe("SQLite place repository", () => {
     expect(repository.getCounts()).toMatchObject({ successfulRuns: 2, snapshots: 2, places: 4 });
     expect(repository.loadLatestSnapshot()?.fetchedAt).toBe("2026-07-16T10:00:00.000Z");
     expect(first?.places).toHaveLength(2);
+    const latest = repository.loadLatestSnapshot();
+    expect(latest?.snapshotId).toEqual(expect.any(Number));
+    expect(latest?.checksum).toEqual(expect.any(String));
     repository.close();
   });
 

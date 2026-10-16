@@ -1318,6 +1318,7 @@ body {
 .place-top strong { color: var(--brand-strong); }
 .place-card h3 { margin-top: 10px; font-size: 20px; line-height: 1.35; }
 .place-card .address { min-height: 38px; margin-top: 3px; }
+.data-source-badge { display: inline-block; margin: 4px 0 0; padding: 3px 9px; border-radius: 999px; background: var(--surface-subtle); color: var(--brand-strong); font-size: 11px; font-weight: 800; }
 .preparation-list { border: 0; border-radius: 12px; }
 .proof-preview span { border-radius: 999px; }
 .plan-add-button {

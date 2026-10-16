@@ -5,6 +5,7 @@ const ko = {
   officialData: "관광공사",
   sampleData: "샘플",
   places: "곳",
+  ktoRegistered: "한국관광공사 등록 장소",
   // intro
   eyebrow: "반려견과 함께 갈 수 있는 곳",
   homeLabel: "같이갈개 홈",
@@ -395,6 +396,7 @@ const en: Dictionary = {
   officialData: "KTO",
   sampleData: "Sample",
   places: "places",
+  ktoRegistered: "KTO-registered place",
   eyebrow: "Places you can go with your dog",
   homeLabel: "Gachi Galgae home",
   h1: "A more precious trip together — Gachi Galgae",
@@ -757,6 +759,7 @@ const zh: Dictionary = {
   officialData: "韩国观光公社",
   sampleData: "示例",
   places: "处",
+  ktoRegistered: "韩国旅游公社登记场所",
   eyebrow: "可以和狗狗一起去的地方",
   homeLabel: "一起走吧首页",
   h1: "更珍贵的同行之旅 — 一起走吧",

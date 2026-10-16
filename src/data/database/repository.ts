@@ -221,13 +221,13 @@ export class SqlitePlaceRepository {
 
   loadLatestSnapshot(): ProviderSnapshot | null {
     const latest = this.db.prepare(`
-      SELECT s.id, s.provider, s.fetched_at, s.source_total_count
+      SELECT s.id, s.provider, s.fetched_at, s.source_total_count, s.checksum_sha256
       FROM sync_runs r
       JOIN source_snapshots s ON s.id = r.snapshot_id
       WHERE r.status = 'success'
       ORDER BY r.finished_at DESC, r.id DESC
       LIMIT 1
-    `).get() as { id: number; provider: ProviderSnapshot["provider"]; fetched_at: string; source_total_count: number } | undefined;
+    `).get() as { id: number; provider: ProviderSnapshot["provider"]; fetched_at: string; source_total_count: number; checksum_sha256: string | null } | undefined;
     if (!latest) return null;
 
     const placeRows = this.db.prepare(`
@@ -251,6 +251,8 @@ export class SqlitePlaceRepository {
       provider: latest.provider,
       fetchedAt: latest.fetched_at,
       sourceTotalCount: latest.source_total_count,
+      snapshotId: latest.id,
+      checksum: latest.checksum_sha256 ?? undefined,
       places: placeRows.map((row) => ({
         id: row.place_id,
         name: row.name,

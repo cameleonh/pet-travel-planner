@@ -89,6 +89,7 @@ export function ResultCard({ result, dangerousDog = false, closureStatus, access
         <div className="place-top"><span>{displayCategoryIcon[displayCat]} {displayCategoryLabel[displayCat]}</span><strong>{isCatalogResult ? dict.beforeSelection : dict.allConditionsMet}</strong></div>
         <h3>{displayName}</h3>
         <p className="address">{displayAddress}</p>
+        {result.place.id.startsWith("tour-api:") ? <p className="data-source-badge">✓ {t(lang as "ko" | "en" | "zh", "ktoRegistered")}</p> : null}
         {closureStatus ? <div className="closure-status" aria-label={dict.ownerClosure}><strong>{closureStatus.closures.length > 0 ? dict.ownerClosure : dict.noClosure}</strong>{closureStatus.closures.length > 0 ? <span>{closureStatus.closures.slice(0, 2).map((closure) => closure.closureKind === "weekly" && closure.weekday !== null ? `매주 ${["일", "월", "화", "수", "목", "금", "토"][closure.weekday]}요일 · ${closure.reason}` : `${closure.closureDate ?? "—"} · ${closure.reason}`).join(" / ")}</span> : <span>{dict.noClosureNote}</span>}</div> : null}
         {preparations.length > 0 ? (
           <div className="preparation-list" aria-label={dict.visitPrep}>
